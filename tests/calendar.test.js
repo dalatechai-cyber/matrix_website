@@ -100,7 +100,8 @@ function request(app, method, path, bodyOrQuery) {
 // Known stylist used across tests (still employed)
 const VALID_STYLIST_ID = 'anand';
 const VALID_CALENDAR_ID = 'c_2af068656b60e27cd9063a78b04dffbe24f1aab4543e50c2875f132dc4b12e17@group.calendar.google.com';
-const VALID_DATE = '2026-03-10';
+const VALID_DATE = '2026-03-10';        // Monday  → Mon–Sat hours: 10:00–20:00
+const VALID_DATE_SUNDAY = '2026-03-09'; // Sunday  → Sun hours:     11:00–19:00
 
 // ---------------------------------------------------------------------------
 // GET /api/calendar/available-slots
@@ -143,10 +144,10 @@ test('available-slots: 200 with all slots free when no busy periods', async () =
   assert.equal(status, 200);
   assert.equal(body.date, VALID_DATE);
   assert.equal(body.stylistId, VALID_STYLIST_ID);
-  // Slots 09:00–18:00 → 10 slots
+  // VALID_DATE is Monday → Mon–Sat hours: slots 10:00–19:00 → 10 slots
   assert.equal(body.availableSlots.length, 10);
-  assert.ok(body.availableSlots.includes('09:00'));
-  assert.ok(body.availableSlots.includes('18:00'));
+  assert.ok(body.availableSlots.includes('10:00'));
+  assert.ok(body.availableSlots.includes('19:00'));
 });
 
 test('available-slots: 200 with busy slot removed', async () => {
@@ -167,8 +168,25 @@ test('available-slots: 200 with busy slot removed', async () => {
   const { status, body } = await request(app, 'GET', '/api/calendar/available-slots', { date: VALID_DATE, stylistId: VALID_STYLIST_ID });
   assert.equal(status, 200);
   assert.ok(!body.availableSlots.includes('10:00'), '10:00 should be busy');
-  assert.ok(body.availableSlots.includes('09:00'));
   assert.ok(body.availableSlots.includes('11:00'));
+  assert.ok(body.availableSlots.includes('19:00'));
+});
+
+test('available-slots: 200 Sunday hours (11:00–19:00) with all slots free', async () => {
+  calendarStub._freebusyError = null;
+  calendarStub._freebusyResult = {
+    data: { calendars: { [VALID_CALENDAR_ID]: { busy: [] } } },
+  };
+  const app = buildApp();
+  const { status, body } = await request(app, 'GET', '/api/calendar/available-slots', { date: VALID_DATE_SUNDAY, stylistId: VALID_STYLIST_ID });
+  assert.equal(status, 200);
+  assert.equal(body.date, VALID_DATE_SUNDAY);
+  // VALID_DATE_SUNDAY is Sunday → Sun hours: slots 11:00–18:00 → 8 slots
+  assert.equal(body.availableSlots.length, 8);
+  assert.ok(!body.availableSlots.includes('10:00'), '10:00 is before Sunday opening');
+  assert.ok(body.availableSlots.includes('11:00'));
+  assert.ok(body.availableSlots.includes('18:00'));
+  assert.ok(!body.availableSlots.includes('19:00'), '19:00 is after last Sunday slot');
 });
 
 test('available-slots: 500 when Google Calendar API throws', async () => {
