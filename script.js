@@ -2,12 +2,9 @@ const embeddedPricing = [];
 
 const pricingGrid = document.getElementById("pricing-grid");
 const serviceSelect = document.getElementById("service-select");
-const dateInput = document.getElementById("date-input");
-const timeInput = document.getElementById("time-input");
+let selectedDate = null;
+let selectedTime = null;
 const dayStrip = document.getElementById("day-strip");
-const timeSlots = document.getElementById("time-slots");
-const bookingForm = document.getElementById("booking-form");
-const bookingSuccess = document.getElementById("booking-success");
 const todayBtn = document.getElementById("today-btn");
 
 const formatter = new Intl.NumberFormat("mn-MN");
@@ -16,20 +13,6 @@ const PRODUCTS_PER_PAGE = 15;
 let productsCache = [];
 let allProductsCache = [];
 let currentProductsPage = 1;
-
-const timeOptions = [
-  "09:00",
-  "10:00",
-  "11:00",
-  "12:00",
-  "13:00",
-  "14:00",
-  "15:00",
-  "16:00",
-  "17:00",
-  "18:00",
-  "19:00",
-];
 
 // Client-side copy of stylist prices/levels (mirrors config/stylists.js).
 // Note: keep this in sync with the server-side config when stylist pricing changes.
@@ -623,19 +606,6 @@ function renderDayStrip(startDate = new Date()) {
   selectDay(formatDateInput(today));
 }
 
-function renderTimeSlots() {
-  if (!timeSlots) return;
-  timeSlots.innerHTML = "";
-  timeOptions.forEach((time) => {
-    const slot = document.createElement("button");
-    slot.type = "button";
-    slot.className = "time-slot";
-    slot.textContent = time;
-    slot.addEventListener("click", () => selectTime(time, slot));
-    timeSlots.appendChild(slot);
-  });
-}
-
 /**
  * Fetch available 1-hour slots from the backend calendar API and render them.
  * Triggered whenever the user changes the date or stylist.
@@ -653,7 +623,7 @@ async function fetchAvailableSlots(date, stylistId) {
     );
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || `HTTP ${res.status}`);
+      throw new Error(err.details || err.error || `HTTP ${res.status}`);
     }
     const data = await res.json();
     renderAvailableSlots(data.availableSlots, stylistId, date);
@@ -684,7 +654,7 @@ function renderAvailableSlots(slots, stylistId, date) {
     btn.addEventListener("click", () => {
       Array.from(container.querySelectorAll(".time-slot")).forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
-      if (timeInput) timeInput.value = time;
+      selectedTime = time;
       showBookingSummary(stylistId, date, time);
     });
     container.appendChild(btn);
@@ -728,12 +698,11 @@ function showBookingSummary(stylistId, date, time) {
 }
 
 function selectDay(dateString) {
-  dateInput.value = dateString;
+  selectedDate = dateString;
   Array.from(dayStrip.children).forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.date === dateString);
   });
-  timeInput.value = "";
-  Array.from(timeSlots ? timeSlots.children : []).forEach((slot) => slot.classList.remove("active"));
+  selectedTime = null;
 
   const stylistSel = document.getElementById("stylist-select");
   if (stylistSel && stylistSel.value) {
@@ -746,22 +715,6 @@ function selectDay(dateString) {
   if (summaryEl) summaryEl.style.display = "none";
 }
 
-function selectTime(time, element) {
-  timeInput.value = time;
-  Array.from(timeSlots ? timeSlots.children : []).forEach((slot) => slot.classList.remove("active"));
-  element.classList.add("active");
-}
-
-function initDateInput() {
-  const today = new Date();
-  dateInput.min = formatDateInput(today);
-  const maxDate = new Date();
-  maxDate.setDate(today.getDate() + 30);
-  dateInput.max = formatDateInput(maxDate);
-  dateInput.value = formatDateInput(today);
-  dateInput.addEventListener("change", (event) => selectDay(event.target.value));
-}
-
 todayBtn?.addEventListener("click", () => {
   renderDayStrip(new Date());
 });
@@ -769,30 +722,12 @@ todayBtn?.addEventListener("click", () => {
 document.getElementById("stylist-select")?.addEventListener("change", (event) => {
   const summaryEl = document.getElementById("booking-summary");
   if (summaryEl) summaryEl.style.display = "none";
-  if (event.target.value && dateInput && dateInput.value) {
-    fetchAvailableSlots(dateInput.value, event.target.value);
+  if (event.target.value && selectedDate) {
+    fetchAvailableSlots(selectedDate, event.target.value);
   } else {
     const avail = document.getElementById("available-time-slots");
     if (avail) avail.innerHTML = '<p class="slots-hint">Үсчин болон өдрийг сонгоно уу.</p>';
   }
-});
-
-bookingForm?.addEventListener("submit", (event) => {
-  event.preventDefault();
-  if (!serviceSelect.value || !dateInput.value || !timeInput.value) {
-    bookingSuccess.textContent = "Та үйлчилгээ, өдөр, цагаа бүрэн сонгоно уу.";
-    return;
-  }
-  const name = document.getElementById("name-input").value.trim();
-  const phone = document.getElementById("phone-input").value.trim();
-  bookingSuccess.textContent = `${name} танд ${dateInput.value} өдөр ${timeInput.value} цагт захиалга бүртгэгдлээ. Бид утсаар баталгаажуулна (${phone}).`;
-  bookingForm.reset();
-  initDateInput();
-  renderDayStrip(new Date());
-  const avail = document.getElementById("available-time-slots");
-  if (avail) avail.innerHTML = '<p class="slots-hint">Үсчин болон өдрийг сонгоно уу.</p>';
-  const summaryEl = document.getElementById("booking-summary");
-  if (summaryEl) summaryEl.style.display = "none";
 });
 
 // Only load pricing if element exists on this page
@@ -806,9 +741,8 @@ if (document.getElementById("products-grid")) {
 }
 
 // Initialize booking calendar and time slots (only on pages that contain booking UI)
-if (dayStrip && dateInput) {
+if (dayStrip) {
   renderDayStrip(new Date());
-  initDateInput();
   const avail = document.getElementById("available-time-slots");
   if (avail) avail.innerHTML = '<p class="slots-hint">Үсчин болон өдрийг сонгоно уу.</p>';
 }

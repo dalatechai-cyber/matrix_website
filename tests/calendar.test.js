@@ -156,7 +156,8 @@ test('available-slots: 200 with busy slot removed', async () => {
       calendars: {
         [VALID_CALENDAR_ID]: {
           busy: [
-            { start: `${VALID_DATE}T10:00:00Z`, end: `${VALID_DATE}T11:00:00Z` },
+            // 10:00 Ulaanbaatar (UTC+8) = 02:00 UTC
+            { start: `${VALID_DATE}T02:00:00Z`, end: `${VALID_DATE}T03:00:00Z` },
           ],
         },
       },
@@ -178,6 +179,24 @@ test('available-slots: 500 when Google Calendar API throws', async () => {
   assert.equal(status, 500);
   assert.ok(body.error.includes('availability'));
   calendarStub._freebusyError = null;
+});
+
+test('available-slots: 500 when calendar returns per-calendar access error', async () => {
+  calendarStub._freebusyError = null;
+  calendarStub._freebusyResult = {
+    data: {
+      calendars: {
+        [VALID_CALENDAR_ID]: {
+          errors: [{ domain: 'calendar', reason: 'notFound' }],
+        },
+      },
+    },
+  };
+  const app = buildApp();
+  const { status, body } = await request(app, 'GET', '/api/calendar/available-slots', { date: VALID_DATE, stylistId: VALID_STYLIST_ID });
+  assert.equal(status, 500);
+  assert.ok(body.error.includes('availability'));
+  assert.ok(body.details.includes('notFound'));
 });
 
 // ---------------------------------------------------------------------------

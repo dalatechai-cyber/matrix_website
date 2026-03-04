@@ -11,6 +11,8 @@ const WORK_END_HOUR = 19;
 const SLOT_DURATION_HOURS = 1;
 // Last bookable slot starts at 18:00 and ends at 19:00 (WORK_END_HOUR)
 const LAST_SLOT_START_HOUR = WORK_END_HOUR - SLOT_DURATION_HOURS;
+// Mongolia uses Asia/Ulaanbaatar time (UTC+8, no DST)
+const SALON_TZ_OFFSET = '+08:00';
 
 /**
  * GET /api/calendar/available-slots?date=YYYY-MM-DD&stylistId=<id>
@@ -35,8 +37,8 @@ router.get('/available-slots', async (req, res) => {
     return res.status(400).json({ error: `Unknown stylistId "${stylistId}"` });
   }
 
-  const timeMin = `${date}T${String(WORK_START_HOUR).padStart(2, '0')}:00:00Z`;
-  const timeMax = `${date}T${String(WORK_END_HOUR).padStart(2, '0')}:00:00Z`;
+  const timeMin = `${date}T${String(WORK_START_HOUR).padStart(2, '0')}:00:00${SALON_TZ_OFFSET}`;
+  const timeMax = `${date}T${String(WORK_END_HOUR).padStart(2, '0')}:00:00${SALON_TZ_OFFSET}`;
 
   try {
     const calendar = await getCalendarClient();
@@ -48,12 +50,17 @@ router.get('/available-slots', async (req, res) => {
       },
     });
 
-    const busySlots = (freebusyResponse.data.calendars[stylist.calendarId] || {}).busy || [];
+    const calendarResult = (freebusyResponse.data.calendars || {})[stylist.calendarId] || {};
+    if (calendarResult.errors && calendarResult.errors.length > 0) {
+      const reasons = calendarResult.errors.map((e) => e.reason).join(', ');
+      throw new Error(`Calendar access error for "${stylistId}": ${reasons}`);
+    }
+    const busySlots = calendarResult.busy || [];
 
     // Build all possible 1-hour slot start hours (09, 10, …, 18)
     const availableSlots = [];
     for (let h = WORK_START_HOUR; h <= LAST_SLOT_START_HOUR; h++) {
-      const slotStart = new Date(`${date}T${String(h).padStart(2, '0')}:00:00Z`);
+      const slotStart = new Date(`${date}T${String(h).padStart(2, '0')}:00:00${SALON_TZ_OFFSET}`);
       const slotEnd = new Date(slotStart.getTime() + SLOT_DURATION_HOURS * 60 * 60 * 1000);
 
       const isBusy = busySlots.some((busy) => {
