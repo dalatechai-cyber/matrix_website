@@ -576,9 +576,12 @@ function renderDayStrip(startDate = new Date()) {
 async function fetchAvailableSlots(date, stylistId) {
   const container = document.getElementById("available-time-slots");
   if (!container) return;
-  container.innerHTML = '<p class="slots-hint">Ачааллаж байна...</p>';
+  container.innerHTML = '<p class="slots-hint">Уншиж байна...</p>';
   const summaryEl = document.getElementById("booking-summary");
   if (summaryEl) summaryEl.style.display = "none";
+
+  const stylistSel = document.getElementById("stylist-select");
+  if (stylistSel) stylistSel.disabled = true;
 
   try {
     const res = await fetch(
@@ -593,6 +596,8 @@ async function fetchAvailableSlots(date, stylistId) {
   } catch (err) {
     console.error("Failed to fetch available slots:", err);
     container.innerHTML = '<p class="slots-hint">Цаг ачаалахад алдаа гарлаа.</p>';
+  } finally {
+    if (stylistSel) stylistSel.disabled = false;
   }
 }
 
@@ -625,7 +630,7 @@ function renderAvailableSlots(slots, stylistId, date) {
 }
 
 /**
- * Display a booking summary panel with a "Confirm & Pay" button that
+ * Display a booking summary panel with customer inputs and a "Confirm & Pay" button that
  * triggers QPay when clicked.
  */
 function showBookingSummary(stylistId, date, time) {
@@ -641,15 +646,32 @@ function showBookingSummary(stylistId, date, time) {
     <div class="summary-item"><span>Өдөр:</span> <strong>${date}</strong></div>
     <div class="summary-item"><span>Цаг:</span> <strong>${time}</strong></div>
     <div class="summary-item"><span>Үнэ:</span> <strong>${priceText}</strong></div>
+    <div class="customer-input-group">
+      <label for="customer-name">Нэр</label>
+      <input type="text" id="customer-name" name="customer-name" placeholder="Таны нэр" autocomplete="name" />
+    </div>
+    <div class="customer-input-group">
+      <label for="customer-phone">Утасны дугаар</label>
+      <input type="tel" id="customer-phone" name="customer-phone" placeholder="Утасны дугаар" autocomplete="tel" />
+    </div>
     <button type="button" class="primary-btn confirm-pay-btn">Баталгаажуулж төлөх</button>
   `;
   summaryEl.style.display = "block";
 
   summaryEl.querySelector(".confirm-pay-btn").onclick = () => {
+    const customerName = (document.getElementById("customer-name")?.value || "").trim();
+    const customerPhone = (document.getElementById("customer-phone")?.value || "").trim();
+
+    if (!customerName || !customerPhone) {
+      alert("Нэр болон утасны дугаараа оруулна уу.");
+      return;
+    }
+
     initiateQPayPayment({
       merchantId: "MATRIX_SALON",
       amount: stylist.price,
-      description: `Matrix Eco Salon – ${stylistId} – ${date} ${time}`,
+      description: `Matrix Eco: ${stylistId} - ${date} ${time} - ${customerName} - ${customerPhone}`,
+      confirmBtn: summaryEl.querySelector(".confirm-pay-btn"),
     });
   };
 
@@ -1054,12 +1076,20 @@ if (videoButtons.length > 0) {
  * @param {string} params.merchantId  - Dynamic merchant ID for this order
  * @param {string|number} params.amount      - Amount in MNT
  * @param {string} params.description - Human-readable description shown in QPay
+ * @param {HTMLButtonElement} [params.confirmBtn] - The button that triggered the call (for loading state)
  */
-async function initiateQPayPayment({ merchantId, amount, description }) {
+async function initiateQPayPayment({ merchantId, amount, description, confirmBtn }) {
   const panel     = document.getElementById("qpay-panel");
   const qrImg     = document.getElementById("qpay-qr-img");
   const bankBtns  = document.getElementById("qpay-bank-buttons");
   const errorEl   = document.getElementById("qpay-error");
+  const successEl = document.getElementById("booking-success-message");
+
+  // Show loading state on the Confirm button
+  if (confirmBtn) {
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = "Уншиж байна...";
+  }
 
   // Reset previous state
   errorEl.style.display = "none";
@@ -1104,9 +1134,48 @@ async function initiateQPayPayment({ merchantId, amount, description }) {
         bankBtns.appendChild(a);
       });
     }
+
+    // Start polling for payment confirmation if we have an invoice_id
+    if (data.invoice_id) {
+      const invoiceId = data.invoice_id;
+      const MAX_POLL_ATTEMPTS = 200; // ~10 minutes at 3-second intervals
+      let pollAttempts = 0;
+      const pollInterval = setInterval(async () => {
+        pollAttempts++;
+        if (pollAttempts > MAX_POLL_ATTEMPTS) {
+          clearInterval(pollInterval);
+          console.warn('QPay polling timed out for invoice:', invoiceId);
+          return;
+        }
+        try {
+          const pollRes = await fetch(`/api/qpay/check-payment/${encodeURIComponent(invoiceId)}`);
+          if (!pollRes.ok) return;
+          const pollData = await pollRes.json();
+          if (pollData.status === "PAID") {
+            clearInterval(pollInterval);
+            panel.style.display = "none";
+            const summaryEl = document.getElementById("booking-summary");
+            if (summaryEl) summaryEl.style.display = "none";
+            if (successEl) successEl.style.display = "block";
+            try {
+              successEl?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+            } catch (_) {
+              successEl?.scrollIntoView();
+            }
+          }
+        } catch (_) {
+          // Silently ignore polling errors — will retry on next interval
+        }
+      }, 3000);
+    }
   } catch (err) {
     console.error("QPay payment error:", err);
     errorEl.textContent  = `Төлбөр үүсгэхэд алдаа гарлаа: ${err.message}`;
     errorEl.style.display = "block";
+    // Revert loading state on error so the user can try again
+    if (confirmBtn) {
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = "Баталгаажуулж төлөх";
+    }
   }
 }

@@ -162,6 +162,10 @@
               <div id="day-strip" class="day-strip"></div>
               <div id="available-time-slots" class="time-slots"></div>
               <div id="booking-summary" class="booking-summary" style="display:none;"></div>
+              <div id="booking-success-message" class="booking-success-message" style="display:none;">
+                <span class="booking-success-icon">✓</span>
+                <p>Таны захиалга амжилттай баталгаажлаа!</p>
+              </div>
             </div>
 
           </div>
@@ -255,6 +259,29 @@
         .summary-item:last-of-type { border-bottom: none; }
         .confirm-pay-btn { width: 100%; margin-top: 0.75rem; }
         .slots-hint { color: var(--muted, #888); font-size: 0.875rem; padding: 0.5rem 0; }
+        .booking-success-message {
+          margin-top: 1.25rem;
+          padding: 1.25rem;
+          background: var(--card-bg, #161f1a);
+          border: 2px solid var(--accent, #64d39a);
+          border-radius: 10px;
+          text-align: center;
+          font-weight: 600;
+          color: var(--accent, #64d39a);
+        }
+        .booking-success-icon { font-size: 2rem; display: block; margin-bottom: 0.5rem; }
+        .customer-input-group { margin-bottom: 0.6rem; }
+        .customer-input-group label { display: block; font-size: 0.8rem; margin-bottom: 0.25rem; color: var(--muted, #888); }
+        .customer-input-group input {
+          width: 100%;
+          padding: 0.45rem 0.65rem;
+          border-radius: 7px;
+          border: 1px solid var(--accent, #64d39a);
+          background: var(--bg, #0d1610);
+          color: inherit;
+          font-size: 0.9rem;
+          box-sizing: border-box;
+        }
       </style>
 
       <section id="contact" class="section alt-section">
