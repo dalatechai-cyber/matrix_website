@@ -7,6 +7,9 @@ let selectedTime = null;
 const dayStrip = document.getElementById("day-strip");
 const todayBtn = document.getElementById("today-btn");
 
+// QPay polling handle — stored globally so any close action can cancel it.
+let qpayPollInterval = null;
+
 const formatter = new Intl.NumberFormat("mn-MN");
 const PRODUCTS_PER_PAGE = 15;
 
@@ -645,12 +648,20 @@ function renderAvailableSlots(slots, stylistId, date) {
   if (!container) return;
   container.innerHTML = "";
 
-  if (!slots || slots.length === 0) {
+  // Client-side guard: hide any slot that has already passed when viewing today.
+  const now = new Date();
+  const todayStr = formatDateInput(now);
+  const isToday = date === todayStr;
+  const filteredSlots = isToday
+    ? (slots || []).filter((time) => new Date(`${date}T${time}:00`) >= now)
+    : (slots || []);
+
+  if (filteredSlots.length === 0) {
     container.innerHTML = '<p class="slots-hint">Тухайн өдөрт чөлөөт цаг байхгүй байна.</p>';
     return;
   }
 
-  slots.forEach((time) => {
+  filteredSlots.forEach((time) => {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "time-slot";
@@ -690,13 +701,26 @@ function showBookingSummary(stylistId, date, time) {
       <label for="customer-phone">Утасны дугаар</label>
       <input type="tel" id="customer-phone" name="customer-phone" placeholder="Утасны дугаар" autocomplete="tel" />
     </div>
-    <button type="button" class="primary-btn confirm-pay-btn">Баталгаажуулж төлөх</button>
+    <button type="button" class="primary-btn confirm-pay-btn" disabled>Баталгаажуулж төлөх</button>
   `;
   summaryEl.style.display = "block";
 
+  const confirmBtn = summaryEl.querySelector(".confirm-pay-btn");
+  const nameInput  = document.getElementById("customer-name");
+  const phoneInput = document.getElementById("customer-phone");
+
+  function validateBookingForm() {
+    const nameVal  = (nameInput?.value  || "").trim();
+    const phoneVal = (phoneInput?.value || "").trim();
+    confirmBtn.disabled = !(nameVal.length > 0 && phoneVal.length > 0);
+  }
+
+  nameInput?.addEventListener("input",  validateBookingForm);
+  phoneInput?.addEventListener("input", validateBookingForm);
+
   summaryEl.querySelector(".confirm-pay-btn").onclick = () => {
-    const customerName = (document.getElementById("customer-name")?.value || "").trim();
-    const customerPhone = (document.getElementById("customer-phone")?.value || "").trim();
+    const customerName  = (nameInput?.value  || "").trim();
+    const customerPhone = (phoneInput?.value || "").trim();
 
     if (!customerName || !customerPhone) {
       alert("Нэр болон утасны дугаараа оруулна уу.");
@@ -708,7 +732,8 @@ function showBookingSummary(stylistId, date, time) {
       name: customerName,
       phone: customerPhone,
       description: `Matrix Eco: ${stylistId} - ${date} ${time} - ${customerName} - ${customerPhone}`,
-      confirmBtn: summaryEl.querySelector(".confirm-pay-btn"),
+      confirmBtn,
+      bookingDetails: { stylistId, date, time },
     });
   };
 
@@ -735,6 +760,24 @@ function selectDay(dateString) {
   }
   const summaryEl = document.getElementById("booking-summary");
   if (summaryEl) summaryEl.style.display = "none";
+}
+
+/**
+ * Reset the booking form to its initial state.
+ * Called after a successful payment or when the user navigates back.
+ */
+function resetBookingForm() {
+  selectedTime = null;
+  selectedDate = null;
+  const successEl = document.getElementById("booking-success-message");
+  if (successEl) successEl.style.display = "none";
+  const summaryEl = document.getElementById("booking-summary");
+  if (summaryEl) summaryEl.style.display = "none";
+  const stylistSel = document.getElementById("stylist-select");
+  if (stylistSel) stylistSel.value = "";
+  const avail = document.getElementById("available-time-slots");
+  if (avail) avail.innerHTML = '<p class="slots-hint">Үсчин болон өдрийг сонгоно уу.</p>';
+  renderDayStrip(new Date());
 }
 
 todayBtn?.addEventListener("click", () => {
@@ -1110,13 +1153,14 @@ if (videoButtons.length > 0) {
  * them inside #qpay-panel.
  *
  * @param {object} params
- * @param {string|number} params.amount      - Amount in MNT
- * @param {string} params.name        - Customer's full name
- * @param {string} params.phone       - Customer's phone number
- * @param {string} params.description - Full booking description for calendar (stored server-side)
+ * @param {string|number} params.amount        - Amount in MNT
+ * @param {string} params.name                 - Customer's full name
+ * @param {string} params.phone                - Customer's phone number
+ * @param {string} params.description          - Full booking description for calendar (stored server-side)
  * @param {HTMLButtonElement} [params.confirmBtn] - The button that triggered the call (for loading state)
+ * @param {object} [params.bookingDetails]     - { stylistId, date, time } for the success screen
  */
-async function initiateQPayPayment({ amount, name, phone, description, confirmBtn }) {
+async function initiateQPayPayment({ amount, name, phone, description, confirmBtn, bookingDetails }) {
   const panel     = document.getElementById("qpay-panel");
   const qrImg     = document.getElementById("qpay-qr-img");
   const bankBtns  = document.getElementById("qpay-bank-buttons");
@@ -1124,9 +1168,16 @@ async function initiateQPayPayment({ amount, name, phone, description, confirmBt
   const successEl = document.getElementById("booking-success-message");
 
   // Show loading state on the Confirm button
+  const confirmBtnOriginalText = confirmBtn ? confirmBtn.textContent : "";
   if (confirmBtn) {
     confirmBtn.disabled = true;
-    confirmBtn.textContent = "Уншиж байна...";
+    confirmBtn.textContent = "Түр хүлээнэ үү...";
+  }
+
+  // Cancel any previous poll that may be running
+  if (qpayPollInterval) {
+    clearInterval(qpayPollInterval);
+    qpayPollInterval = null;
   }
 
   // Reset previous state
@@ -1135,6 +1186,24 @@ async function initiateQPayPayment({ amount, name, phone, description, confirmBt
   bankBtns.innerHTML    = "";
   qrImg.src             = "";
   panel.style.display   = "block";
+
+  // Add a close button to the panel if it doesn't already have one
+  if (!panel.querySelector(".qpay-panel-close")) {
+    const closeBtn = document.createElement("button");
+    closeBtn.type = "button";
+    closeBtn.className = "qpay-panel-close";
+    closeBtn.setAttribute("aria-label", "Хаах");
+    closeBtn.textContent = "✕";
+    closeBtn.addEventListener("click", () => {
+      if (qpayPollInterval) {
+        clearInterval(qpayPollInterval);
+        qpayPollInterval = null;
+      }
+      panel.style.display = "none";
+    });
+    panel.insertBefore(closeBtn, panel.firstChild);
+  }
+
   panel.scrollIntoView({ behavior: "smooth", block: "start" });
 
   try {
@@ -1167,7 +1236,7 @@ async function initiateQPayPayment({ amount, name, phone, description, confirmBt
         a.className = "qpay-bank-btn";
         a.target    = "_blank";
         a.rel       = "noopener noreferrer";
-        a.textContent = entry.name ? `${entry.name}-р төлөх` : "Банкны аппаар төлөх";
+        a.textContent = entry.name || "Банкны апп";
         a.setAttribute("aria-label", entry.name ? `Pay with ${entry.name}` : "Pay with bank app");
         bankBtns.appendChild(a);
       });
@@ -1178,10 +1247,11 @@ async function initiateQPayPayment({ amount, name, phone, description, confirmBt
       const invoiceId = data.invoice_id;
       const MAX_POLL_ATTEMPTS = 60; // 5 minutes at 5-second intervals
       let pollAttempts = 0;
-      const pollInterval = setInterval(async () => {
+      qpayPollInterval = setInterval(async () => {
         pollAttempts++;
         if (pollAttempts > MAX_POLL_ATTEMPTS) {
-          clearInterval(pollInterval);
+          clearInterval(qpayPollInterval);
+          qpayPollInterval = null;
           console.warn('QPay polling timed out for invoice:', invoiceId);
           return;
         }
@@ -1194,12 +1264,30 @@ async function initiateQPayPayment({ amount, name, phone, description, confirmBt
           if (!pollRes.ok) return;
           const pollData = await pollRes.json();
           if (pollData.invoice_status === "PAID") {
-            clearInterval(pollInterval);
+            clearInterval(qpayPollInterval);
+            qpayPollInterval = null;
             panel.style.display = "none";
             const summaryEl = document.getElementById("booking-summary");
             if (summaryEl) summaryEl.style.display = "none";
             if (successEl) {
+              const { stylistId = "", date = "", time = "" } = bookingDetails || {};
+              successEl.innerHTML = `
+                <span class="booking-success-icon">✓</span>
+                <h3 class="booking-success-title">Амжилттай баталгаажлаа!</h3>
+                <div class="booking-success-details">
+                  <div class="summary-item"><span>Үсчин:</span> <strong class="js-success-stylist"></strong></div>
+                  <div class="summary-item"><span>Өдөр:</span>  <strong class="js-success-date"></strong></div>
+                  <div class="summary-item"><span>Цаг:</span>   <strong class="js-success-time"></strong></div>
+                </div>
+                <button type="button" class="primary-btn booking-success-return-btn">Буцах</button>
+              `;
+              successEl.querySelector(".js-success-stylist").textContent = stylistId;
+              successEl.querySelector(".js-success-date").textContent    = date;
+              successEl.querySelector(".js-success-time").textContent    = time;
               successEl.style.display = "block";
+              successEl.querySelector(".booking-success-return-btn")?.addEventListener("click", () => {
+                resetBookingForm();
+              });
             }
             try {
               successEl?.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -1219,7 +1307,7 @@ async function initiateQPayPayment({ amount, name, phone, description, confirmBt
     // Revert loading state on error so the user can try again
     if (confirmBtn) {
       confirmBtn.disabled = false;
-      confirmBtn.textContent = "Баталгаажуулж төлөх";
+      confirmBtn.textContent = confirmBtnOriginalText || "Баталгаажуулж төлөх";
     }
   }
 }
