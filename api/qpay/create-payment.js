@@ -26,7 +26,7 @@ module.exports = async function handler(req, res) {
             amount: 100, 
             currency: 'MNT',
             description: 'Matrix Salon Test',
-            mcc_code: '7230'
+            mcc_code: '7230',
             bank_accounts: [{
                 account_bank_code: "040000", // TDB Bank
                 account_number: "416055415",
