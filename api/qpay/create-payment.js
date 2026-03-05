@@ -27,6 +27,12 @@ module.exports = async function handler(req, res) {
             currency: 'MNT',
             description: 'Matrix Salon Test',
             mcc_code: '7230'
+            bank_accounts: [{
+                account_bank_code: "040000", // TDB Bank
+                account_number: "416055415",
+                account_name: "Эрхэмбаатар Оюунсүрэн",
+                is_default: true
+            }]
         };
 
         console.log("3. QPAY-РҮҮ ИЛГЭЭЖ БУЙ МЭДЭЭЛЭЛ:", payload);
