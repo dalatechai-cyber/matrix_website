@@ -1176,7 +1176,7 @@ async function initiateQPayPayment({ amount, name, phone, description, confirmBt
     // Start polling for payment confirmation if we have an invoice_id
     if (data.invoice_id) {
       const invoiceId = data.invoice_id;
-      const MAX_POLL_ATTEMPTS = 200; // ~10 minutes at 3-second intervals
+      const MAX_POLL_ATTEMPTS = 60; // 5 minutes at 5-second intervals
       let pollAttempts = 0;
       const pollInterval = setInterval(async () => {
         pollAttempts++;
@@ -1186,15 +1186,21 @@ async function initiateQPayPayment({ amount, name, phone, description, confirmBt
           return;
         }
         try {
-          const pollRes = await fetch(`/api/qpay/check-payment/${encodeURIComponent(invoiceId)}`);
+          const pollRes = await fetch("/api/qpay/check-payment", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ invoice_id: invoiceId }),
+          });
           if (!pollRes.ok) return;
           const pollData = await pollRes.json();
-          if (pollData.status === "PAID") {
+          if (pollData.invoice_status === "PAID") {
             clearInterval(pollInterval);
             panel.style.display = "none";
             const summaryEl = document.getElementById("booking-summary");
             if (summaryEl) summaryEl.style.display = "none";
-            if (successEl) successEl.style.display = "block";
+            if (successEl) {
+              successEl.style.display = "block";
+            }
             try {
               successEl?.scrollIntoView({ behavior: "smooth", block: "nearest" });
             } catch (_) {
@@ -1204,7 +1210,7 @@ async function initiateQPayPayment({ amount, name, phone, description, confirmBt
         } catch (_) {
           // Silently ignore polling errors — will retry on next interval
         }
-      }, 3000);
+      }, 5000);
     }
   } catch (err) {
     console.error("QPay payment error:", err);

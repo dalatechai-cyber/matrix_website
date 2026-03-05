@@ -1,7 +1,7 @@
 'use strict';
 
 const express = require('express');
-const { createInvoice } = require('../services/qpay');
+const { createInvoice, checkPayment } = require('../services/qpay');
 const { getCalendarClient } = require('../services/googleCalendar');
 const { STYLIST_CONFIG } = require('../config/stylists');
 
@@ -33,6 +33,43 @@ function parseDescription(description) {
     customerName: match[4],
     customerPhone: match[5],
   };
+}
+
+/**
+ * Create a Google Calendar event for a paid invoice, if not already created.
+ * Idempotent: does nothing if the event was already created or description is missing.
+ *
+ * @param {string} invoiceId
+ */
+async function createCalendarEventForInvoice(invoiceId) {
+  const entry = paymentStatuses[invoiceId];
+  if (!entry || entry.calendarEventCreated) return;
+
+  const parsed = entry.description ? parseDescription(entry.description) : null;
+  if (!parsed) return;
+
+  const stylist = STYLIST_CONFIG[parsed.stylistId];
+  if (!stylist) {
+    console.warn('createCalendarEventForInvoice: unknown stylistId in description:', parsed.stylistId);
+    return;
+  }
+
+  const calendar = await getCalendarClient();
+  const startDateTime = new Date(`${parsed.date}T${parsed.time}:00+08:00`);
+  const endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000);
+
+  await calendar.events.insert({
+    calendarId: stylist.calendarId,
+    requestBody: {
+      summary: `Matrix Eco – ${parsed.customerName}`,
+      description: `Phone: ${parsed.customerPhone}\nStylist: ${parsed.stylistId}`,
+      start: { dateTime: startDateTime.toISOString() },
+      end: { dateTime: endDateTime.toISOString() },
+    },
+  });
+
+  entry.calendarEventCreated = true;
+  console.log('Calendar event created for invoice:', invoiceId, 'stylist:', parsed.stylistId);
 }
 
 /**
@@ -77,6 +114,7 @@ router.post('/create-payment', async (req, res) => {
       paymentStatuses[result.invoice_id] = {
         status: 'PENDING',
         description,
+        calendarEventCreated: false,
         createdAt: Date.now(),
       };
     }
@@ -128,44 +166,76 @@ router.post('/webhook', async (req, res) => {
   if (paymentStatuses[invoiceId]) {
     paymentStatuses[invoiceId].status = 'PAID';
   } else {
-    paymentStatuses[invoiceId] = { status: 'PAID', description: null, createdAt: Date.now() };
+    paymentStatuses[invoiceId] = { status: 'PAID', description: null, calendarEventCreated: false, createdAt: Date.now() };
   }
 
   // Attempt to create a Google Calendar event from the stored description
-  const entry = paymentStatuses[invoiceId];
-  const parsed = entry.description ? parseDescription(entry.description) : null;
-
-  if (parsed) {
-    const stylist = STYLIST_CONFIG[parsed.stylistId];
-    if (stylist) {
-      try {
-        const calendar = await getCalendarClient();
-        const startDateTime = new Date(`${parsed.date}T${parsed.time}:00+08:00`);
-        const endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000);
-
-        await calendar.events.insert({
-          calendarId: stylist.calendarId,
-          requestBody: {
-            summary: `Matrix Eco – ${parsed.customerName}`,
-            description: `Phone: ${parsed.customerPhone}\nStylist: ${parsed.stylistId}`,
-            start: { dateTime: startDateTime.toISOString() },
-            end: { dateTime: endDateTime.toISOString() },
-          },
-        });
-
-        console.log('Calendar event created for invoice:', invoiceId, 'stylist:', parsed.stylistId);
-      } catch (calErr) {
-        console.error('Failed to create calendar event from QPay webhook:', calErr.message || calErr);
-        // Do not fail the webhook response — QPay must receive 200 to stop retrying
-      }
-    } else {
-      console.warn('QPay webhook: unknown stylistId in description:', parsed.stylistId);
-    }
-  } else {
-    console.warn('QPay webhook: could not parse description for invoice', invoiceId);
+  try {
+    await createCalendarEventForInvoice(invoiceId);
+  } catch (calErr) {
+    console.error('Failed to create calendar event from QPay webhook:', calErr.message || calErr);
+    // Do not fail the webhook response — QPay must receive 200 to stop retrying
   }
 
   return res.status(200).json({ received: true, invoiceId });
+});
+
+/**
+ * POST /api/qpay/check-payment
+ *
+ * Polling endpoint: checks the real-time QPay payment status for the given invoice.
+ * Falls back to the in-memory store if QPay API is unreachable.
+ * Triggers Google Calendar event creation when payment is confirmed as PAID.
+ *
+ * Expects JSON body: { invoice_id: string }
+ * Returns: { invoice_status: 'PAID' | 'PENDING' | 'UNKNOWN' }
+ */
+router.post('/check-payment', async (req, res) => {
+  const { invoice_id } = req.body || {};
+
+  if (!invoice_id) {
+    return res.status(400).json({ error: 'invoice_id is required' });
+  }
+
+  const entry = paymentStatuses[invoice_id];
+
+  // If already confirmed PAID in memory, return immediately and ensure calendar event is created
+  if (entry && entry.status === 'PAID') {
+    try {
+      await createCalendarEventForInvoice(invoice_id);
+    } catch (calErr) {
+      console.error('Failed to create calendar event on check-payment (already PAID):', calErr.message || calErr);
+    }
+    return res.status(200).json({ invoice_status: 'PAID' });
+  }
+
+  // Call QPay API directly to get real-time payment status
+  try {
+    const qpayData = await checkPayment(invoice_id);
+    const invoiceStatus = qpayData.invoice_status;
+
+    if (invoiceStatus === 'PAID') {
+      // Mark as PAID in the in-memory store
+      if (paymentStatuses[invoice_id]) {
+        paymentStatuses[invoice_id].status = 'PAID';
+      } else {
+        paymentStatuses[invoice_id] = { status: 'PAID', description: null, calendarEventCreated: false, createdAt: Date.now() };
+      }
+      // Trigger Google Calendar booking as a fallback in case the webhook did not fire
+      try {
+        await createCalendarEventForInvoice(invoice_id);
+      } catch (calErr) {
+        console.error('Failed to create calendar event on check-payment (QPay PAID):', calErr.message || calErr);
+      }
+    }
+
+    return res.status(200).json({ invoice_status: invoiceStatus || 'UNKNOWN' });
+  } catch (err) {
+    console.error('QPay check-payment error:', err.response?.data || err.message);
+    // Fall back to in-memory status so the client is not left without a response
+    const fallbackStatus = entry ? entry.status : 'UNKNOWN';
+    return res.status(200).json({ invoice_status: fallbackStatus });
+  }
 });
 
 module.exports = router;

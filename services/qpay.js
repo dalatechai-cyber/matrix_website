@@ -93,8 +93,29 @@ async function createInvoice({ amount, description, callbackUrl } = {}) {
   }
 }
 
+/**
+ * Check the real-time payment status of a QPay invoice.
+ *
+ * @param {string} invoiceId - The QPay invoice ID to check
+ * @returns {Promise<object>} - QPay payment check response (contains invoice_status)
+ */
+async function checkPayment(invoiceId) {
+  const accessToken = await getQPayToken();
+  try {
+    const response = await axios.post(
+      `${QPAY_BASE_URL}/payment/check`,
+      { invoice_id: invoiceId },
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+    );
+    return response.data;
+  } catch (error) {
+    console.error('QPay Check Payment Error:', error.response?.data || error.message);
+    throw error;
+  }
+}
+
 function _resetTokenCache() {
   _tokenCache = null;
 }
 
-module.exports = { getQPayToken, createInvoice, _resetTokenCache };
+module.exports = { getQPayToken, createInvoice, checkPayment, _resetTokenCache };
