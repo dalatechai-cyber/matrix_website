@@ -6,6 +6,12 @@ const http = require('node:http');
 const express = require('express');
 
 // ---------------------------------------------------------------------------
+// Set required environment variables before loading any calendar modules.
+// ---------------------------------------------------------------------------
+process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL = 'test@example.iam.gserviceaccount.com';
+process.env.GOOGLE_PRIVATE_KEY = 'test-private-key';
+
+// ---------------------------------------------------------------------------
 // Stub googleapis before loading any calendar modules.
 // The stub exposes configurable return values / errors for freebusy.query
 // and events.insert.
@@ -27,6 +33,10 @@ Module._load = function (request, parent, isMain) {
           GoogleAuth: class {
             constructor() {}
             async getClient() { return {}; }
+          },
+          JWT: class {
+            constructor() {}
+            async authorize() { return {}; }
           },
         },
         calendar: () => ({

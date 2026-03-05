@@ -1,32 +1,38 @@
 'use strict';
 
-const path = require('path');
 const { google } = require('googleapis');
-
-/**
- * Path to the service account key file.
- * Override by setting the GOOGLE_APPLICATION_CREDENTIALS environment variable.
- */
-const DEFAULT_KEY_FILE = path.join(__dirname, '..', 'credentials.json');
 
 /**
  * Return an authenticated Google Calendar client using a service account.
  *
- * The service account key file must be a JSON file obtained from the Google
- * Cloud Console (IAM & Admin → Service Accounts → Create key → JSON).
+ * Credentials are read from environment variables:
+ *   GOOGLE_SERVICE_ACCOUNT_EMAIL – the service account client_email
+ *   GOOGLE_PRIVATE_KEY            – the private key (Vercel encodes newlines as \n)
+ *
  * The service account must have been granted access to each stylist calendar
  * (share the calendar with the service account email address).
  *
  * @returns {Promise<import('googleapis').calendar_v3.Calendar>}
  */
 async function getCalendarClient() {
-  const keyFile = process.env.GOOGLE_APPLICATION_CREDENTIALS || DEFAULT_KEY_FILE;
-  const auth = new google.auth.GoogleAuth({
-    keyFile,
+  if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL) {
+    throw new Error('Missing required environment variable: GOOGLE_SERVICE_ACCOUNT_EMAIL');
+  }
+  if (!process.env.GOOGLE_PRIVATE_KEY) {
+    throw new Error('Missing required environment variable: GOOGLE_PRIVATE_KEY');
+  }
+
+  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const key = process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n');
+
+  const auth = new google.auth.JWT({
+    email,
+    key,
     scopes: ['https://www.googleapis.com/auth/calendar'],
   });
-  const authClient = await auth.getClient();
-  return google.calendar({ version: 'v3', auth: authClient });
+
+  await auth.authorize();
+  return google.calendar({ version: 'v3', auth });
 }
 
 module.exports = { getCalendarClient };
