@@ -3,23 +3,12 @@
   "builds": [
     {
       "src": "server.js",
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": [
-          "**/*.html",
-          "**/*.css",
-          "**/*.png",
-          "**/*.jpg",
-          "**/*.jpeg",
-          "**/*.svg",
-          "**/*.ico"
-        ]
-      }
+      "use": "@vercel/node"
     }
   ],
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/api/(.*)",
       "destination": "/server.js"
     }
   ]
