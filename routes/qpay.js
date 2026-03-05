@@ -58,11 +58,18 @@ router.post('/create-payment', async (req, res) => {
 
   try {
     const callbackUrl = `${process.env.BASE_URL || 'https://mydomain.com'}/api/qpay/webhook`;
+    // Sanitize amount: strip any non-numeric characters (e.g. "20,000 ₮" → 20000).
+    // Amounts in MNT are always whole numbers so decimal points are not expected.
+    const cleanAmount = Number(String(amount).replace(/[^0-9]/g, ''));
+    if (!cleanAmount || isNaN(cleanAmount)) {
+      return res.status(400).json({ error: 'amount must be a valid positive number' });
+    }
     // The QPay invoice description shows only the customer name and phone.
     // The full booking description (with stylist/date/time) is stored internally
     // so the webhook can use it to create the Google Calendar event.
-    const qpayDescription = `${name} - ${phone}`;
-    const result = await createInvoice({ amount, description: qpayDescription, callbackUrl });
+    // QPay enforces a 255-character limit on the description field.
+    const cleanDescription = `${name || 'Үйлчлүүлэгч'} - ${phone || 'Утасгүй'}`.substring(0, 255);
+    const result = await createInvoice({ amount: cleanAmount, description: cleanDescription, callbackUrl });
 
     // Track this invoice as PENDING so the polling endpoint can report its status.
     // Store the full booking description for calendar event creation on payment.
