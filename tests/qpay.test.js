@@ -385,3 +385,77 @@ test('check-payment: returns PAID after webhook marks invoice as PAID', async ()
   assert.equal(body.status, 'PAID');
   delete paymentStatuses['inv_paid'];
 });
+
+// ---------------------------------------------------------------------------
+// POST /api/qpay/check-payment
+// ---------------------------------------------------------------------------
+test('POST check-payment: 400 when invoice_id is missing', async () => {
+  const app = buildApp();
+  const { status, body } = await request(app, 'POST', '/api/qpay/check-payment', {});
+  assert.equal(status, 400);
+  assert.ok(body.error.includes('invoice_id'));
+});
+
+test('POST check-payment: returns PAID immediately when in-memory status is already PAID', async () => {
+  paymentStatuses['inv_already_paid'] = { status: 'PAID', description: null, calendarEventCreated: true, createdAt: Date.now() };
+  const app = buildApp();
+  const { status, body } = await request(app, 'POST', '/api/qpay/check-payment', { invoice_id: 'inv_already_paid' });
+  assert.equal(status, 200);
+  assert.equal(body.invoice_status, 'PAID');
+  delete paymentStatuses['inv_already_paid'];
+});
+
+test('POST check-payment: calls QPay API and returns invoice_status when invoice is PENDING', async () => {
+  qpayService._resetTokenCache();
+  axiosStub.reset([
+    { result: { access_token: 'tok_poll' } },
+    { result: { invoice_status: 'OPEN' } },
+  ]);
+  paymentStatuses['inv_open'] = { status: 'PENDING', description: null, calendarEventCreated: false, createdAt: Date.now() };
+  const app = buildApp();
+  const { status, body } = await request(app, 'POST', '/api/qpay/check-payment', { invoice_id: 'inv_open' });
+  assert.equal(status, 200);
+  assert.equal(body.invoice_status, 'OPEN');
+  delete paymentStatuses['inv_open'];
+});
+
+test('POST check-payment: marks invoice as PAID in memory when QPay returns PAID', async () => {
+  qpayService._resetTokenCache();
+  axiosStub.reset([
+    { result: { access_token: 'tok_paid_poll' } },
+    { result: { invoice_status: 'PAID' } },
+  ]);
+  paymentStatuses['inv_qpay_paid'] = { status: 'PENDING', description: null, calendarEventCreated: false, createdAt: Date.now() };
+  const app = buildApp();
+  const { status, body } = await request(app, 'POST', '/api/qpay/check-payment', { invoice_id: 'inv_qpay_paid' });
+  assert.equal(status, 200);
+  assert.equal(body.invoice_status, 'PAID');
+  assert.equal(paymentStatuses['inv_qpay_paid'].status, 'PAID');
+  delete paymentStatuses['inv_qpay_paid'];
+});
+
+test('POST check-payment: falls back to in-memory UNKNOWN when QPay API fails and invoice is not tracked', async () => {
+  qpayService._resetTokenCache();
+  axiosStub.reset([
+    { result: { access_token: 'tok_fallback' } },
+    { error: new Error('QPay network error') },
+  ]);
+  const app = buildApp();
+  const { status, body } = await request(app, 'POST', '/api/qpay/check-payment', { invoice_id: 'inv_untracked_fail' });
+  assert.equal(status, 200);
+  assert.equal(body.invoice_status, 'UNKNOWN');
+});
+
+test('POST check-payment: falls back to in-memory PENDING when QPay API fails and invoice is PENDING', async () => {
+  qpayService._resetTokenCache();
+  axiosStub.reset([
+    { result: { access_token: 'tok_fallback2' } },
+    { error: new Error('QPay network error') },
+  ]);
+  paymentStatuses['inv_pending_fail'] = { status: 'PENDING', description: null, calendarEventCreated: false, createdAt: Date.now() };
+  const app = buildApp();
+  const { status, body } = await request(app, 'POST', '/api/qpay/check-payment', { invoice_id: 'inv_pending_fail' });
+  assert.equal(status, 200);
+  assert.equal(body.invoice_status, 'PENDING');
+  delete paymentStatuses['inv_pending_fail'];
+});
