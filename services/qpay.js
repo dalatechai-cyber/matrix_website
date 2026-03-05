@@ -29,7 +29,7 @@ async function getQPayToken() {
   try {
     const response = await axios.post(
       `${QPAY_BASE_URL}/auth/token`,
-      {},
+      { terminal_id: username },
       { headers: { Authorization: `Basic ${credentials}` } },
     );
 
