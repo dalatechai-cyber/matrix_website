@@ -42,7 +42,7 @@ process.env.QPAY_PASSWORD = 'test_pass';
 process.env.BASE_URL = 'https://test.example.com';
 // Set dummy Google env vars (used by the webhook calendar path)
 process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL = 'test@example.iam.gserviceaccount.com';
-process.env.GOOGLE_PRIVATE_KEY = 'test-private-key';
+process.env.GOOGLE_PRIVATE_KEY = '-----BEGIN PRIVATE KEY-----\nMIItest\n-----END PRIVATE KEY-----\n';
 
 // Load modules after stubs are in place
 const qpayService = require('../services/qpay');

@@ -7,7 +7,7 @@ const express = require('express');
 
 // Set required environment variables before loading any calendar modules.
 process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL = 'test@example.iam.gserviceaccount.com';
-process.env.GOOGLE_PRIVATE_KEY = 'test-private-key';
+process.env.GOOGLE_PRIVATE_KEY = '-----BEGIN PRIVATE KEY-----\nMIItest\n-----END PRIVATE KEY-----\n';
 
 // Stub googleapis so tests don't need real credentials
 const googleStub = {

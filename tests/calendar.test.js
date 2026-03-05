@@ -9,7 +9,7 @@ const express = require('express');
 // Set required environment variables before loading any calendar modules.
 // ---------------------------------------------------------------------------
 process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL = 'test@example.iam.gserviceaccount.com';
-process.env.GOOGLE_PRIVATE_KEY = 'test-private-key';
+process.env.GOOGLE_PRIVATE_KEY = '-----BEGIN PRIVATE KEY-----\nMIItest\n-----END PRIVATE KEY-----\n';
 
 // ---------------------------------------------------------------------------
 // Stub googleapis before loading any calendar modules.
@@ -59,8 +59,40 @@ Module._load = function (request, parent, isMain) {
   return originalLoad.apply(this, arguments);
 };
 
-// Load route after stubs are in place
+// Load route and service utilities after stubs are in place
 const calendarRouter = require('../routes/calendar');
+const { normalisePrivateKey } = require('../services/googleCalendar');
+
+// ---------------------------------------------------------------------------
+// normalisePrivateKey unit tests
+// ---------------------------------------------------------------------------
+test('normalisePrivateKey: replaces literal \\n with real newlines', () => {
+  const raw = '-----BEGIN PRIVATE KEY-----\\nMIItest\\n-----END PRIVATE KEY-----\\n';
+  const result = normalisePrivateKey(raw);
+  assert.ok(result.includes('\n'), 'should contain real newlines');
+  assert.ok(!result.includes('\\n'), 'should not contain literal \\n');
+});
+
+test('normalisePrivateKey: strips surrounding double-quotes', () => {
+  const raw = '"-----BEGIN PRIVATE KEY-----\\nMIItest\\n-----END PRIVATE KEY-----\\n"';
+  const result = normalisePrivateKey(raw);
+  assert.ok(!result.startsWith('"'), 'should not start with double-quote');
+  assert.ok(!result.endsWith('"'), 'should not end with double-quote');
+  assert.ok(result.startsWith('-----BEGIN'), 'should start with PEM header');
+});
+
+test('normalisePrivateKey: strips surrounding single-quotes', () => {
+  const raw = "'-----BEGIN PRIVATE KEY-----\\nMIItest\\n-----END PRIVATE KEY-----\\n'";
+  const result = normalisePrivateKey(raw);
+  assert.ok(!result.startsWith("'"), 'should not start with single-quote');
+  assert.ok(result.startsWith('-----BEGIN'), 'should start with PEM header');
+});
+
+test('normalisePrivateKey: leaves real newlines intact', () => {
+  const raw = '-----BEGIN PRIVATE KEY-----\nMIItest\n-----END PRIVATE KEY-----\n';
+  const result = normalisePrivateKey(raw);
+  assert.equal(result, raw, 'should be unchanged when newlines are already real');
+});
 
 // ---------------------------------------------------------------------------
 // Test helpers

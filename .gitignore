@@ -45,3 +45,8 @@ Thumbs.db
 # Project specific
 .env
 node_modules/
+
+# Google service account credentials – NEVER commit private keys to git.
+# Use environment variables (GOOGLE_SERVICE_ACCOUNT_EMAIL + GOOGLE_PRIVATE_KEY)
+# instead.  See .env.example for instructions.
+credentials.json
