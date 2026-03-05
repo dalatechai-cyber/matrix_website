@@ -276,19 +276,12 @@ a {
   border-radius: 14px;
 }
 
-.subcategory-toggle {
-  all: unset;
-  cursor: pointer;
+.subcategory-label {
   width: 100%;
   padding: 0.6rem 0.9rem;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 1rem;
-}
-
-.subcategory-toggle:hover {
-  background-color: rgba(100, 211, 154, 0.08);
 }
 
 .pricing-subcategory-header h3 {
@@ -328,19 +321,18 @@ a {
   flex-direction: column;
 }
 
-.group-toggle {
-  all: unset;
-  cursor: pointer;
+.group-header-label {
   padding: 0.9rem 1rem;
   display: grid;
   gap: 0.5rem;
   width: 100%;
   text-align: left;
-  transition: background-color 0.2s ease;
 }
 
-.group-toggle:hover {
-  background-color: rgba(100, 211, 154, 0.08);
+.group-header-label .price {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--accent);
 }
 
 .group-header {
@@ -355,7 +347,7 @@ a {
   margin: 0;
 }
 
-.group-toggle .price {
+.group-header-label .price {
   font-weight: 700;
   font-size: 1.05rem;
   color: var(--accent);

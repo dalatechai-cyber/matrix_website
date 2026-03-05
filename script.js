@@ -167,22 +167,21 @@ function renderPricing(pricingData) {
       category.subcategories.forEach((subcategory, subIndex) => {
         const subcategoryId = `subcategory-${categoryIndex}-${subIndex}`;
 
-        // Subcategory header (collapsible)
+        // Subcategory header (always visible)
         const subcategoryHeader = document.createElement("div");
         subcategoryHeader.className = "pricing-subcategory-header";
         subcategoryHeader.innerHTML = `
-          <button class="subcategory-toggle" data-subcategory="${subcategoryId}" type="button">
+          <div class="subcategory-label">
             <div class="group-header">
               <h3>${subcategory.name}</h3>
-              <span class="toggle-icon">▼</span>
             </div>
-          </button>
+          </div>
         `;
         pricingGrid.appendChild(subcategoryHeader);
 
         const subcategoryContainer = document.createElement("div");
         subcategoryContainer.id = subcategoryId;
-        subcategoryContainer.className = "subcategory-services hidden";
+        subcategoryContainer.className = "subcategory-services";
 
         // Render services in subcategory
         subcategory.services.forEach((service) => {
@@ -209,14 +208,13 @@ function renderPricing(pricingData) {
             const priceDisplay = minPrice === maxPrice ? formatPrice(maxPrice) : formatRange(minPrice, maxPrice);
 
             groupCard.innerHTML = `
-              <button class="group-toggle" data-group="${groupId}" type="button">
+              <div class="group-header-label">
                 <div class="group-header">
                   <h4>${service.name}</h4>
-                  <span class="toggle-icon">▼</span>
                 </div>
                 <div class="price">${priceDisplay}</div>
                 <div class="muted">${service.variants.length} сонголт</div>
-              </button>
+              </div>
               ${imageButtonMarkup}
             `;
             subcategoryContainer.appendChild(groupCard);
@@ -224,7 +222,7 @@ function renderPricing(pricingData) {
             // Variants container
             const variantsContainer = document.createElement("div");
             variantsContainer.id = groupId;
-            variantsContainer.className = "price-variants hidden";
+            variantsContainer.className = "price-variants";
 
             service.variants.forEach((variant) => {
               const variantCard = document.createElement("div");
@@ -297,14 +295,13 @@ function renderPricing(pricingData) {
           const priceDisplay = minPrice === maxPrice ? formatPrice(maxPrice) : formatRange(minPrice, maxPrice);
 
           groupCard.innerHTML = `
-            <button class="group-toggle" data-group="${groupId}" type="button">
+            <div class="group-header-label">
               <div class="group-header">
                 <h4>${service.name}</h4>
-                <span class="toggle-icon">▼</span>
               </div>
               <div class="price">${priceDisplay}</div>
               <div class="muted">${service.variants.length} сонголт</div>
-            </button>
+            </div>
             ${imageButtonMarkup}
           `;
           pricingGrid.appendChild(groupCard);
@@ -312,7 +309,7 @@ function renderPricing(pricingData) {
           // Variants container
           const variantsContainer = document.createElement("div");
           variantsContainer.id = groupId;
-          variantsContainer.className = "price-variants hidden";
+          variantsContainer.className = "price-variants";
 
           service.variants.forEach((variant) => {
             const variantCard = document.createElement("div");
@@ -359,47 +356,13 @@ function renderPricing(pricingData) {
     }
   });
 
-  // Attach toggle listeners
-  document.querySelectorAll(".group-toggle").forEach((btn) => {
-    btn.addEventListener("click", toggleGroup);
-  });
-
-  document.querySelectorAll(".subcategory-toggle").forEach((btn) => {
-    btn.addEventListener("click", toggleSubcategory);
-  });
-
+  // Attach image button listeners
   document.querySelectorAll(".service-image-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const serviceName = decodeURIComponent(btn.dataset.service || "");
       openServiceImageModal(serviceName);
     });
   });
-}
-
-function toggleGroup(event) {
-  const button = event.currentTarget;
-  const groupId = button.dataset.group;
-  const container = document.getElementById(groupId);
-  const icon = button.querySelector(".toggle-icon");
-
-  if (container) {
-    container.classList.toggle("hidden");
-    icon.textContent = container.classList.contains("hidden") ? "▼" : "▲";
-  }
-}
-
-function toggleSubcategory(event) {
-  const button = event.currentTarget;
-  const subcategoryId = button.dataset.subcategory;
-  const container = document.getElementById(subcategoryId);
-  const icon = button.querySelector(".toggle-icon");
-
-  if (container) {
-    container.classList.toggle("hidden");
-    if (icon) {
-      icon.textContent = container.classList.contains("hidden") ? "▼" : "▲";
-    }
-  }
 }
 
 async function loadPricing() {
