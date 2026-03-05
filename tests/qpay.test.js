@@ -324,6 +324,106 @@ test('create-payment: payload uses hardcoded QPay v2 fields (merchant_id, curren
   delete paymentStatuses['inv_desc_001'];
 });
 
+test('create-payment: routes payment to Мөнхзаяа personal account when staffName includes Мөнхзаяа', async () => {
+  qpayService._resetTokenCache();
+  axiosStub.reset([
+    { result: { access_token: 'tok_mnk' } },
+    { result: { invoice_id: 'inv_mnk_001', qr_image: 'data:image/png;base64,abc', urls: [] } },
+  ]);
+
+  const app = buildApp();
+  await request(app, 'POST', '/api/qpay/create-payment', {
+    name: 'Болд',
+    phone: '99001122',
+    amount: '20000',
+    description: 'Matrix Eco: Г. Мөнхзаяа - 2026-03-05 10:00 - Болд - 99001122',
+    staffName: 'Г. Мөнхзаяа',
+  });
+
+  const invoiceCall = axiosStub._calls[1];
+  assert.ok(invoiceCall, 'expected invoice axios.post call');
+  assert.ok(Array.isArray(invoiceCall.body.bank_accounts), 'bank_accounts should be an array');
+  assert.equal(invoiceCall.body.bank_accounts[0].account_bank_code, '050000', 'should use Мөнхзаяа bank code 050000');
+  assert.equal(invoiceCall.body.bank_accounts[0].account_number, '5042384162', 'should use Мөнхзаяа account number');
+  assert.equal(invoiceCall.body.bank_accounts[0].account_name, 'Ганбат Мөнхзаяа', 'should use Мөнхзаяа account name');
+  assert.equal(invoiceCall.body.bank_accounts[0].is_default, true);
+  delete paymentStatuses['inv_mnk_001'];
+});
+
+test('create-payment: routes payment to Мөнхзаяа personal account when staffName includes Маникюр', async () => {
+  qpayService._resetTokenCache();
+  axiosStub.reset([
+    { result: { access_token: 'tok_man' } },
+    { result: { invoice_id: 'inv_man_001', qr_image: 'data:image/png;base64,abc', urls: [] } },
+  ]);
+
+  const app = buildApp();
+  await request(app, 'POST', '/api/qpay/create-payment', {
+    name: 'Болд',
+    phone: '99001122',
+    amount: '20000',
+    description: 'Matrix Eco: Маникюр - 2026-03-05 10:00 - Болд - 99001122',
+    staffName: 'Маникюр',
+  });
+
+  const invoiceCall = axiosStub._calls[1];
+  assert.ok(invoiceCall, 'expected invoice axios.post call');
+  assert.ok(Array.isArray(invoiceCall.body.bank_accounts), 'bank_accounts should be an array');
+  assert.equal(invoiceCall.body.bank_accounts[0].account_bank_code, '050000', 'should use Маникюр bank code 050000');
+  assert.equal(invoiceCall.body.bank_accounts[0].account_number, '5042384162', 'should use Маникюр account number');
+  delete paymentStatuses['inv_man_001'];
+});
+
+test('create-payment: routes payment to default salon account when staffName is a regular stylist', async () => {
+  qpayService._resetTokenCache();
+  axiosStub.reset([
+    { result: { access_token: 'tok_salon' } },
+    { result: { invoice_id: 'inv_salon_001', qr_image: 'data:image/png;base64,abc', urls: [] } },
+  ]);
+
+  const app = buildApp();
+  await request(app, 'POST', '/api/qpay/create-payment', {
+    name: 'Болд',
+    phone: '99001122',
+    amount: '20000',
+    description: 'Matrix Eco: Ананд - 2026-03-05 10:00 - Болд - 99001122',
+    staffName: 'Ананд',
+  });
+
+  const invoiceCall = axiosStub._calls[1];
+  assert.ok(invoiceCall, 'expected invoice axios.post call');
+  assert.ok(Array.isArray(invoiceCall.body.bank_accounts), 'bank_accounts should be an array');
+  assert.equal(invoiceCall.body.bank_accounts[0].account_bank_code, '040000', 'should use default salon bank code 040000');
+  assert.equal(invoiceCall.body.bank_accounts[0].account_number, '416055415', 'should use default salon account number');
+  assert.equal(invoiceCall.body.bank_accounts[0].account_name, 'Эрхэмбаатар Оюунсүрэн', 'should use default salon account name');
+  assert.equal(invoiceCall.body.bank_accounts[0].is_default, true);
+  delete paymentStatuses['inv_salon_001'];
+});
+
+test('create-payment: routes payment to default salon account when staffName is absent', async () => {
+  qpayService._resetTokenCache();
+  axiosStub.reset([
+    { result: { access_token: 'tok_nostaff' } },
+    { result: { invoice_id: 'inv_nostaff_001', qr_image: 'data:image/png;base64,abc', urls: [] } },
+  ]);
+
+  const app = buildApp();
+  await request(app, 'POST', '/api/qpay/create-payment', {
+    name: 'Болд',
+    phone: '99001122',
+    amount: '20000',
+    description: 'Matrix Eco: Ana - 2026-03-05 10:00 - Болд - 99001122',
+  });
+
+  const invoiceCall = axiosStub._calls[1];
+  assert.ok(invoiceCall, 'expected invoice axios.post call');
+  assert.ok(Array.isArray(invoiceCall.body.bank_accounts), 'bank_accounts should be an array');
+  assert.equal(invoiceCall.body.bank_accounts[0].account_bank_code, '040000', 'should default to salon bank code 040000');
+  assert.equal(invoiceCall.body.bank_accounts[0].account_number, '416055415', 'should default to salon account number');
+  delete paymentStatuses['inv_nostaff_001'];
+});
+
+
 test('create-payment: 400 when amount is not a valid number (e.g. letters only)', async () => {
   const app = buildApp();
   const { status, body } = await request(app, 'POST', '/api/qpay/create-payment', {

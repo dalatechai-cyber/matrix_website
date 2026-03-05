@@ -85,7 +85,7 @@ async function createCalendarEventForInvoice(invoiceId) {
  * Returns: { invoice_id: string, qr_image: <Base64 string>, urls: [ { name, link }, ... ] }
  */
 router.post('/create-payment', async (req, res) => {
-  const { name, phone, amount, description } = req.body || {};
+  const { name, phone, amount, description, staffName } = req.body || {};
 
   if (!name || !phone || !amount || !description) {
     return res.status(400).json({
@@ -106,7 +106,27 @@ router.post('/create-payment', async (req, res) => {
     // so the webhook can use it to create the Google Calendar event.
     // QPay enforces a 255-character limit on the description field.
     const cleanDescription = `${name || 'Үйлчлүүлэгч'} - ${phone || 'Утасгүй'}`.substring(0, 255);
-    const result = await createInvoice({ amount: cleanAmount, description: cleanDescription, callbackUrl });
+
+    // Determine bank account based on selected staff member.
+    // Payments for Г. Мөнхзаяа (manicurist) are routed to her personal account.
+    let bankAccountsPayload;
+    if (staffName && (staffName.includes('Мөнхзаяа') || staffName.includes('Маникюр'))) {
+      bankAccountsPayload = [{
+        account_bank_code: '050000',
+        account_number: '5042384162',
+        account_name: 'Ганбат Мөнхзаяа',
+        is_default: true,
+      }];
+    } else {
+      bankAccountsPayload = [{
+        account_bank_code: '040000',
+        account_number: '416055415',
+        account_name: 'Эрхэмбаатар Оюунсүрэн',
+        is_default: true,
+      }];
+    }
+
+    const result = await createInvoice({ amount: cleanAmount, description: cleanDescription, callbackUrl, bankAccounts: bankAccountsPayload });
 
     // Track this invoice as PENDING so the polling endpoint can report its status.
     // Store the full booking description for calendar event creation on payment.

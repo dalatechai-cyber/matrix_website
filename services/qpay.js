@@ -46,7 +46,7 @@ async function getQPayToken() {
 /**
  * Create a QPay invoice and return the QR image and mobile deep-link URLs.
  */
-async function createInvoice({ amount, description, callbackUrl } = {}) {
+async function createInvoice({ amount, description, callbackUrl, bankAccounts } = {}) {
   const merchantId = process.env.QPAY_MERCHANT_ID;
   if (!merchantId) {
     throw new Error('QPAY_MERCHANT_ID environment variable must be set');
@@ -72,6 +72,11 @@ async function createInvoice({ amount, description, callbackUrl } = {}) {
     // Callback URL байвал л нэмнэ
     if (callbackUrl) {
       payload.callback_url = callbackUrl;
+    }
+
+    // Bank accounts байвал л нэмнэ
+    if (bankAccounts && bankAccounts.length > 0) {
+      payload.bank_accounts = bankAccounts;
     }
 
     console.log('FINAL TEST PAYLOAD:', payload);
