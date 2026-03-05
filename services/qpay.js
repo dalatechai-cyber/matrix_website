@@ -29,7 +29,7 @@ async function getQPayToken() {
   try {
     const response = await axios.post(
       `${QPAY_BASE_URL}/auth/token`,
-      { terminal_id: username },
+      { terminal_id: 'DALATECH_AI' },
       { headers: { Authorization: `Basic ${credentials}` } },
     );
 
@@ -50,19 +50,16 @@ async function getQPayToken() {
  * @returns {Promise<{ qr_image: string, urls: Array }>}
  */
 async function createInvoice() {
-  if (!process.env.QPAY_MERCHANT_ID) {
-    throw new Error('QPAY_MERCHANT_ID environment variable must be set');
-  }
   const accessToken = await getQPayToken();
   try {
     const payload = {
-      merchant_id: process.env.QPAY_MERCHANT_ID,
+      merchant_id: '17e69f2a-d1a4-4fe6-a5a2-34a649378414', // I will paste my real ID here
       amount: 100,
       currency: 'MNT',
       description: 'Test Booking',
       mcc_code: '7230',
     };
-    console.log('TEST QPAY PAYLOAD:', payload);
+    console.log('FINAL TEST PAYLOAD:', payload);
     const response = await axios.post(
       `${QPAY_BASE_URL}/invoice`,
       payload,

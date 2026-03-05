@@ -113,7 +113,7 @@ test('getQPayToken: returns cached token without a second network call', async (
   assert.equal(token, 'tok_abc');
 });
 
-test('getQPayToken: sends terminal_id equal to QPAY_USERNAME in the token request body', async () => {
+test('getQPayToken: sends terminal_id as hardcoded DALATECH_AI in the token request body', async () => {
   qpayService._resetTokenCache();
   axiosStub.reset([{ result: { access_token: 'tok_tid' } }]);
 
@@ -121,7 +121,7 @@ test('getQPayToken: sends terminal_id equal to QPAY_USERNAME in the token reques
 
   const tokenCall = axiosStub._calls[0];
   assert.ok(tokenCall, 'expected at least one axios.post call');
-  assert.deepEqual(tokenCall.body, { terminal_id: process.env.QPAY_USERNAME });
+  assert.deepEqual(tokenCall.body, { terminal_id: 'DALATECH_AI' });
 });
 
 test('getQPayToken: throws when env vars are missing', async () => {
@@ -137,16 +137,18 @@ test('getQPayToken: throws when env vars are missing', async () => {
   process.env.QPAY_PASSWORD = savedPass;
 });
 
-test('createInvoice: throws when QPAY_MERCHANT_ID env var is missing', async () => {
+test('createInvoice: does not require QPAY_MERCHANT_ID env var (merchant_id is hardcoded)', async () => {
   qpayService._resetTokenCache();
-  axiosStub.reset([{ result: { access_token: 'tok_mid' } }]);
+  axiosStub.reset([
+    { result: { access_token: 'tok_mid' } },
+    { result: { invoice_id: 'inv_mid_001', qr_image: 'data:image/png;base64,abc', urls: [] } },
+  ]);
   const savedMerchantId = process.env.QPAY_MERCHANT_ID;
   delete process.env.QPAY_MERCHANT_ID;
 
-  await assert.rejects(
-    () => qpayService.createInvoice(),
-    /QPAY_MERCHANT_ID/,
-  );
+  // Should NOT throw even without the env var
+  const result = await qpayService.createInvoice();
+  assert.ok(result.invoice_id, 'expected invoice_id in result');
 
   process.env.QPAY_MERCHANT_ID = savedMerchantId;
 });
@@ -315,7 +317,7 @@ test('create-payment: payload uses hardcoded QPay v2 fields (merchant_id, curren
 
   const invoiceCall = axiosStub._calls[1];
   assert.ok(invoiceCall, 'expected invoice axios.post call');
-  assert.equal(invoiceCall.body.merchant_id, process.env.QPAY_MERCHANT_ID, 'merchant_id should come from QPAY_MERCHANT_ID');
+  assert.equal(invoiceCall.body.merchant_id, '17e69f2a-d1a4-4fe6-a5a2-34a649378414', 'merchant_id should be hardcoded');
   assert.equal(invoiceCall.body.currency, 'MNT', 'currency should be MNT');
   assert.equal(invoiceCall.body.mcc_code, '7230', 'mcc_code should be 7230');
   assert.equal(invoiceCall.body.description, 'Test Booking', 'description should be hardcoded Test Booking');
@@ -351,7 +353,7 @@ test('createInvoice service: logs QPay Payload before sending request', async ()
     console.log = originalLog;
   }
 
-  const payloadLog = logs.find((args) => args[0] === 'TEST QPAY PAYLOAD:');
+  const payloadLog = logs.find((args) => args[0] === 'FINAL TEST PAYLOAD:');
   assert.ok(payloadLog, 'expected a "TEST QPAY PAYLOAD:" log entry');
   assert.equal(payloadLog[1].amount, 100);
 });
