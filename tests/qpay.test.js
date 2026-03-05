@@ -137,18 +137,16 @@ test('getQPayToken: throws when env vars are missing', async () => {
   process.env.QPAY_PASSWORD = savedPass;
 });
 
-test('createInvoice: does not require QPAY_MERCHANT_ID env var (merchant_id is hardcoded)', async () => {
+test('createInvoice: throws when QPAY_MERCHANT_ID env var is missing', async () => {
   qpayService._resetTokenCache();
-  axiosStub.reset([
-    { result: { access_token: 'tok_mid' } },
-    { result: { invoice_id: 'inv_mid_001', qr_image: 'data:image/png;base64,abc', urls: [] } },
-  ]);
+  axiosStub.reset([{ result: { access_token: 'tok_mid' } }]);
   const savedMerchantId = process.env.QPAY_MERCHANT_ID;
   delete process.env.QPAY_MERCHANT_ID;
 
-  // Should NOT throw even without the env var
-  const result = await qpayService.createInvoice();
-  assert.ok(result.invoice_id, 'expected invoice_id in result');
+  await assert.rejects(
+    () => qpayService.createInvoice({ amount: 20000, description: 'Test', callbackUrl: 'https://example.com/cb' }),
+    /QPAY_MERCHANT_ID/,
+  );
 
   process.env.QPAY_MERCHANT_ID = savedMerchantId;
 });
@@ -296,7 +294,7 @@ test('create-payment: cleans amount with commas and currency symbol (e.g. "20,00
   // Find the invoice call (second axios.post call)
   const invoiceCall = axiosStub._calls[1];
   assert.ok(invoiceCall, 'expected invoice axios.post call');
-  assert.equal(invoiceCall.body.amount, 100, 'amount should be the hardcoded QPay v2 value of 100');
+  assert.equal(invoiceCall.body.amount, 20000, 'amount should be the cleaned value 20000');
   delete paymentStatuses['inv_clean_001'];
 });
 
@@ -317,10 +315,12 @@ test('create-payment: payload uses hardcoded QPay v2 fields (merchant_id, curren
 
   const invoiceCall = axiosStub._calls[1];
   assert.ok(invoiceCall, 'expected invoice axios.post call');
-  assert.equal(invoiceCall.body.merchant_id, '17e69f2a-d1a4-4fe6-a5a2-34a649378414', 'merchant_id should be hardcoded');
+  assert.equal(invoiceCall.body.merchant_id, process.env.QPAY_MERCHANT_ID, 'merchant_id should come from QPAY_MERCHANT_ID env var');
   assert.equal(invoiceCall.body.currency, 'MNT', 'currency should be MNT');
   assert.equal(invoiceCall.body.mcc_code, '7230', 'mcc_code should be 7230');
-  assert.equal(invoiceCall.body.description, 'Test Booking', 'description should be hardcoded Test Booking');
+  assert.equal(invoiceCall.body.amount, 20000, 'amount should be the actual booking amount');
+  assert.equal(invoiceCall.body.description, 'Болд - 99001122', 'description should be the customer name and phone');
+  assert.ok(invoiceCall.body.callback_url, 'callback_url should be present in the payload');
   delete paymentStatuses['inv_desc_001'];
 });
 
@@ -348,14 +348,14 @@ test('createInvoice service: logs QPay Payload before sending request', async ()
   console.log = (...args) => { logs.push(args); originalLog(...args); };
 
   try {
-    await qpayService.createInvoice();
+    await qpayService.createInvoice({ amount: 20000, description: 'Болд - 99001122', callbackUrl: 'https://test.example.com/api/qpay/webhook' });
   } finally {
     console.log = originalLog;
   }
 
   const payloadLog = logs.find((args) => args[0] === 'FINAL TEST PAYLOAD:');
   assert.ok(payloadLog, 'expected a "TEST QPAY PAYLOAD:" log entry');
-  assert.equal(payloadLog[1].amount, 100);
+  assert.equal(payloadLog[1].amount, 20000);
 });
 
 // ---------------------------------------------------------------------------
