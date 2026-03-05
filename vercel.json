@@ -1,22 +1,15 @@
 {
   "version": 2,
-  "github": {
-    "enabled": false
-  },
   "builds": [
     {
       "src": "server.js",
       "use": "@vercel/node"
     }
   ],
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "/server.js"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/server.js"
+      "source": "/api/(.*)",
+      "destination": "/server.js"
     }
   ]
 }
