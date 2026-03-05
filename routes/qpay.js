@@ -39,23 +39,33 @@ function parseDescription(description) {
  * POST /api/qpay/create-payment
  *
  * Creates a QPay invoice for a booking payment.
- * Expects JSON body: { merchantId, amount, description }
+ * Expects JSON body: { name, phone, amount, description }
+ *   - name: customer's full name
+ *   - phone: customer's phone number
+ *   - amount: payment amount in MNT (20000 or 10000 depending on hairdresser degree)
+ *   - description: full booking description used internally for calendar event creation
+ *     (e.g. "Matrix Eco: {stylistId} - {date} {time} - {name} - {phone}")
  * Returns: { invoice_id: string, qr_image: <Base64 string>, urls: [ { name, link }, ... ] }
  */
 router.post('/create-payment', async (req, res) => {
-  const { merchantId, amount, description } = req.body || {};
+  const { name, phone, amount, description } = req.body || {};
 
-  if (!merchantId || !amount || !description) {
+  if (!name || !phone || !amount || !description) {
     return res.status(400).json({
-      error: 'merchantId, amount, and description are required',
+      error: 'name, phone, amount, and description are required',
     });
   }
 
   try {
     const callbackUrl = `${process.env.BASE_URL || 'https://mydomain.com'}/api/qpay/webhook`;
-    const result = await createInvoice({ merchantId, amount, description, callbackUrl });
+    // The QPay invoice description shows only the customer name and phone.
+    // The full booking description (with stylist/date/time) is stored internally
+    // so the webhook can use it to create the Google Calendar event.
+    const qpayDescription = `${name} - ${phone}`;
+    const result = await createInvoice({ amount, description: qpayDescription, callbackUrl });
 
-    // Track this invoice as PENDING so the polling endpoint can report its status
+    // Track this invoice as PENDING so the polling endpoint can report its status.
+    // Store the full booking description for calendar event creation on payment.
     if (result.invoice_id) {
       paymentStatuses[result.invoice_id] = {
         status: 'PENDING',

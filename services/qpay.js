@@ -48,13 +48,16 @@ async function getQPayToken() {
 /**
  * Create a QPay invoice and return the QR image and mobile deep-link URLs.
  * @param {object} params
- * @param {string} params.merchantId   Dynamic merchant ID for this transaction
  * @param {string|number} params.amount Amount in MNT
- * @param {string} params.description  Human-readable order description
+ * @param {string} params.description  Human-readable order description (shown in QPay)
  * @param {string} params.callbackUrl  QPay server-to-server callback URL
  * @returns {Promise<{ qr_image: string, urls: Array }>}
  */
-async function createInvoice({ merchantId, amount, description, callbackUrl }) {
+async function createInvoice({ amount, description, callbackUrl }) {
+  const merchantId = process.env.QPAY_MERCHANT_ID;
+  if (!merchantId) {
+    throw new Error('QPAY_MERCHANT_ID environment variable must be set');
+  }
   const accessToken = await getQPayToken();
   try {
     const response = await axios.post(
@@ -64,6 +67,7 @@ async function createInvoice({ merchantId, amount, description, callbackUrl }) {
         amount: String(amount),
         currency: 'MNT',
         description,
+        mcc_code: '7230',
         callback_url: callbackUrl,
       },
       { headers: { Authorization: `Bearer ${accessToken}` } },

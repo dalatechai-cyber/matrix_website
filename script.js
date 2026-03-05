@@ -668,8 +668,9 @@ function showBookingSummary(stylistId, date, time) {
     }
 
     initiateQPayPayment({
-      merchantId: "MATRIX_SALON",
       amount: stylist.price,
+      name: customerName,
+      phone: customerPhone,
       description: `Matrix Eco: ${stylistId} - ${date} ${time} - ${customerName} - ${customerPhone}`,
       confirmBtn: summaryEl.querySelector(".confirm-pay-btn"),
     });
@@ -1073,12 +1074,13 @@ if (videoButtons.length > 0) {
  * them inside #qpay-panel.
  *
  * @param {object} params
- * @param {string} params.merchantId  - Dynamic merchant ID for this order
  * @param {string|number} params.amount      - Amount in MNT
- * @param {string} params.description - Human-readable description shown in QPay
+ * @param {string} params.name        - Customer's full name
+ * @param {string} params.phone       - Customer's phone number
+ * @param {string} params.description - Full booking description for calendar (stored server-side)
  * @param {HTMLButtonElement} [params.confirmBtn] - The button that triggered the call (for loading state)
  */
-async function initiateQPayPayment({ merchantId, amount, description, confirmBtn }) {
+async function initiateQPayPayment({ amount, name, phone, description, confirmBtn }) {
   const panel     = document.getElementById("qpay-panel");
   const qrImg     = document.getElementById("qpay-qr-img");
   const bankBtns  = document.getElementById("qpay-bank-buttons");
@@ -1103,7 +1105,7 @@ async function initiateQPayPayment({ merchantId, amount, description, confirmBtn
     const response = await fetch("/api/qpay/create-payment", {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ merchantId, amount, description }),
+      body:    JSON.stringify({ amount, name, phone, description }),
     });
 
     if (!response.ok) {
