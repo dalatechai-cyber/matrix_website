@@ -43,7 +43,7 @@ Module._load = function (request, parent, isMain) {
 process.env.QPAY_USERNAME = 'test_user';
 process.env.QPAY_PASSWORD = 'test_pass';
 process.env.BASE_URL = 'https://test.example.com';
-process.env.QPAY_INVOICE_CODE = 'TEST_INVOICE_CODE';
+process.env.QPAY_MERCHANT_ID = 'TEST_MERCHANT_ID';
 // Set dummy Google env vars (used by the webhook calendar path)
 process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL = 'test@example.iam.gserviceaccount.com';
 process.env.GOOGLE_PRIVATE_KEY = '-----BEGIN PRIVATE KEY-----\nMIItest\n-----END PRIVATE KEY-----\n';
@@ -137,20 +137,18 @@ test('getQPayToken: throws when env vars are missing', async () => {
   process.env.QPAY_PASSWORD = savedPass;
 });
 
-test('createInvoice: throws when QPAY_INVOICE_CODE env var is missing', async () => {
+test('createInvoice: throws when QPAY_MERCHANT_ID env var is missing', async () => {
   qpayService._resetTokenCache();
   axiosStub.reset([{ result: { access_token: 'tok_mid' } }]);
-  const savedInvoiceCode = process.env.QPAY_INVOICE_CODE;
-  delete process.env.QPAY_INVOICE_CODE;
-  // Also clear the legacy fallback so the error is triggered
+  const savedMerchantId = process.env.QPAY_MERCHANT_ID;
   delete process.env.QPAY_MERCHANT_ID;
 
   await assert.rejects(
-    () => qpayService.createInvoice({ amount: '20000', description: 'Test - 99001122', callbackUrl: 'https://example.com/cb' }),
-    /QPAY_INVOICE_CODE/,
+    () => qpayService.createInvoice(),
+    /QPAY_MERCHANT_ID/,
   );
 
-  process.env.QPAY_INVOICE_CODE = savedInvoiceCode;
+  process.env.QPAY_MERCHANT_ID = savedMerchantId;
 });
 
 // ---------------------------------------------------------------------------
@@ -296,11 +294,11 @@ test('create-payment: cleans amount with commas and currency symbol (e.g. "20,00
   // Find the invoice call (second axios.post call)
   const invoiceCall = axiosStub._calls[1];
   assert.ok(invoiceCall, 'expected invoice axios.post call');
-  assert.equal(invoiceCall.body.amount, 20000, 'amount should be cleaned to numeric 20000');
+  assert.equal(invoiceCall.body.amount, 100, 'amount should be the hardcoded QPay v2 value of 100');
   delete paymentStatuses['inv_clean_001'];
 });
 
-test('create-payment: description is formatted as "name - phone" from request fields', async () => {
+test('create-payment: payload uses hardcoded QPay v2 fields (merchant_id, currency, mcc_code)', async () => {
   qpayService._resetTokenCache();
   axiosStub.reset([
     { result: { access_token: 'tok_desc' } },
@@ -317,7 +315,10 @@ test('create-payment: description is formatted as "name - phone" from request fi
 
   const invoiceCall = axiosStub._calls[1];
   assert.ok(invoiceCall, 'expected invoice axios.post call');
-  assert.equal(invoiceCall.body.invoice_description, 'Болд - 99001122', 'invoice_description should be "name - phone"');
+  assert.equal(invoiceCall.body.merchant_id, process.env.QPAY_MERCHANT_ID, 'merchant_id should come from QPAY_MERCHANT_ID');
+  assert.equal(invoiceCall.body.currency, 'MNT', 'currency should be MNT');
+  assert.equal(invoiceCall.body.mcc_code, '7230', 'mcc_code should be 7230');
+  assert.equal(invoiceCall.body.description, 'Test Booking', 'description should be hardcoded Test Booking');
   delete paymentStatuses['inv_desc_001'];
 });
 
@@ -345,14 +346,14 @@ test('createInvoice service: logs QPay Payload before sending request', async ()
   console.log = (...args) => { logs.push(args); originalLog(...args); };
 
   try {
-    await qpayService.createInvoice({ amount: 20000, description: 'Test - 99001122', callbackUrl: 'https://example.com/cb' });
+    await qpayService.createInvoice();
   } finally {
     console.log = originalLog;
   }
 
-  const payloadLog = logs.find((args) => args[0] === 'QPay Payload:');
-  assert.ok(payloadLog, 'expected a "QPay Payload:" log entry');
-  assert.equal(payloadLog[1].amount, 20000);
+  const payloadLog = logs.find((args) => args[0] === 'TEST QPAY PAYLOAD:');
+  assert.ok(payloadLog, 'expected a "TEST QPAY PAYLOAD:" log entry');
+  assert.equal(payloadLog[1].amount, 100);
 });
 
 // ---------------------------------------------------------------------------

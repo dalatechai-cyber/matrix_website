@@ -1,7 +1,6 @@
 'use strict';
 
 const axios = require('axios');
-const { randomUUID } = require('crypto');
 
 const QPAY_BASE_URL = 'https://quickqr.qpay.mn/v2';
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -48,31 +47,22 @@ async function getQPayToken() {
 
 /**
  * Create a QPay invoice and return the QR image and mobile deep-link URLs.
- * @param {object} params
- * @param {string|number} params.amount Amount in MNT
- * @param {string} params.description  Human-readable order description (shown in QPay)
- * @param {string} params.callbackUrl  QPay server-to-server callback URL
  * @returns {Promise<{ qr_image: string, urls: Array }>}
  */
-async function createInvoice({ amount, description, callbackUrl }) {
-  // QPAY_INVOICE_CODE is the invoice template code from the QPay merchant portal.
-  // For backwards-compatibility also accept QPAY_MERCHANT_ID if the new variable
-  // has not been set yet, but QPAY_INVOICE_CODE should be preferred.
-  const invoiceCode = process.env.QPAY_INVOICE_CODE || process.env.QPAY_MERCHANT_ID;
-  if (!invoiceCode) {
-    throw new Error('QPAY_INVOICE_CODE environment variable must be set');
+async function createInvoice() {
+  if (!process.env.QPAY_MERCHANT_ID) {
+    throw new Error('QPAY_MERCHANT_ID environment variable must be set');
   }
   const accessToken = await getQPayToken();
   try {
     const payload = {
-      invoice_code: invoiceCode,
-      sender_invoice_no: randomUUID().replace(/-/g, ''),
-      invoice_receiver_code: 'terminal',
-      invoice_description: description,
-      amount: Number(amount),
-      callback_url: callbackUrl,
+      merchant_id: process.env.QPAY_MERCHANT_ID,
+      amount: 100,
+      currency: 'MNT',
+      description: 'Test Booking',
+      mcc_code: '7230',
     };
-    console.log('QPay Payload:', payload);
+    console.log('TEST QPAY PAYLOAD:', payload);
     const response = await axios.post(
       `${QPAY_BASE_URL}/invoice`,
       payload,
