@@ -1,30 +1,10 @@
 'use strict';
 
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
-const { google } = require('googleapis');
+const { getCalendarClient } = require('../services/googleCalendar');
 const { STYLIST_CALENDAR_MAP } = require('../config/stylists');
 
 const router = express.Router();
-
-const SCOPES = ['https://www.googleapis.com/auth/calendar'];
-const CREDENTIALS_PATH = path.join(__dirname, '..', 'credentials.json');
-const TOKEN_PATH = path.join(__dirname, '..', 'token.json');
-
-/**
- * Load OAuth2 client and authorise it using the saved token.
- * @returns {google.auth.OAuth2} Authenticated OAuth2 client
- */
-async function getAuthClient() {
-  const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, 'utf8'));
-  const { client_secret, client_id, redirect_uris } = credentials.installed || credentials.web;
-  const oAuth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris[0]);
-
-  const token = JSON.parse(fs.readFileSync(TOKEN_PATH, 'utf8'));
-  oAuth2Client.setCredentials(token);
-  return oAuth2Client;
-}
 
 // Required fields in the webhook payload
 const REQUIRED_FIELDS = [
@@ -75,8 +55,7 @@ router.post('/payment-success', async (req, res) => {
   }
 
   try {
-    const auth = await getAuthClient();
-    const calendar = google.calendar({ version: 'v3', auth });
+    const calendar = await getCalendarClient();
 
     const event = {
       summary: `${body.serviceName} - ${body.customerName}`,
@@ -91,7 +70,7 @@ router.post('/payment-success', async (req, res) => {
 
     const response = await calendar.events.insert({
       calendarId,
-      resource: event,
+      requestBody: event,
     });
 
     console.log('Calendar event created:', response.data.id, 'for stylist', body.stylistId);

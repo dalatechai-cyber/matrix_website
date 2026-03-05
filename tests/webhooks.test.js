@@ -5,6 +5,10 @@ const { test } = require('node:test');
 const http = require('node:http');
 const express = require('express');
 
+// Set required environment variables before loading any calendar modules.
+process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL = 'test@example.iam.gserviceaccount.com';
+process.env.GOOGLE_PRIVATE_KEY = 'test-private-key';
+
 // Stub googleapis so tests don't need real credentials
 const googleStub = {
   _insertResult: null,
@@ -19,9 +23,9 @@ Module._load = function (request, parent, isMain) {
     return {
       google: {
         auth: {
-          OAuth2: class {
+          JWT: class {
             constructor() {}
-            setCredentials() {}
+            async authorize() { return {}; }
           },
         },
         calendar: () => ({
@@ -37,26 +41,6 @@ Module._load = function (request, parent, isMain) {
   }
   return originalLoad.apply(this, arguments);
 };
-
-// Stub fs to avoid needing real credentials.json / token.json
-const realFs = require('fs');
-const fsStub = Object.create(realFs);
-fsStub.readFileSync = function (filePath, encoding) {
-  if (filePath.endsWith('credentials.json')) {
-    return JSON.stringify({
-      installed: {
-        client_id: 'test_client_id',
-        client_secret: 'test_client_secret',
-        redirect_uris: ['urn:ietf:wg:oauth:2.0:oob'],
-      },
-    });
-  }
-  if (filePath.endsWith('token.json')) {
-    return JSON.stringify({ access_token: 'test_token' });
-  }
-  return realFs.readFileSync(filePath, encoding);
-};
-require.cache[require.resolve('fs')] = { id: 'fs', filename: 'fs', loaded: true, exports: fsStub };
 
 // Now load the route (it will use our stubs)
 const webhookRouter = require('../routes/webhooks');

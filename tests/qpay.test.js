@@ -40,10 +40,15 @@ Module._load = function (request, parent, isMain) {
 process.env.QPAY_USERNAME = 'test_user';
 process.env.QPAY_PASSWORD = 'test_pass';
 process.env.BASE_URL = 'https://test.example.com';
+// Set dummy Google env vars (used by the webhook calendar path)
+process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL = 'test@example.iam.gserviceaccount.com';
+process.env.GOOGLE_PRIVATE_KEY = 'test-private-key';
 
 // Load modules after stubs are in place
 const qpayService = require('../services/qpay');
 const qpayRouter = require('../routes/qpay');
+// Access the shared in-memory store exported from the router module
+const { paymentStatuses } = qpayRouter;
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -141,12 +146,12 @@ test('create-payment: 400 when description is missing', async () => {
   assert.ok(body.error.includes('required'));
 });
 
-test('create-payment: 200 with qr_image and urls on success', async () => {
+test('create-payment: 200 with qr_image, urls, and invoice_id on success', async () => {
   qpayService._resetTokenCache();
   // First call → auth token; second call → invoice response
   axiosStub.reset([
     { result: { access_token: 'tok_seq' } },
-    { result: { qr_image: 'data:image/png;base64,abc', urls: [{ name: 'Khan Bank', link: 'khanbank://pay' }] } },
+    { result: { invoice_id: 'inv_test_001', qr_image: 'data:image/png;base64,abc', urls: [{ name: 'Khan Bank', link: 'khanbank://pay' }] } },
   ]);
 
   const app = buildApp();
@@ -159,6 +164,7 @@ test('create-payment: 200 with qr_image and urls on success', async () => {
   assert.equal(status, 200);
   assert.ok(body.qr_image);
   assert.ok(Array.isArray(body.urls));
+  assert.equal(body.invoice_id, 'inv_test_001');
 });
 
 test('create-payment: 502 when QPay API fails', async () => {
@@ -190,12 +196,16 @@ test('webhook: 400 when invoice_id is missing', async () => {
   assert.ok(body.error.includes('invoice_id'));
 });
 
-test('webhook: 200 with invoice_id present (invoice_id field)', async () => {
+test('webhook: 200 with invoice_id present (invoice_id field) and marks PAID', async () => {
+  // Pre-populate the store with a PENDING invoice so the webhook can look it up
+  paymentStatuses['inv_123'] = { status: 'PENDING', description: null, createdAt: Date.now() };
   const app = buildApp();
   const { status, body } = await request(app, 'POST', '/api/qpay/webhook', { invoice_id: 'inv_123' });
   assert.equal(status, 200);
   assert.equal(body.invoiceId, 'inv_123');
   assert.equal(body.received, true);
+  assert.equal(paymentStatuses['inv_123'].status, 'PAID');
+  delete paymentStatuses['inv_123'];
 });
 
 test('webhook: 200 with invoice_id present (id field fallback)', async () => {
@@ -203,4 +213,32 @@ test('webhook: 200 with invoice_id present (id field fallback)', async () => {
   const { status, body } = await request(app, 'POST', '/api/qpay/webhook', { id: 'inv_456' });
   assert.equal(status, 200);
   assert.equal(body.invoiceId, 'inv_456');
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/qpay/check-payment/:invoiceId
+// ---------------------------------------------------------------------------
+test('check-payment: returns UNKNOWN for an untracked invoice', async () => {
+  const app = buildApp();
+  const { status, body } = await request(app, 'GET', '/api/qpay/check-payment/nonexistent_inv', null);
+  assert.equal(status, 200);
+  assert.equal(body.status, 'UNKNOWN');
+});
+
+test('check-payment: returns PENDING for a newly created invoice', async () => {
+  paymentStatuses['inv_pending'] = { status: 'PENDING', description: 'Test', createdAt: Date.now() };
+  const app = buildApp();
+  const { status, body } = await request(app, 'GET', '/api/qpay/check-payment/inv_pending', null);
+  assert.equal(status, 200);
+  assert.equal(body.status, 'PENDING');
+  delete paymentStatuses['inv_pending'];
+});
+
+test('check-payment: returns PAID after webhook marks invoice as PAID', async () => {
+  paymentStatuses['inv_paid'] = { status: 'PAID', description: null, createdAt: Date.now() };
+  const app = buildApp();
+  const { status, body } = await request(app, 'GET', '/api/qpay/check-payment/inv_paid', null);
+  assert.equal(status, 200);
+  assert.equal(body.status, 'PAID');
+  delete paymentStatuses['inv_paid'];
 });

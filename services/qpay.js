@@ -64,6 +64,7 @@ async function createInvoice({ merchantId, amount, description, callbackUrl }) {
   );
 
   return {
+    invoice_id: response.data.invoice_id || response.data.id || null,
     qr_image: response.data.qr_image,
     urls: response.data.urls || [],
   };
