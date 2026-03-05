@@ -74,7 +74,7 @@ async function createInvoice({ amount, description, callbackUrl } = {}) {
       payload.callback_url = callbackUrl;
     }
 
-    console.log('FINAL CLEAN PAYLOAD TO QPAY:', payload);
+    console.log('FINAL TEST PAYLOAD:', payload);
 
     const response = await axios.post(
       `${QPAY_BASE_URL}/invoice`,
