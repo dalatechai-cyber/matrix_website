@@ -579,12 +579,25 @@ function renderDayStrip(startDate = new Date()) {
  * @returns {string[]}  e.g. ["10:00", "11:00", ..., "19:00"]
  */
 function generateTimeSlots(dateStr) {
-  const dayOfWeek = new Date(dateStr).getDay();
+  // Use noon to avoid UTC-midnight timezone shift affecting getDay()
+  const dayOfWeek = new Date(`${dateStr}T12:00:00`).getDay();
   const isSunday = dayOfWeek === 0;
   const startHour = isSunday ? 11 : 10;
   const lastSlotHour = isSunday ? 18 : 19;
   const slots = [];
+
+  // For today, skip slots that have already started.
+  // Note: this fallback uses the browser's local time. The backend API
+  // is the authoritative source and always uses the salon's UTC+8 timezone.
+  const now = new Date();
+  const todayStr = formatDateInput(now);
+  const isToday = dateStr === todayStr;
+
   for (let h = startHour; h <= lastSlotHour; h++) {
+    if (isToday) {
+      const slotDate = new Date(`${dateStr}T${String(h).padStart(2, "0")}:00:00`);
+      if (slotDate < now) continue;
+    }
     slots.push(`${String(h).padStart(2, "0")}:00`);
   }
   return slots;

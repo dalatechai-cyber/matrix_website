@@ -75,9 +75,14 @@ router.get('/available-slots', async (req, res) => {
     const busySlots = calendarResult.busy || [];
 
     // Build all possible 1-hour slot start hours
+    const now = new Date();
     const availableSlots = [];
     for (let h = workStartHour; h <= lastSlotStartHour; h++) {
       const slotStart = new Date(`${date}T${String(h).padStart(2, '0')}:00:00${SALON_TZ_OFFSET}`);
+
+      // Skip slots that have already started
+      if (slotStart < now) continue;
+
       const slotEnd = new Date(slotStart.getTime() + SLOT_DURATION_HOURS * 60 * 60 * 1000);
 
       const isBusy = busySlots.some((busy) => {
