@@ -43,7 +43,7 @@ Module._load = function (request, parent, isMain) {
 process.env.QPAY_USERNAME = 'test_user';
 process.env.QPAY_PASSWORD = 'test_pass';
 process.env.BASE_URL = 'https://test.example.com';
-process.env.QPAY_MERCHANT_ID = 'TEST_MERCHANT_001';
+process.env.QPAY_INVOICE_CODE = 'TEST_INVOICE_CODE';
 // Set dummy Google env vars (used by the webhook calendar path)
 process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL = 'test@example.iam.gserviceaccount.com';
 process.env.GOOGLE_PRIVATE_KEY = '-----BEGIN PRIVATE KEY-----\nMIItest\n-----END PRIVATE KEY-----\n';
@@ -137,18 +137,20 @@ test('getQPayToken: throws when env vars are missing', async () => {
   process.env.QPAY_PASSWORD = savedPass;
 });
 
-test('createInvoice: throws when QPAY_MERCHANT_ID env var is missing', async () => {
+test('createInvoice: throws when QPAY_INVOICE_CODE env var is missing', async () => {
   qpayService._resetTokenCache();
   axiosStub.reset([{ result: { access_token: 'tok_mid' } }]);
-  const savedMerchantId = process.env.QPAY_MERCHANT_ID;
+  const savedInvoiceCode = process.env.QPAY_INVOICE_CODE;
+  delete process.env.QPAY_INVOICE_CODE;
+  // Also clear the legacy fallback so the error is triggered
   delete process.env.QPAY_MERCHANT_ID;
 
   await assert.rejects(
     () => qpayService.createInvoice({ amount: '20000', description: 'Test - 99001122', callbackUrl: 'https://example.com/cb' }),
-    /QPAY_MERCHANT_ID/,
+    /QPAY_INVOICE_CODE/,
   );
 
-  process.env.QPAY_MERCHANT_ID = savedMerchantId;
+  process.env.QPAY_INVOICE_CODE = savedInvoiceCode;
 });
 
 // ---------------------------------------------------------------------------
@@ -294,7 +296,7 @@ test('create-payment: cleans amount with commas and currency symbol (e.g. "20,00
   // Find the invoice call (second axios.post call)
   const invoiceCall = axiosStub._calls[1];
   assert.ok(invoiceCall, 'expected invoice axios.post call');
-  assert.equal(invoiceCall.body.amount, '20000', 'amount should be cleaned to "20000"');
+  assert.equal(invoiceCall.body.amount, 20000, 'amount should be cleaned to numeric 20000');
   delete paymentStatuses['inv_clean_001'];
 });
 
@@ -315,7 +317,7 @@ test('create-payment: description is formatted as "name - phone" from request fi
 
   const invoiceCall = axiosStub._calls[1];
   assert.ok(invoiceCall, 'expected invoice axios.post call');
-  assert.equal(invoiceCall.body.description, 'Болд - 99001122', 'description should be "name - phone"');
+  assert.equal(invoiceCall.body.invoice_description, 'Болд - 99001122', 'invoice_description should be "name - phone"');
   delete paymentStatuses['inv_desc_001'];
 });
 
@@ -350,7 +352,7 @@ test('createInvoice service: logs QPay Payload before sending request', async ()
 
   const payloadLog = logs.find((args) => args[0] === 'QPay Payload:');
   assert.ok(payloadLog, 'expected a "QPay Payload:" log entry');
-  assert.equal(payloadLog[1].amount, '20000');
+  assert.equal(payloadLog[1].amount, 20000);
 });
 
 // ---------------------------------------------------------------------------
