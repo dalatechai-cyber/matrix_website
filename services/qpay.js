@@ -2,7 +2,7 @@
 
 const axios = require('axios');
 
-const QPAY_BASE_URL = 'https://quickqr.qpay.mn/v2';
+const QPAY_BASE_URL = 'https://merchant.qpay.mn/v2';
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 // In-memory token cache: { access_token: string, fetchedAt: number }
@@ -25,19 +25,24 @@ async function getQPayToken() {
     throw new Error('QPAY_USERNAME and QPAY_PASSWORD environment variables must be set');
   }
 
-  const credentials = Buffer.from(`${username}:${password}`).toString('base64');
-  const response = await axios.post(
-    `${QPAY_BASE_URL}/auth/token`,
-    {},
-    { headers: { Authorization: `Basic ${credentials}` } },
-  );
+  const credentials = Buffer.from(username + ':' + password).toString('base64');
+  try {
+    const response = await axios.post(
+      `${QPAY_BASE_URL}/auth/token`,
+      {},
+      { headers: { Authorization: `Basic ${credentials}` } },
+    );
 
-  _tokenCache = {
-    access_token: response.data.access_token,
-    fetchedAt: now,
-  };
+    _tokenCache = {
+      access_token: response.data.access_token,
+      fetchedAt: now,
+    };
 
-  return _tokenCache.access_token;
+    return _tokenCache.access_token;
+  } catch (error) {
+    console.error('QPay API Error Details:', error.response?.data || error.message);
+    throw error;
+  }
 }
 
 /**
@@ -51,23 +56,28 @@ async function getQPayToken() {
  */
 async function createInvoice({ merchantId, amount, description, callbackUrl }) {
   const accessToken = await getQPayToken();
-  const response = await axios.post(
-    `${QPAY_BASE_URL}/invoice`,
-    {
-      merchant_id: merchantId,
-      amount: String(amount),
-      currency: 'MNT',
-      description,
-      callback_url: callbackUrl,
-    },
-    { headers: { Authorization: `Bearer ${accessToken}` } },
-  );
+  try {
+    const response = await axios.post(
+      `${QPAY_BASE_URL}/invoice`,
+      {
+        merchant_id: merchantId,
+        amount: String(amount),
+        currency: 'MNT',
+        description,
+        callback_url: callbackUrl,
+      },
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+    );
 
-  return {
-    invoice_id: response.data.invoice_id || response.data.id || null,
-    qr_image: response.data.qr_image,
-    urls: response.data.urls || [],
-  };
+    return {
+      invoice_id: response.data.invoice_id || response.data.id || null,
+      qr_image: response.data.qr_image,
+      urls: response.data.urls || [],
+    };
+  } catch (error) {
+    console.error('QPay API Error Details:', error.response?.data || error.message);
+    throw error;
+  }
 }
 
 /**
