@@ -8,19 +8,22 @@ module.exports = async function handler(req, res) {
     try {
         console.log("1. API ROUTE АЖИЛЛАЖ ЭХЭЛЛЭЭ!");
 
+        const terminalId = 'DALATECH_AI';
+        
         // 1. TOKEN АВАХ
         const auth = Buffer.from(`${process.env.QPAY_USERNAME}:${process.env.QPAY_PASSWORD}`).toString('base64');
         const tokenRes = await axios.post('https://quickqr.qpay.mn/v2/auth/token', 
-            { terminal_id: 'DALATECH_AI' }, 
+            { terminal_id: terminalId }, 
             { headers: { 'Authorization': `Basic ${auth}` } }
         );
         const token = tokenRes.data.access_token;
         console.log("2. TOKEN АМЖИЛТТАЙ АВЛАА!");
 
-        // 2. PAYLOAD БЭЛДЭХ (ЦЭВЭР ТООГООР ХАТУУ ӨГӨВ)
+        // 2. PAYLOAD БЭЛДЭХ (Шинэ талбар нэмэгдсэн)
         const payload = {
-            merchant_id: "17e69f2a-d1a4-4fe6-a5a2-34a649378414",
-            amount: 100, // 100 Төгрөг (Цэвэр тоо)
+            merchant_id: "17e69f2a-d1a4-4fe6-a5a2-34a649378414", // Жишээ нь: "87ec2243-bc4d..." гэх мэт
+            invoice_receiver_code: terminalId, // <-- ЭНЭ ДУТУУ БАЙСНААС АЛДАА ГАРЧЭЭ!
+            amount: 100, 
             currency: 'MNT',
             description: 'Matrix Salon Test',
             mcc_code: '7230'
