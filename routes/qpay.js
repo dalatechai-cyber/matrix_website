@@ -66,7 +66,7 @@ router.post('/create-payment', async (req, res) => {
 
     return res.status(200).json(result);
   } catch (err) {
-    console.error('QPay create-payment error:', err.message || err);
+    console.error('QPay API Error Details:', err.response?.data || err.message);
     return res.status(502).json({
       error: 'Failed to create QPay invoice',
       details: err.message || String(err),
