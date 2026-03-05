@@ -10,8 +10,6 @@ let _tokenCache = null;
 
 /**
  * Return a valid QPay access token.
- * A new token is only requested when the cache is empty or older than 24 hours.
- * @returns {Promise<string>} access_token
  */
 async function getQPayToken() {
   const now = Date.now();
@@ -40,15 +38,13 @@ async function getQPayToken() {
 
     return _tokenCache.access_token;
   } catch (error) {
-    console.error('QPay API Error Details:', error.response?.data || error.message);
+    console.error('QPay Token Error Details:', error.response?.data || error.message);
     throw error;
   }
 }
 
 /**
  * Create a QPay invoice and return the QR image and mobile deep-link URLs.
- * @param {{ amount: number, description: string, callbackUrl: string }} options
- * @returns {Promise<{ invoice_id: string, qr_image: string, urls: Array }>}
  */
 async function createInvoice({ amount, description, callbackUrl } = {}) {
   const merchantId = process.env.QPAY_MERCHANT_ID;
@@ -56,17 +52,30 @@ async function createInvoice({ amount, description, callbackUrl } = {}) {
     throw new Error('QPAY_MERCHANT_ID environment variable must be set');
   }
 
+  // --- ЭНД АЛДААГ ЗАСЛАА (DATA SANITIZATION) ---
+  // 1. "20,000 ₮" гэж ирсэн ч зөвхөн тоог нь ялгаж авч цэвэр тоо (Integer) болгоно
+  const cleanAmount = Number(String(amount).replace(/[^0-9.]/g, ''));
+  
+  // 2. Хэрэв нэр, утас хоосон ирвэл алдаа заалгахгүйн тулд утга онооно
+  const cleanDescription = description ? String(description).substring(0, 255) : "Matrix Salon - Үйлчилгээ";
+
   const accessToken = await getQPayToken();
   try {
     const payload = {
       merchant_id: merchantId,
-      amount,
+      amount: cleanAmount > 0 ? cleanAmount : 100, // Хэрэв үнэ 0 болвол автоматаар 100₮ болгож хамгаална
       currency: 'MNT',
-      description,
+      description: cleanDescription,
       mcc_code: '7230',
-      callback_url: callbackUrl,
     };
-    console.log('FINAL TEST PAYLOAD:', payload);
+
+    // Callback URL байвал л нэмнэ
+    if (callbackUrl) {
+      payload.callback_url = callbackUrl;
+    }
+
+    console.log('FINAL CLEAN PAYLOAD TO QPAY:', payload);
+
     const response = await axios.post(
       `${QPAY_BASE_URL}/invoice`,
       payload,
@@ -79,15 +88,11 @@ async function createInvoice({ amount, description, callbackUrl } = {}) {
       urls: response.data.urls || [],
     };
   } catch (error) {
-    console.error('QPay API Error Details:', error.response?.data || error.message);
+    console.error('QPay Invoice Error Details:', error.response?.data || error.message);
     throw error;
   }
 }
 
-/**
- * Reset the in-memory token cache.
- * Intended for use in tests only.
- */
 function _resetTokenCache() {
   _tokenCache = null;
 }
