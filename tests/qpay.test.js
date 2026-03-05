@@ -12,9 +12,11 @@ const express = require('express');
 const axiosStub = {
   _queue: [],
   _callIndex: 0,
+  _calls: [],
   reset(responses) {
     this._queue = responses || [];
     this._callIndex = 0;
+    this._calls = [];
   },
 };
 
@@ -24,6 +26,7 @@ Module._load = function (request, parent, isMain) {
   if (request === 'axios') {
     return {
       post: async (_url, _body, _opts) => {
+        axiosStub._calls.push({ url: _url, body: _body, opts: _opts });
         const entry = axiosStub._queue[axiosStub._callIndex] ||
                       axiosStub._queue[axiosStub._queue.length - 1] ||
                       { result: null };
@@ -108,6 +111,17 @@ test('getQPayToken: returns cached token without a second network call', async (
   axiosStub.reset([{ result: { access_token: 'tok_NEW' } }]);
   const token = await qpayService.getQPayToken();
   assert.equal(token, 'tok_abc');
+});
+
+test('getQPayToken: sends terminal_id equal to QPAY_USERNAME in the token request body', async () => {
+  qpayService._resetTokenCache();
+  axiosStub.reset([{ result: { access_token: 'tok_tid' } }]);
+
+  await qpayService.getQPayToken();
+
+  const tokenCall = axiosStub._calls[0];
+  assert.ok(tokenCall, 'expected at least one axios.post call');
+  assert.deepEqual(tokenCall.body, { terminal_id: process.env.QPAY_USERNAME });
 });
 
 test('getQPayToken: throws when env vars are missing', async () => {
