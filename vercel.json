@@ -1,10 +1,15 @@
 {
   "version": 2,
   "builds": [
-    {
-      "src": "server.js",
-      "use": "@vercel/node"
-    }
+    { "src": "server.js", "use": "@vercel/node" },
+    { "src": "*.{html,css}", "use": "@vercel/static" },
+    { "src": "script.js", "use": "@vercel/static" },
+    { "src": "logo.png", "use": "@vercel/static" },
+    { "src": "Products/**", "use": "@vercel/static" },
+    { "src": "files/**", "use": "@vercel/static" },
+    { "src": "hairstylist_pic/**", "use": "@vercel/static" },
+    { "src": "Keune/**", "use": "@vercel/static" },
+    { "src": "data/**", "use": "@vercel/static" }
   ],
   "rewrites": [
     {

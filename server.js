@@ -15,9 +15,11 @@ app.use('/api/webhooks', webhookRouter);
 app.use('/api/qpay', qpayRouter);
 app.use('/api/calendar', calendarRouter);
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Matrix Salon server running on port ${PORT}`);
-});
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`Matrix Salon server running on port ${PORT}`);
+  });
+}
 
 module.exports = app;
