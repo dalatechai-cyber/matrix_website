@@ -1,54 +1,52 @@
-'use strict';
-
-require('dotenv').config();
 const axios = require('axios');
-const { getQPayToken } = require('./services/qpay');
 
-const QPAY_BASE_URL = 'https://quickqr.qpay.mn/v2';
+async function register() {
+    try {
+        // 1. GET TOKEN
+        const terminalId = "DALATECH_AI"; // Corrected quote mark here
+        const auth = Buffer.from(`${process.env.QPAY_USERNAME}:${process.env.QPAY_PASSWORD}`).toString('base64');
 
-const MERCHANT_TYPE = 'company';
+        console.log("Requesting token...");
+        const tokenRes = await axios.post('https://quickqr.qpay.mn/v2/auth/token', 
+            { terminal_id: terminalId }, 
+            { headers: { 'Authorization': `Basic ${auth}` } }
+        );
 
-// Company registration details supplied for this one-time merchant setup.
-// These values are taken directly from the business registration documents.
-// district: 17000 = Khan-Uul District code
-// city:     11000 = Ulaanbaatar city code
-// mcc_code:  7230 = Beauty and Barber Shops (international / QPay standard)
-const COMPANY_PAYLOAD = {
-  register_number: '8354405',
-  district: '17000',
-  city: '11000',
-  address: '763 байр 3 тоот, Хан-уул дүүрэг, 4-хороо, наадамчдын зам гудамж, Төгөлдөр Апартмент, Ulaanbaatar 17110',
-  phone: '91005498',
-  email: 'oyunaakhuslen1986@gmail.com',
-  mcc_code: '7230',
-};
+        const accessToken = tokenRes.data.access_token;
+        console.log("Token received. Registering merchant...");
 
-async function createMerchant() {
-  const accessToken = await getQPayToken();
+        // 2. CREATE MERCHANT
+        const merchantData = {
+            "register_number": "8354405",
+            "company_name": "KNK Eco Crown",
+            "name": "Matrix Eco Salon",
+            "mcc_code": "7230", 
+            "city": "11000",
+            "district": "17000", 
+            "address": "763 байр 3 тоот, Хан-уул дүүрэг, 4-хороо, наадамчдын зам гудамж, Төгөлдөр Апартмент, Ulaanbaatar 17110",
+            "phone": "91005498",
+            "email": "oyunaakhuslen1986@gmail.com",
+            "bank_accounts": [{
+                "account_bank_code": "040000", 
+                "account_number": "416055415",
+                "account_name": "Эрхэмбаатар Оюунсүрэн",
+                "is_default": true
+            }]
+        };
 
-  const response = await axios.post(
-    `${QPAY_BASE_URL}/merchant`,
-    {
-      merchant_type: MERCHANT_TYPE,
-      [MERCHANT_TYPE]: COMPANY_PAYLOAD,
-    },
-    { headers: { Authorization: `Bearer ${accessToken}` } },
-  );
+        const merchantRes = await axios.post('https://quickqr.qpay.mn/v2/merchant/company', 
+            merchantData,
+            { headers: { 'Authorization': `Bearer ${accessToken}` } }
+        );
 
-  const merchantId =
-    response.data.merchant_id ||
-    response.data.id ||
-    response.data.merchantId ||
-    null;
+        console.log("-----------------------------------------");
+        console.log("SUCCESS! YOUR MERCHANT ID IS:", merchantRes.data.id);
+        console.log("-----------------------------------------");
 
-  console.log('Merchant created successfully.');
-  console.log('Merchant ID:', merchantId);
-  console.log('Full response:', JSON.stringify(response.data, null, 2));
-
-  return merchantId;
+    } catch (error) {
+        console.error("QPay API Error Details:", error.response ? error.response.data : error.message);
+        process.exit(1);
+    }
 }
 
-createMerchant().catch((err) => {
-  console.error('Failed to create merchant:', err.response?.data || err.message);
-  process.exit(1);
-});
+register();
