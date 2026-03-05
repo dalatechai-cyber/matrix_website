@@ -570,6 +570,40 @@ function renderDayStrip(startDate = new Date()) {
 }
 
 /**
+ * Generate all possible 1-hour booking time slot strings for the given date
+ * based on business hours:
+ *   Mon–Sat (getDay 1–6): 10:00–19:00  (10 slots)
+ *   Sun     (getDay 0):   11:00–18:00  ( 8 slots)
+ *
+ * @param {string} dateStr  YYYY-MM-DD
+ * @returns {string[]}  e.g. ["10:00", "11:00", ..., "19:00"]
+ */
+function generateTimeSlots(dateStr) {
+  // Use noon to avoid UTC-midnight timezone shift affecting getDay()
+  const dayOfWeek = new Date(`${dateStr}T12:00:00`).getDay();
+  const isSunday = dayOfWeek === 0;
+  const startHour = isSunday ? 11 : 10;
+  const lastSlotHour = isSunday ? 18 : 19;
+  const slots = [];
+
+  // For today, skip slots that have already started.
+  // Note: this fallback uses the browser's local time. The backend API
+  // is the authoritative source and always uses the salon's UTC+8 timezone.
+  const now = new Date();
+  const todayStr = formatDateInput(now);
+  const isToday = dateStr === todayStr;
+
+  for (let h = startHour; h <= lastSlotHour; h++) {
+    if (isToday) {
+      const slotDate = new Date(`${dateStr}T${String(h).padStart(2, "0")}:00:00`);
+      if (slotDate < now) continue;
+    }
+    slots.push(`${String(h).padStart(2, "0")}:00`);
+  }
+  return slots;
+}
+
+/**
  * Fetch available 1-hour slots from the backend calendar API and render them.
  * Triggered whenever the user changes the date or stylist.
  */
@@ -595,7 +629,9 @@ async function fetchAvailableSlots(date, stylistId) {
     renderAvailableSlots(data.availableSlots, stylistId, date);
   } catch (err) {
     console.error("Failed to fetch available slots:", err);
-    container.innerHTML = '<p class="slots-hint">Цаг ачаалахад алдаа гарлаа.</p>';
+    // Fall back to showing all business-hours slots for the day (booked-slot
+    // filtering is unavailable without the API, but the correct hours are shown).
+    renderAvailableSlots(generateTimeSlots(date), stylistId, date);
   } finally {
     if (stylistSel) stylistSel.disabled = false;
   }
