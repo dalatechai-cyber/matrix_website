@@ -2,7 +2,7 @@
 
 const axios = require('axios');
 
-const QPAY_BASE_URL = 'https://merchant.qpay.mn/v2';
+const QPAY_BASE_URL = 'https://quickqr.qpay.mn';
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 // In-memory token cache: { access_token: string, fetchedAt: number }
