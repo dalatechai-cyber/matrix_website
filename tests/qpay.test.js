@@ -274,6 +274,86 @@ test('webhook: 200 with invoice_id present (id field fallback)', async () => {
 });
 
 // ---------------------------------------------------------------------------
+// Amount sanitization and description fallback tests
+// ---------------------------------------------------------------------------
+test('create-payment: cleans amount with commas and currency symbol (e.g. "20,000 ₮" → 20000)', async () => {
+  qpayService._resetTokenCache();
+  axiosStub.reset([
+    { result: { access_token: 'tok_clean' } },
+    { result: { invoice_id: 'inv_clean_001', qr_image: 'data:image/png;base64,abc', urls: [] } },
+  ]);
+
+  const app = buildApp();
+  await request(app, 'POST', '/api/qpay/create-payment', {
+    name: 'Болд',
+    phone: '99001122',
+    amount: '20,000 ₮',
+    description: 'Matrix Eco: Ana - 2026-03-05 10:00 - Болд - 99001122',
+  });
+
+  // Find the invoice call (second axios.post call)
+  const invoiceCall = axiosStub._calls[1];
+  assert.ok(invoiceCall, 'expected invoice axios.post call');
+  assert.equal(invoiceCall.body.amount, '20000', 'amount should be cleaned to "20000"');
+  delete paymentStatuses['inv_clean_001'];
+});
+
+test('create-payment: description is formatted as "name - phone" from request fields', async () => {
+  qpayService._resetTokenCache();
+  axiosStub.reset([
+    { result: { access_token: 'tok_desc' } },
+    { result: { invoice_id: 'inv_desc_001', qr_image: 'data:image/png;base64,abc', urls: [] } },
+  ]);
+
+  const app = buildApp();
+  await request(app, 'POST', '/api/qpay/create-payment', {
+    name: 'Болд',
+    phone: '99001122',
+    amount: '20000',
+    description: 'Matrix Eco: Ana - 2026-03-05 10:00 - Болд - 99001122',
+  });
+
+  const invoiceCall = axiosStub._calls[1];
+  assert.ok(invoiceCall, 'expected invoice axios.post call');
+  assert.equal(invoiceCall.body.description, 'Болд - 99001122', 'description should be "name - phone"');
+  delete paymentStatuses['inv_desc_001'];
+});
+
+test('create-payment: 400 when amount is not a valid number (e.g. letters only)', async () => {
+  const app = buildApp();
+  const { status, body } = await request(app, 'POST', '/api/qpay/create-payment', {
+    name: 'Болд',
+    phone: '99001122',
+    amount: 'invalid',
+    description: 'Matrix Eco: Ana - 2026-03-05 10:00 - Болд - 99001122',
+  });
+  assert.equal(status, 400);
+  assert.ok(body.error.includes('valid positive number'));
+});
+
+test('createInvoice service: logs QPay Payload before sending request', async () => {
+  qpayService._resetTokenCache();
+  axiosStub.reset([
+    { result: { access_token: 'tok_log' } },
+    { result: { invoice_id: 'inv_log_001', qr_image: 'data:image/png;base64,abc', urls: [] } },
+  ]);
+
+  const logs = [];
+  const originalLog = console.log;
+  console.log = (...args) => { logs.push(args); originalLog(...args); };
+
+  try {
+    await qpayService.createInvoice({ amount: 20000, description: 'Test - 99001122', callbackUrl: 'https://example.com/cb' });
+  } finally {
+    console.log = originalLog;
+  }
+
+  const payloadLog = logs.find((args) => args[0] === 'QPay Payload:');
+  assert.ok(payloadLog, 'expected a "QPay Payload:" log entry');
+  assert.equal(payloadLog[1].amount, '20000');
+});
+
+// ---------------------------------------------------------------------------
 // GET /api/qpay/check-payment/:invoiceId
 // ---------------------------------------------------------------------------
 test('check-payment: returns UNKNOWN for an untracked invoice', async () => {

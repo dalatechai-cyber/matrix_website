@@ -60,16 +60,18 @@ async function createInvoice({ amount, description, callbackUrl }) {
   }
   const accessToken = await getQPayToken();
   try {
+    const payload = {
+      merchant_id: merchantId,
+      amount: String(amount),
+      currency: 'MNT',
+      description,
+      mcc_code: '7230',
+      callback_url: callbackUrl,
+    };
+    console.log('QPay Payload:', payload);
     const response = await axios.post(
       `${QPAY_BASE_URL}/invoice`,
-      {
-        merchant_id: merchantId,
-        amount: String(amount),
-        currency: 'MNT',
-        description,
-        mcc_code: '7230',
-        callback_url: callbackUrl,
-      },
+      payload,
       { headers: { Authorization: `Bearer ${accessToken}` } },
     );
 
