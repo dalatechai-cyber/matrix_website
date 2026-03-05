@@ -1,6 +1,7 @@
 {
   "version": 2,
   "builds": [
+    { "src": "api/qpay/create-payment.js", "use": "@vercel/node" },
     { "src": "server.js", "use": "@vercel/node" },
     { "src": "*.{html,css}", "use": "@vercel/static" },
     { "src": "script.js", "use": "@vercel/static" },
@@ -12,6 +13,10 @@
     { "src": "data/**", "use": "@vercel/static" }
   ],
   "rewrites": [
+    {
+      "source": "/api/qpay/create-payment",
+      "destination": "/api/qpay/create-payment.js"
+    },
     {
       "source": "/api/(.*)",
       "destination": "/server.js"
