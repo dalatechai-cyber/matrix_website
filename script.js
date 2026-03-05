@@ -732,6 +732,7 @@ function showBookingSummary(stylistId, date, time) {
       name: customerName,
       phone: customerPhone,
       description: `Matrix Eco: ${stylistId} - ${date} ${time} - ${customerName} - ${customerPhone}`,
+      staffName: stylistId,
       confirmBtn,
       bookingDetails: { stylistId, date, time },
     });
@@ -1160,7 +1161,7 @@ if (videoButtons.length > 0) {
  * @param {HTMLButtonElement} [params.confirmBtn] - The button that triggered the call (for loading state)
  * @param {object} [params.bookingDetails]     - { stylistId, date, time } for the success screen
  */
-async function initiateQPayPayment({ amount, name, phone, description, confirmBtn, bookingDetails }) {
+async function initiateQPayPayment({ amount, name, phone, description, staffName, confirmBtn, bookingDetails }) {
   const panel     = document.getElementById("qpay-panel");
   const qrImg     = document.getElementById("qpay-qr-img");
   const bankBtns  = document.getElementById("qpay-bank-buttons");
@@ -1210,7 +1211,7 @@ async function initiateQPayPayment({ amount, name, phone, description, confirmBt
     const response = await fetch("/api/qpay/create-payment", {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ amount, name, phone, description }),
+      body:    JSON.stringify({ amount, name, phone, description, staffName }),
     });
 
     if (!response.ok) {

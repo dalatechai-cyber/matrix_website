@@ -7,7 +7,7 @@ module.exports = async function handler(req, res) {
 
     try {
         // --- 1. ФРОНТЕНДООС ИРСЭН МЭДЭЭЛЛИЙГ ХҮЛЭЭЖ АВАХ ---
-        const { amount, name, phone } = req.body;
+        const { amount, name, phone, staffName } = req.body;
 
         // "20,000 ₮" гэж ирсэн ч зөвхөн тоог нь ялгаж авах
         const cleanAmount = Number(String(amount).replace(/[^0-9.]/g, ''));
@@ -15,6 +15,24 @@ module.exports = async function handler(req, res) {
 
         // Гүйлгээний утгад Нэр, Утсыг нь оруулах
         const finalDescription = `${name || 'Үйлчлүүлэгч'} - ${phone || 'Утасгүй'}`.substring(0, 255);
+
+        // --- 1б. БАНКНЫ ДАНСЫГ АЖИЛТНЫ НЭРЭЭР ТОДОРХОЙЛОХ ---
+        let bankAccountsPayload;
+        if (staffName && (staffName.includes('Мөнхзаяа') || staffName.includes('Маникюр'))) {
+            bankAccountsPayload = [{
+                account_bank_code: "050000",
+                account_number: "5042384162",
+                account_name: "Ганбат Мөнхзаяа",
+                is_default: true
+            }];
+        } else {
+            bankAccountsPayload = [{
+                account_bank_code: "040000",
+                account_number: "416055415",
+                account_name: "Эрхэмбаатар Оюунсүрэн",
+                is_default: true
+            }];
+        }
 
         // --- 2. TOKEN АВАХ ---
         const auth = Buffer.from(`${process.env.QPAY_USERNAME}:${process.env.QPAY_PASSWORD}`).toString('base64');
@@ -31,12 +49,7 @@ module.exports = async function handler(req, res) {
             currency: 'MNT',
             description: finalDescription, // Бодит нэр, утас
             mcc_code: '7230',
-            bank_accounts: [{
-                account_bank_code: "040000",
-                account_number: "416055415",
-                account_name: "Эрхэмбаатар Оюунсүрэн",
-                is_default: true
-            }]
+            bank_accounts: bankAccountsPayload
         };
 
         // --- 4. INVOICE ҮҮСГЭХ ---
