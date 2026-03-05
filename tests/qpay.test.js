@@ -40,6 +40,7 @@ Module._load = function (request, parent, isMain) {
 process.env.QPAY_USERNAME = 'test_user';
 process.env.QPAY_PASSWORD = 'test_pass';
 process.env.BASE_URL = 'https://test.example.com';
+process.env.QPAY_MERCHANT_ID = 'TEST_MERCHANT_001';
 // Set dummy Google env vars (used by the webhook calendar path)
 process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL = 'test@example.iam.gserviceaccount.com';
 process.env.GOOGLE_PRIVATE_KEY = '-----BEGIN PRIVATE KEY-----\nMIItest\n-----END PRIVATE KEY-----\n';
@@ -122,26 +123,47 @@ test('getQPayToken: throws when env vars are missing', async () => {
   process.env.QPAY_PASSWORD = savedPass;
 });
 
+test('createInvoice: throws when QPAY_MERCHANT_ID env var is missing', async () => {
+  qpayService._resetTokenCache();
+  axiosStub.reset([{ result: { access_token: 'tok_mid' } }]);
+  const savedMerchantId = process.env.QPAY_MERCHANT_ID;
+  delete process.env.QPAY_MERCHANT_ID;
+
+  await assert.rejects(
+    () => qpayService.createInvoice({ amount: '20000', description: 'Test - 99001122', callbackUrl: 'https://example.com/cb' }),
+    /QPAY_MERCHANT_ID/,
+  );
+
+  process.env.QPAY_MERCHANT_ID = savedMerchantId;
+});
+
 // ---------------------------------------------------------------------------
 // POST /api/qpay/create-payment
 // ---------------------------------------------------------------------------
-test('create-payment: 400 when merchantId is missing', async () => {
+test('create-payment: 400 when name is missing', async () => {
   const app = buildApp();
-  const { status, body } = await request(app, 'POST', '/api/qpay/create-payment', { amount: '5000', description: 'Test' });
+  const { status, body } = await request(app, 'POST', '/api/qpay/create-payment', { phone: '99001122', amount: '20000', description: 'Matrix Eco: Ana - 2026-03-05 10:00 - Test - 99001122' });
+  assert.equal(status, 400);
+  assert.ok(body.error.includes('required'));
+});
+
+test('create-payment: 400 when phone is missing', async () => {
+  const app = buildApp();
+  const { status, body } = await request(app, 'POST', '/api/qpay/create-payment', { name: 'Test', amount: '20000', description: 'Matrix Eco: Ana - 2026-03-05 10:00 - Test - 99001122' });
   assert.equal(status, 400);
   assert.ok(body.error.includes('required'));
 });
 
 test('create-payment: 400 when amount is missing', async () => {
   const app = buildApp();
-  const { status, body } = await request(app, 'POST', '/api/qpay/create-payment', { merchantId: 'M1', description: 'Test' });
+  const { status, body } = await request(app, 'POST', '/api/qpay/create-payment', { name: 'Test', phone: '99001122', description: 'Matrix Eco: Ana - 2026-03-05 10:00 - Test - 99001122' });
   assert.equal(status, 400);
   assert.ok(body.error.includes('required'));
 });
 
 test('create-payment: 400 when description is missing', async () => {
   const app = buildApp();
-  const { status, body } = await request(app, 'POST', '/api/qpay/create-payment', { merchantId: 'M1', amount: '5000' });
+  const { status, body } = await request(app, 'POST', '/api/qpay/create-payment', { name: 'Test', phone: '99001122', amount: '20000' });
   assert.equal(status, 400);
   assert.ok(body.error.includes('required'));
 });
@@ -156,15 +178,36 @@ test('create-payment: 200 with qr_image, urls, and invoice_id on success', async
 
   const app = buildApp();
   const { status, body } = await request(app, 'POST', '/api/qpay/create-payment', {
-    merchantId: 'MERCHANT_001',
-    amount: '5000',
-    description: 'Test haircut booking',
+    name: 'Болд',
+    phone: '99001122',
+    amount: '20000',
+    description: 'Matrix Eco: Ana - 2026-03-05 10:00 - Болд - 99001122',
   });
 
   assert.equal(status, 200);
   assert.ok(body.qr_image);
   assert.ok(Array.isArray(body.urls));
   assert.equal(body.invoice_id, 'inv_test_001');
+});
+
+test('create-payment: invoice stored with full calendar description', async () => {
+  qpayService._resetTokenCache();
+  axiosStub.reset([
+    { result: { access_token: 'tok_cal' } },
+    { result: { invoice_id: 'inv_cal_001', qr_image: 'data:image/png;base64,xyz', urls: [] } },
+  ]);
+
+  const app = buildApp();
+  const fullDesc = 'Matrix Eco: Ana - 2026-03-05 14:00 - Болд - 99001122';
+  await request(app, 'POST', '/api/qpay/create-payment', {
+    name: 'Болд',
+    phone: '99001122',
+    amount: '20000',
+    description: fullDesc,
+  });
+
+  assert.equal(paymentStatuses['inv_cal_001']?.description, fullDesc);
+  delete paymentStatuses['inv_cal_001'];
 });
 
 test('create-payment: 502 when QPay API fails', async () => {
@@ -177,9 +220,10 @@ test('create-payment: 502 when QPay API fails', async () => {
 
   const app = buildApp();
   const { status, body } = await request(app, 'POST', '/api/qpay/create-payment', {
-    merchantId: 'MERCHANT_001',
-    amount: '5000',
-    description: 'Test haircut booking',
+    name: 'Болд',
+    phone: '99001122',
+    amount: '20000',
+    description: 'Matrix Eco: Ana - 2026-03-05 10:00 - Болд - 99001122',
   });
 
   assert.equal(status, 502);
