@@ -144,19 +144,19 @@
             <div class="calendar-card">
               <div class="calendar-header">
                 <h3>Цагийн хуваарь</h3>
-                <button id="today-btn" class="ghost-btn">Өнөөдөр</button>
               </div>
               <label class="stylist-picker-label">
                 Үсчин сонгох
                 <select id="stylist-select" class="stylist-select">
                   <option value="">Үсчин сонгох...</option>
-                  <option value="Ананд">Ананд (Master)</option>
-                  <option value="Оюунсүрэн">Оюунсүрэн (Master)</option>
-                  <option value="Уянга">Уянга (Master)</option>
-                  <option value="Бадамцэцэг">Бадамцэцэг (1st Degree)</option>
-                  <option value="Батзаяа">Батзаяа (1st Degree)</option>
-                  <option value="Мухлай">Мухлай (1st Degree)</option>
-                  <option value="Тэргэл">Тэргэл (1st Degree)</option>
+                  <option value="Ананд">Ананд (Мастер үсчин)</option>
+                  <option value="Оюунсүрэн">Оюунсүрэн (Мастер үсчин)</option>
+                  <option value="Уянга">Уянга (Мастер үсчин)</option>
+                  <option value="Бадамцэцэг">Бадамцэцэг (Ахлах стилист)</option>
+                  <option value="Батзаяа">Батзаяа (Ахлах стилист)</option>
+                  <option value="Мухлай">Мухлай (Ахлах стилист)</option>
+                  <option value="Тэргэл">Тэргэл (Ахлах стилист)</option>
+                  <option value="Г. Мөнхзаяа">Г. Мөнхзаяа (Маникюр)</option>
                 </select>
               </label>
               <div id="day-strip" class="day-strip"></div>
@@ -251,39 +251,48 @@
           font-size: 0.9rem;
           font-weight: 600;
           padding: 0.75rem 0 0.5rem;
+          color: #1a1a1a;
         }
         .stylist-select {
           padding: 0.5rem 0.75rem;
           border-radius: 8px;
-          border: 1px solid var(--accent, #64d39a);
-          background: var(--card-bg, #161f1a);
-          color: inherit;
+          border: 1.5px solid #d1d5db;
+          background: #f9fafb;
+          color: #1a1a1a;
           font-size: 0.95rem;
           cursor: pointer;
           width: 100%;
+          transition: border-color 0.2s;
+        }
+        .stylist-select:focus {
+          outline: none;
+          border-color: var(--accent, #64d39a);
+          box-shadow: 0 0 0 3px rgba(100,211,154,0.15);
         }
         .booking-summary {
           margin-top: 1.25rem;
           padding: 1rem 1.25rem;
-          background: var(--card-bg, #161f1a);
-          border: 1px solid var(--accent, #64d39a);
+          background: #f8fdf9;
+          border: 1.5px solid var(--accent, #64d39a);
           border-radius: 10px;
+          color: #1a1a1a;
         }
-        .summary-title { margin-bottom: 0.6rem; font-size: 1rem; }
+        .summary-title { margin-bottom: 0.6rem; font-size: 1rem; color: #1a1a1a; }
         .summary-item {
           display: flex;
           justify-content: space-between;
           padding: 0.3rem 0;
           font-size: 0.9rem;
-          border-bottom: 1px solid rgba(100,211,154,0.15);
+          border-bottom: 1px solid rgba(100,211,154,0.2);
+          color: #1a1a1a;
         }
         .summary-item:last-of-type { border-bottom: none; }
         .confirm-pay-btn { width: 100%; margin-top: 0.75rem; }
-        .slots-hint { color: var(--muted, #888); font-size: 0.875rem; padding: 0.5rem 0; }
+        .slots-hint { color: #6b7280; font-size: 0.875rem; padding: 0.5rem 0; }
         .booking-success-message {
           margin-top: 1.25rem;
           padding: 1.25rem;
-          background: var(--card-bg, #161f1a);
+          background: #f0fdf4;
           border: 2px solid var(--accent, #64d39a);
           border-radius: 10px;
           text-align: center;
@@ -295,16 +304,22 @@
         .booking-success-details { text-align: left; margin-bottom: 0.75rem; }
         .booking-success-return-btn { width: 100%; margin-top: 0.25rem; }
         .customer-input-group { margin-bottom: 0.6rem; }
-        .customer-input-group label { display: block; font-size: 0.8rem; margin-bottom: 0.25rem; color: var(--muted, #888); }
+        .customer-input-group label { display: block; font-size: 0.8rem; margin-bottom: 0.25rem; color: #6b7280; }
         .customer-input-group input {
           width: 100%;
           padding: 0.45rem 0.65rem;
           border-radius: 7px;
-          border: 1px solid var(--accent, #64d39a);
-          background: var(--bg, #0d1610);
-          color: inherit;
+          border: 1.5px solid #d1d5db;
+          background: #f9fafb;
+          color: #1a1a1a;
           font-size: 0.9rem;
           box-sizing: border-box;
+          transition: border-color 0.2s;
+        }
+        .customer-input-group input:focus {
+          outline: none;
+          border-color: var(--accent, #64d39a);
+          box-shadow: 0 0 0 3px rgba(100,211,154,0.15);
         }
       </style>
 

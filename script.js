@@ -20,13 +20,14 @@ let currentProductsPage = 1;
 // Client-side copy of stylist prices/levels (mirrors config/stylists.js).
 // Note: keep this in sync with the server-side config when stylist pricing changes.
 const STYLIST_CONFIG_CLIENT = {
-  'Ананд':      { price: 20000, level: 'Master' },
-  'Бадамцэцэг': { price: 10000, level: '1st Degree' },
-  'Батзаяа':    { price: 10000, level: '1st Degree' },
-  'Мухлай':     { price: 10000, level: '1st Degree' },
-  'Оюунсүрэн':  { price: 20000, level: 'Master' },
-  'Тэргэл':     { price: 10000, level: '1st Degree' },
-  'Уянга':      { price: 20000, level: 'Master' },
+  'Ананд':        { price: 20000, level: 'Мастер үсчин' },
+  'Бадамцэцэг':   { price: 10000, level: 'Ахлах стилист' },
+  'Батзаяа':      { price: 10000, level: 'Ахлах стилист' },
+  'Мухлай':       { price: 10000, level: 'Ахлах стилист' },
+  'Оюунсүрэн':    { price: 20000, level: 'Мастер үсчин' },
+  'Тэргэл':       { price: 10000, level: 'Ахлах стилист' },
+  'Уянга':        { price: 20000, level: 'Мастер үсчин' },
+  'Г. Мөнхзаяа':  { price: 20000, level: 'Маникюр' },
 };
 
 const SERVICE_IMAGE_MAP = {
@@ -545,8 +546,11 @@ function renderProductsPagination(totalPages) {
 }
 
 function getDayLabel(date) {
-  const options = { weekday: "short", month: "numeric", day: "numeric" };
-  return date.toLocaleDateString("mn-MN", options);
+  const MN_WEEKDAYS = ['Ням', 'Дав', 'Мяг', 'Лха', 'Пүр', 'Баа', 'Бям'];
+  const dayName = MN_WEEKDAYS[date.getDay()];
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  return `${dayName}, ${month}/${day}`;
 }
 
 function formatDateInput(date) {
