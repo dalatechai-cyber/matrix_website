@@ -7,8 +7,13 @@ let selectedTime = null;
 const dayStrip = document.getElementById("day-strip");
 const todayBtn = document.getElementById("today-btn");
 
-// QPay polling handle — stored globally so any close action can cancel it.
+// Default text for the confirm payment button — single source of truth.
+const CONFIRM_BTN_DEFAULT_TEXT = "Баталгаажуулж төлөх";
 let qpayPollInterval = null;
+// Track the active confirm button and its original text so the close handler
+// can re-enable it if the user dismisses the QR panel before paying.
+let qpayActiveConfirmBtn = null;
+let qpayActiveConfirmBtnText = "";
 
 const formatter = new Intl.NumberFormat("mn-MN");
 const PRODUCTS_PER_PAGE = 15;
@@ -1191,6 +1196,11 @@ async function initiateQPayPayment({ amount, name, phone, description, staffName
     confirmBtn.textContent = "Түр хүлээнэ үү...";
   }
 
+  // Track the active confirm button globally so the close handler can re-enable it
+  // when the user dismisses the QR panel before completing payment.
+  qpayActiveConfirmBtn = confirmBtn;
+  qpayActiveConfirmBtnText = confirmBtnOriginalText;
+
   // Cancel any previous poll that may be running
   if (qpayPollInterval) {
     clearInterval(qpayPollInterval);
@@ -1215,6 +1225,13 @@ async function initiateQPayPayment({ amount, name, phone, description, staffName
       if (qpayPollInterval) {
         clearInterval(qpayPollInterval);
         qpayPollInterval = null;
+      }
+      // Re-enable the confirm button so the user can retry the payment
+      if (qpayActiveConfirmBtn) {
+        qpayActiveConfirmBtn.disabled = false;
+        qpayActiveConfirmBtn.textContent = qpayActiveConfirmBtnText || CONFIRM_BTN_DEFAULT_TEXT;
+        qpayActiveConfirmBtn = null;
+        qpayActiveConfirmBtnText = "";
       }
       panel.style.display = "none";
     });
@@ -1283,6 +1300,11 @@ async function initiateQPayPayment({ amount, name, phone, description, staffName
           if (pollData.invoice_status === "PAID") {
             clearInterval(qpayPollInterval);
             qpayPollInterval = null;
+
+            // Payment confirmed — clear the tracked confirm button reference so
+            // the close handler no longer attempts to re-enable it.
+            qpayActiveConfirmBtn = null;
+            qpayActiveConfirmBtnText = "";
 
             // Hide the QR panel and booking summary immediately
             panel.style.display = "none";
@@ -1374,7 +1396,7 @@ async function initiateQPayPayment({ amount, name, phone, description, staffName
     // Revert loading state on error so the user can try again
     if (confirmBtn) {
       confirmBtn.disabled = false;
-      confirmBtn.textContent = confirmBtnOriginalText || "Баталгаажуулж төлөх";
+      confirmBtn.textContent = confirmBtnOriginalText || CONFIRM_BTN_DEFAULT_TEXT;
     }
   }
 }
