@@ -1276,25 +1276,35 @@ async function initiateQPayPayment({ amount, name, phone, description, staffName
       });
     }
 
+    // Normalise across the different field names the API may return.
+    const invoice_id = data.invoice_id || data.qpay_invoice_id || data.id || null;
+
     // Start polling for payment confirmation if we have an invoice_id
-    if (data.invoice_id) {
-      const invoiceId = data.invoice_id;
-      const MAX_POLL_ATTEMPTS = 100; // 5 minutes at 3-second intervals
-      let pollAttempts = 0;
-      qpayPollInterval = setInterval(async () => {
-        pollAttempts++;
-        if (pollAttempts > MAX_POLL_ATTEMPTS) {
-          clearInterval(qpayPollInterval);
-          qpayPollInterval = null;
-          console.warn('QPay polling timed out for invoice:', invoiceId);
-          return;
-        }
-        try {
-          const pollRes = await fetch("/api/qpay/check-payment", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ invoice_id: invoiceId }),
-          });
+    try {
+      if (invoice_id) {
+        const MAX_POLL_ATTEMPTS = 100; // 5 minutes at 3-second intervals
+        let pollAttempts = 0;
+        console.log("QR rendered. Starting poll for invoice:", invoice_id);
+        qpayPollInterval = setInterval(async () => {
+          if (!invoice_id) {
+            console.error("No invoice ID to check!");
+            clearInterval(qpayPollInterval);
+            qpayPollInterval = null;
+            return;
+          }
+          pollAttempts++;
+          if (pollAttempts > MAX_POLL_ATTEMPTS) {
+            clearInterval(qpayPollInterval);
+            qpayPollInterval = null;
+            console.warn('QPay polling timed out for invoice:', invoice_id);
+            return;
+          }
+          try {
+            const pollRes = await fetch("/api/qpay/check-payment", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ invoice_id: invoice_id }),
+            });
           if (!pollRes.ok) return;
           const pollData = await pollRes.json();
           console.log("QPay Check Response:", pollData);
@@ -1404,6 +1414,9 @@ async function initiateQPayPayment({ amount, name, phone, description, staffName
           console.error("Polling error:", err);
         }
       }, 3000);
+      }
+    } catch (e) {
+      console.error("Error setting up QR/Polling:", e);
     }
   } catch (err) {
     console.error("QPay payment error:", err);
