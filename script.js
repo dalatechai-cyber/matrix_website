@@ -20,14 +20,15 @@ let currentProductsPage = 1;
 // Client-side copy of stylist prices/levels (mirrors config/stylists.js).
 // Note: keep this in sync with the server-side config when stylist pricing changes.
 const STYLIST_CONFIG_CLIENT = {
-  'Ананд':        { price: 20000, level: 'Мастер үсчин' },
-  'Бадамцэцэг':   { price: 10000, level: 'Ахлах стилист' },
-  'Батзаяа':      { price: 10000, level: 'Ахлах стилист' },
-  'Мухлай':       { price: 10000, level: 'Ахлах стилист' },
-  'Оюунсүрэн':    { price: 20000, level: 'Мастер үсчин' },
-  'Тэргэл':       { price: 10000, level: 'Ахлах стилист' },
-  'Уянга':        { price: 20000, level: 'Мастер үсчин' },
-  'Г. Мөнхзаяа':  { price: 20000, level: 'Маникюр' },
+  'Ананд':           { price: 20000, level: 'Мастер үсчин' },
+  'Бадамцэцэг':      { price: 10000, level: '1-р зэргийн үсчин' },
+  'Батзаяа':         { price: 10000, level: '1-р зэргийн үсчин' },
+  'Мухлай':          { price: 10000, level: '1-р зэргийн үсчин' },
+  'Оюунсүрэн':       { price: 20000, level: 'Мастер үсчин' },
+  'Тэргэл':          { price: 10000, level: '1-р зэргийн үсчин' },
+  'Уянга':           { price: 20000, level: 'Мастер үсчин' },
+  'Г. Мөнхзаяа':     { price: 20000, level: 'Маникюр' },
+  'Отгонжаргал':     { price: 10000, level: '1-р зэргийн үсчин' },
 };
 
 const SERVICE_IMAGE_MAP = {
@@ -687,9 +688,20 @@ function renderAvailableSlots(slots, stylistId, date) {
 function showBookingSummary(stylistId, date, time) {
   const summaryEl = document.getElementById("booking-summary");
   if (!summaryEl) return;
-  const stylist = STYLIST_CONFIG_CLIENT[stylistId] || { price: 0, level: "" };
-  const priceText = `${formatter.format(stylist.price)} ₮`;
+  const stylist = STYLIST_CONFIG_CLIENT[stylistId] || { price: 10000, level: "" };
   const levelText = stylist.level ? ` (${stylist.level})` : "";
+
+  // Determine price based on the stylist's tier name (text-based conditional logic).
+  const levelStr = stylist.level;
+  let price;
+  if (levelStr.includes("Мастер") || levelStr.includes("Маникюр")) {
+    price = 20000;
+  } else if (levelStr.includes("1-р зэргийн")) {
+    price = 10000;
+  } else {
+    price = 10000;
+  }
+  const priceText = `${formatter.format(price)} ₮`;
 
   summaryEl.innerHTML = `
     <h4 class="summary-title">Захиалгын мэдээлэл</h4>
@@ -732,7 +744,7 @@ function showBookingSummary(stylistId, date, time) {
     }
 
     initiateQPayPayment({
-      amount: stylist.price,
+      amount: price,
       name: customerName,
       phone: customerPhone,
       description: `Matrix Eco: ${stylistId} - ${date} ${time} - ${customerName} - ${customerPhone}`,
