@@ -143,8 +143,12 @@ router.post('/book', async (req, res) => {
     if (customerEmail) descriptionParts.push(`Email: ${customerEmail}`);
     descriptionParts.push(`Price: ${stylist.price} MNT (${stylist.level})`);
 
+    const summaryParts = [serviceName || 'Appointment'];
+    if (customerPhone) summaryParts.push(customerPhone);
+    summaryParts.push(customerName || 'Customer');
+
     const event = {
-      summary: `${serviceName || 'Appointment'} – ${customerName || 'Customer'}`,
+      summary: summaryParts.join(' – '),
       description: descriptionParts.join('\n'),
       start: { dateTime: start.toISOString() },
       end: { dateTime: end.toISOString() },

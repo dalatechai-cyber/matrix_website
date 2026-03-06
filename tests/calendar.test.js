@@ -21,6 +21,7 @@ const calendarStub = {
   _freebusyError: null,
   _insertResult: null,
   _insertError: null,
+  _lastInsertArg: null,
 };
 
 const Module = require('node:module');
@@ -47,7 +48,8 @@ Module._load = function (request, parent, isMain) {
             },
           },
           events: {
-            insert: async () => {
+            insert: async (arg) => {
+              calendarStub._lastInsertArg = arg;
               if (calendarStub._insertError) throw calendarStub._insertError;
               return calendarStub._insertResult;
             },
@@ -435,4 +437,42 @@ test('available-slots: 200 for Отгонжаргал routes to her calendar', a
   assert.equal(status, 200);
   assert.equal(body.stylistId, OTGONZARGAL_STYLIST_ID_LATIN);
   assert.equal(body.availableSlots.length, 10);
+});
+
+// ---------------------------------------------------------------------------
+// Event summary format: phone number before customer name
+// ---------------------------------------------------------------------------
+test('book: event summary includes phone before name when phone is provided', async () => {
+  calendarStub._insertError = null;
+  calendarStub._insertResult = { data: { id: 'summary_test_001' } };
+  calendarStub._lastInsertArg = null;
+  const app = buildApp();
+  const { status } = await request(app, 'POST', '/api/calendar/book', {
+    stylistId: VALID_STYLIST_ID,
+    startTime: '2035-06-04T10:00:00+08:00',
+    customerName: 'Ganaa',
+    customerPhone: '91915498',
+    serviceName: 'Appointment',
+  });
+  assert.equal(status, 200);
+  const summary = calendarStub._lastInsertArg.requestBody.summary;
+  assert.ok(summary.includes('91915498'), 'summary should contain the phone number');
+  assert.ok(summary.indexOf('91915498') < summary.indexOf('Ganaa'), 'phone should appear before name');
+});
+
+test('book: event summary omits phone separator when no phone is provided', async () => {
+  calendarStub._insertError = null;
+  calendarStub._insertResult = { data: { id: 'summary_test_002' } };
+  calendarStub._lastInsertArg = null;
+  const app = buildApp();
+  const { status } = await request(app, 'POST', '/api/calendar/book', {
+    stylistId: VALID_STYLIST_ID,
+    startTime: '2035-06-04T10:00:00+08:00',
+    customerName: 'Ganaa',
+    serviceName: 'Appointment',
+  });
+  assert.equal(status, 200);
+  const summary = calendarStub._lastInsertArg.requestBody.summary;
+  assert.ok(summary.includes('Ganaa'), 'summary should contain the customer name');
+  assert.ok(!summary.includes('undefined'), 'summary should not contain "undefined"');
 });
