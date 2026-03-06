@@ -16,6 +16,9 @@
 // Dedicated calendar ID for manicurist Г. Мөнхзаяа
 const MUNKHZAYA_CALENDAR_ID = 'c_943dac8f8417fcc6c7bf84a6c8f0f84529b9800f5ade551573b2f637830d14b5@group.calendar.google.com';
 
+// Dedicated calendar ID for hairdresser Отгонжаргал
+const OTGONZARGAL_CALENDAR_ID = 'c_1f0f02975a17088e3a939396200de8fb1b624fc4633c66f4e9a330576e24b27e@group.calendar.google.com';
+
 const STYLIST_CONFIG = {
   'Ананд': {
     calendarId: 'c_2af068656b60e27cd9063a78b04dffbe24f1aab4543e50c2875f132dc4b12e17@group.calendar.google.com',
@@ -98,6 +101,17 @@ const STYLIST_CONFIG = {
     price: 20000,
     level: 'Маникюр',
   },
+  'Отгонжаргал': {
+    calendarId: OTGONZARGAL_CALENDAR_ID,
+    price: 20000,
+    level: '1-р зэргийн үсчин',
+  },
+  'otgonzargal': {
+    // Latin transliteration alias — mirrors the Mongolian entry above (see file-level comment)
+    calendarId: OTGONZARGAL_CALENDAR_ID,
+    price: 20000,
+    level: '1-р зэргийн үсчин',
+  },
 };
 
 /**
@@ -108,4 +122,4 @@ const STYLIST_CALENDAR_MAP = Object.fromEntries(
   Object.entries(STYLIST_CONFIG).map(([id, cfg]) => [id, cfg.calendarId]),
 );
 
-module.exports = { STYLIST_CONFIG, STYLIST_CALENDAR_MAP, MUNKHZAYA_CALENDAR_ID };
+module.exports = { STYLIST_CONFIG, STYLIST_CALENDAR_MAP, MUNKHZAYA_CALENDAR_ID, OTGONZARGAL_CALENDAR_ID };

@@ -62,7 +62,7 @@ Module._load = function (request, parent, isMain) {
 // Load route and service utilities after stubs are in place
 const calendarRouter = require('../routes/calendar');
 const { normalisePrivateKey } = require('../services/googleCalendar');
-const { STYLIST_CONFIG, MUNKHZAYA_CALENDAR_ID } = require('../config/stylists');
+const { STYLIST_CONFIG, MUNKHZAYA_CALENDAR_ID, OTGONZARGAL_CALENDAR_ID } = require('../config/stylists');
 
 // ---------------------------------------------------------------------------
 // normalisePrivateKey unit tests
@@ -149,6 +149,10 @@ const VALID_DATE_SUNDAY = '2035-06-04'; // Sunday  → Sun hours:     11:00–19
 // Manicurist stylist IDs and her dedicated calendar ID (MUNKHZAYA_CALENDAR_ID imported above)
 const MUNKHZAYA_STYLIST_ID_MN = 'Г. Мөнхзаяа';
 const MUNKHZAYA_STYLIST_ID_LATIN = 'g.munkhzaya';
+
+// Hairdresser Отгонжаргал IDs and her dedicated calendar ID (OTGONZARGAL_CALENDAR_ID imported above)
+const OTGONZARGAL_STYLIST_ID_MN = 'Отгонжаргал';
+const OTGONZARGAL_STYLIST_ID_LATIN = 'otgonzargal';
 
 // ---------------------------------------------------------------------------
 // GET /api/calendar/available-slots
@@ -376,5 +380,54 @@ test('available-slots: 200 for Г. Мөнхзаяа routes to her calendar', asy
   });
   assert.equal(status, 200);
   assert.equal(body.stylistId, MUNKHZAYA_STYLIST_ID_LATIN);
+  assert.equal(body.availableSlots.length, 10);
+});
+
+// ---------------------------------------------------------------------------
+// Hairdresser (Отгонжаргал) calendar routing
+// ---------------------------------------------------------------------------
+test('STYLIST_CONFIG: Отгонжаргал uses her dedicated calendar ID', () => {
+  assert.equal(
+    STYLIST_CONFIG[OTGONZARGAL_STYLIST_ID_MN].calendarId,
+    OTGONZARGAL_CALENDAR_ID,
+    'Mongolian key should map to the hairdresser calendar',
+  );
+});
+
+test('STYLIST_CONFIG: otgonzargal (Latin alias) uses the same dedicated calendar ID', () => {
+  assert.equal(
+    STYLIST_CONFIG[OTGONZARGAL_STYLIST_ID_LATIN].calendarId,
+    OTGONZARGAL_CALENDAR_ID,
+    'Latin alias should map to the hairdresser calendar',
+  );
+});
+
+test('book: 200 booking for Отгонжаргал routes to her calendar', async () => {
+  calendarStub._insertError = null;
+  calendarStub._insertResult = { data: { id: 'otgonzargal_booking_001' } };
+  const app = buildApp();
+  const { status, body } = await request(app, 'POST', '/api/calendar/book', {
+    stylistId: OTGONZARGAL_STYLIST_ID_LATIN,
+    startTime: '2035-06-05T10:00:00+08:00',
+    customerName: 'Test Customer',
+    serviceName: '1-р зэргийн үсчин',
+  });
+  assert.equal(status, 200);
+  assert.equal(body.eventId, 'otgonzargal_booking_001');
+  assert.ok(body.message.includes('success'));
+});
+
+test('available-slots: 200 for Отгонжаргал routes to her calendar', async () => {
+  calendarStub._freebusyError = null;
+  calendarStub._freebusyResult = {
+    data: { calendars: { [OTGONZARGAL_CALENDAR_ID]: { busy: [] } } },
+  };
+  const app = buildApp();
+  const { status, body } = await request(app, 'GET', '/api/calendar/available-slots', {
+    date: VALID_DATE,
+    stylistId: OTGONZARGAL_STYLIST_ID_LATIN,
+  });
+  assert.equal(status, 200);
+  assert.equal(body.stylistId, OTGONZARGAL_STYLIST_ID_LATIN);
   assert.equal(body.availableSlots.length, 10);
 });
