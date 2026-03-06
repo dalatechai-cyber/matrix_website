@@ -6,6 +6,7 @@
     { "src": "*.{html,css}", "use": "@vercel/static" },
     { "src": "script.js", "use": "@vercel/static" },
     { "src": "logo.png", "use": "@vercel/static" },
+    { "src": "favicon.jpg", "use": "@vercel/static" },
     { "src": "Products/**", "use": "@vercel/static" },
     { "src": "files/**", "use": "@vercel/static" },
     { "src": "hairstylist_pic/**", "use": "@vercel/static" },
