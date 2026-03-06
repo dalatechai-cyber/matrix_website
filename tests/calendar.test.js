@@ -62,6 +62,7 @@ Module._load = function (request, parent, isMain) {
 // Load route and service utilities after stubs are in place
 const calendarRouter = require('../routes/calendar');
 const { normalisePrivateKey } = require('../services/googleCalendar');
+const { STYLIST_CONFIG, MUNKHZAYA_CALENDAR_ID } = require('../config/stylists');
 
 // ---------------------------------------------------------------------------
 // normalisePrivateKey unit tests
@@ -144,6 +145,10 @@ const VALID_STYLIST_ID = 'anand';
 const VALID_CALENDAR_ID = 'c_2af068656b60e27cd9063a78b04dffbe24f1aab4543e50c2875f132dc4b12e17@group.calendar.google.com';
 const VALID_DATE = '2035-06-05';        // Monday  → Mon–Sat hours: 10:00–20:00
 const VALID_DATE_SUNDAY = '2035-06-04'; // Sunday  → Sun hours:     11:00–19:00
+
+// Manicurist stylist IDs and her dedicated calendar ID (MUNKHZAYA_CALENDAR_ID imported above)
+const MUNKHZAYA_STYLIST_ID_MN = 'Г. Мөнхзаяа';
+const MUNKHZAYA_STYLIST_ID_LATIN = 'g.munkhzaya';
 
 // ---------------------------------------------------------------------------
 // GET /api/calendar/available-slots
@@ -323,4 +328,53 @@ test('book: 500 when Google Calendar API throws', async () => {
   assert.equal(status, 500);
   assert.ok(body.error.includes('booking'));
   calendarStub._insertError = null;
+});
+
+// ---------------------------------------------------------------------------
+// Manicurist (Г. Мөнхзаяа) calendar routing
+// ---------------------------------------------------------------------------
+test('STYLIST_CONFIG: Г. Мөнхзаяа uses her dedicated calendar ID', () => {
+  assert.equal(
+    STYLIST_CONFIG[MUNKHZAYA_STYLIST_ID_MN].calendarId,
+    MUNKHZAYA_CALENDAR_ID,
+    'Mongolian key should map to the manicurist calendar',
+  );
+});
+
+test('STYLIST_CONFIG: g.munkhzaya (Latin alias) uses the same dedicated calendar ID', () => {
+  assert.equal(
+    STYLIST_CONFIG[MUNKHZAYA_STYLIST_ID_LATIN].calendarId,
+    MUNKHZAYA_CALENDAR_ID,
+    'Latin alias should map to the manicurist calendar',
+  );
+});
+
+test('book: 200 booking for Г. Мөнхзаяа routes to her calendar', async () => {
+  calendarStub._insertError = null;
+  calendarStub._insertResult = { data: { id: 'munkhzaya_booking_001' } };
+  const app = buildApp();
+  const { status, body } = await request(app, 'POST', '/api/calendar/book', {
+    stylistId: MUNKHZAYA_STYLIST_ID_LATIN,
+    startTime: '2035-06-05T10:00:00+08:00',
+    customerName: 'Test Customer',
+    serviceName: 'Маникюр',
+  });
+  assert.equal(status, 200);
+  assert.equal(body.eventId, 'munkhzaya_booking_001');
+  assert.ok(body.message.includes('success'));
+});
+
+test('available-slots: 200 for Г. Мөнхзаяа routes to her calendar', async () => {
+  calendarStub._freebusyError = null;
+  calendarStub._freebusyResult = {
+    data: { calendars: { [MUNKHZAYA_CALENDAR_ID]: { busy: [] } } },
+  };
+  const app = buildApp();
+  const { status, body } = await request(app, 'GET', '/api/calendar/available-slots', {
+    date: VALID_DATE,
+    stylistId: MUNKHZAYA_STYLIST_ID_LATIN,
+  });
+  assert.equal(status, 200);
+  assert.equal(body.stylistId, MUNKHZAYA_STYLIST_ID_LATIN);
+  assert.equal(body.availableSlots.length, 10);
 });
