@@ -143,8 +143,8 @@ function request(app, method, path, bodyOrQuery) {
 // Known stylist used across tests (still employed)
 const VALID_STYLIST_ID = 'anand';
 const VALID_CALENDAR_ID = 'c_2af068656b60e27cd9063a78b04dffbe24f1aab4543e50c2875f132dc4b12e17@group.calendar.google.com';
-const VALID_DATE = '2035-06-05';        // Monday  → Mon–Sat hours: 10:00–20:00
-const VALID_DATE_SUNDAY = '2035-06-04'; // Sunday  → Sun hours:     11:00–19:00
+const VALID_DATE = '2035-06-04';        // Monday  (UTC+8) → Mon–Sat hours: 10:00–20:00
+const VALID_DATE_SUNDAY = '2035-06-03'; // Sunday  (UTC+8) → Sun hours:     11:00–19:00
 
 // Manicurist stylist IDs and her dedicated calendar ID (MUNKHZAYA_CALENDAR_ID imported above)
 const MUNKHZAYA_STYLIST_ID_MN = 'Г. Мөнхзаяа';

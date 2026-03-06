@@ -15,11 +15,14 @@ const SALON_TZ_OFFSET = '+08:00';
  * Mon–Sat: 10:00–20:00  (last bookable slot starts at 19:00)
  * Sun:     11:00–19:00  (last bookable slot starts at 18:00)
  *
- * @param {string} dateStr  YYYY-MM-DD in salon local time
+ * @param {string} dateStr  YYYY-MM-DD in salon local time (Ulaanbaatar, UTC+8)
  * @returns {{ workStartHour: number, workEndHour: number }}
  */
 function getWorkHours(dateStr) {
-  const dayOfWeek = new Date(`${dateStr}T00:00:00${SALON_TZ_OFFSET}`).getDay();
+  // Use noon Ulaanbaatar time so the UTC equivalent stays on the same calendar
+  // date (midnight UTC+8 = previous day 16:00 UTC, which would give the wrong
+  // weekday when calling getUTCDay() on a UTC server).
+  const dayOfWeek = new Date(`${dateStr}T12:00:00${SALON_TZ_OFFSET}`).getUTCDay();
   if (dayOfWeek === 0) {
     // Sunday
     return { workStartHour: 11, workEndHour: 19 };
