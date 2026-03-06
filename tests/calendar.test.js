@@ -417,6 +417,11 @@ test('book: 200 booking for Отгонжаргал routes to her calendar', asyn
   assert.ok(body.message.includes('success'));
 });
 
+test('STYLIST_CONFIG: Отгонжаргал price is 10000 (1-р зэргийн үсчин tier)', () => {
+  assert.equal(STYLIST_CONFIG[OTGONZARGAL_STYLIST_ID_MN].price, 10000);
+  assert.equal(STYLIST_CONFIG[OTGONZARGAL_STYLIST_ID_LATIN].price, 10000);
+});
+
 test('available-slots: 200 for Отгонжаргал routes to her calendar', async () => {
   calendarStub._freebusyError = null;
   calendarStub._freebusyResult = {

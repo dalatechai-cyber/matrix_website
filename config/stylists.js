@@ -8,9 +8,10 @@
  * so that bookings submitted with either form resolve to the correct calendar.
  *
  * Pricing tiers:
- *   Мастер үсчин  – 20 000 MNT
- *   Ахлах стилист – 10 000 MNT
- *   Маникюр       – 20 000 MNT
+ *   Мастер үсчин       – 20 000 MNT
+ *   Ахлах стилист      – 10 000 MNT
+ *   1-р зэргийн үсчин  – 10 000 MNT
+ *   Маникюр            – 20 000 MNT
  */
 
 // Dedicated calendar ID for manicurist Г. Мөнхзаяа
@@ -103,13 +104,13 @@ const STYLIST_CONFIG = {
   },
   'Отгонжаргал': {
     calendarId: OTGONZARGAL_CALENDAR_ID,
-    price: 20000,
+    price: 10000,
     level: '1-р зэргийн үсчин',
   },
   'otgonzargal': {
     // Latin transliteration alias — mirrors the Mongolian entry above (see file-level comment)
     calendarId: OTGONZARGAL_CALENDAR_ID,
-    price: 20000,
+    price: 10000,
     level: '1-р зэргийн үсчин',
   },
 };
