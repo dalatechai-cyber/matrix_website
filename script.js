@@ -1250,7 +1250,7 @@ async function initiateQPayPayment({ amount, name, phone, description, staffName
     // Start polling for payment confirmation if we have an invoice_id
     if (data.invoice_id) {
       const invoiceId = data.invoice_id;
-      const MAX_POLL_ATTEMPTS = 60; // 5 minutes at 5-second intervals
+      const MAX_POLL_ATTEMPTS = 100; // 5 minutes at 3-second intervals
       let pollAttempts = 0;
       qpayPollInterval = setInterval(async () => {
         pollAttempts++;
@@ -1271,39 +1271,89 @@ async function initiateQPayPayment({ amount, name, phone, description, staffName
           if (pollData.invoice_status === "PAID") {
             clearInterval(qpayPollInterval);
             qpayPollInterval = null;
+
+            // Hide the QR panel and booking summary immediately
             panel.style.display = "none";
             const summaryEl = document.getElementById("booking-summary");
             if (summaryEl) summaryEl.style.display = "none";
+
+            // Show a loading/confirming message while we register the booking
             if (successEl) {
-              const { stylistId = "", date = "", time = "" } = bookingDetails || {};
               successEl.innerHTML = `
-                <span class="booking-success-icon">✓</span>
-                <h3 class="booking-success-title">Амжилттай баталгаажлаа!</h3>
-                <div class="booking-success-details">
-                  <div class="summary-item"><span>Үсчин:</span> <strong class="js-success-stylist"></strong></div>
-                  <div class="summary-item"><span>Өдөр:</span>  <strong class="js-success-date"></strong></div>
-                  <div class="summary-item"><span>Цаг:</span>   <strong class="js-success-time"></strong></div>
+                <div class="booking-confirming">
+                  <div class="booking-spinner"></div>
+                  <p class="booking-confirming-text">Төлбөр баталгаажиж байна. Түр хүлээнэ үү...</p>
                 </div>
-                <button type="button" class="primary-btn booking-success-return-btn">Буцах</button>
               `;
-              successEl.querySelector(".js-success-stylist").textContent = stylistId;
-              successEl.querySelector(".js-success-date").textContent    = date;
-              successEl.querySelector(".js-success-time").textContent    = time;
               successEl.style.display = "block";
-              successEl.querySelector(".booking-success-return-btn")?.addEventListener("click", () => {
+              try {
+                successEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+              } catch (_) {
+                successEl.scrollIntoView();
+              }
+            }
+
+            // Trigger the Google Calendar booking
+            const { stylistId = "", date = "", time = "" } = bookingDetails || {};
+            const startTime = date && time ? `${date}T${time}:00+08:00` : "";
+            const calendarErrorMsg = "Төлбөр төлөгдсөн ч цаг бүртгэхэд алдаа гарлаа. Бидэнтэй холбогдоно уу.";
+
+            function showCalendarError() {
+              if (!successEl) return;
+              successEl.innerHTML = `
+                <p class="booking-error-text">${calendarErrorMsg}</p>
+                <button type="button" class="primary-btn booking-close-btn">Хаах</button>
+              `;
+              successEl.querySelector(".booking-close-btn")?.addEventListener("click", () => {
                 resetBookingForm();
               });
             }
+
             try {
-              successEl?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+              const bookRes = await fetch("/api/calendar/book", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  stylistId,
+                  startTime,
+                  customerName: name,
+                  customerPhone: phone,
+                }),
+              });
+
+              if (successEl) {
+                if (bookRes.ok) {
+                  // Final confirmed success state
+                  successEl.innerHTML = `
+                    <span class="booking-success-icon">✓</span>
+                    <h3 class="booking-success-title">Амжилттай! Таны цаг захиалга баталгаажлаа.</h3>
+                    <div class="booking-success-details">
+                      <div class="summary-item"><span>Үсчин:</span> <strong class="js-success-stylist"></strong></div>
+                      <div class="summary-item"><span>Өдөр:</span>  <strong class="js-success-date"></strong></div>
+                      <div class="summary-item"><span>Цаг:</span>   <strong class="js-success-time"></strong></div>
+                    </div>
+                    <button type="button" class="primary-btn booking-close-btn">Хаах</button>
+                  `;
+                  successEl.querySelector(".js-success-stylist").textContent = stylistId;
+                  successEl.querySelector(".js-success-date").textContent    = date;
+                  successEl.querySelector(".js-success-time").textContent    = time;
+                  successEl.querySelector(".booking-close-btn")?.addEventListener("click", () => {
+                    resetBookingForm();
+                  });
+                } else {
+                  // Calendar API returned a non-OK status
+                  showCalendarError();
+                }
+              }
             } catch (_) {
-              successEl?.scrollIntoView();
+              // Network error calling the calendar endpoint
+              showCalendarError();
             }
           }
         } catch (_) {
           // Silently ignore polling errors — will retry on next interval
         }
-      }, 5000);
+      }, 3000);
     }
   } catch (err) {
     console.error("QPay payment error:", err);
