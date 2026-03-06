@@ -1297,7 +1297,23 @@ async function initiateQPayPayment({ amount, name, phone, description, staffName
           });
           if (!pollRes.ok) return;
           const pollData = await pollRes.json();
-          if (pollData.invoice_status === "PAID") {
+          console.log("QPay Check Response:", pollData);
+          // QPay may return success in several different shapes depending on
+          // the API version or endpoint used.  Check all known variants:
+          //   invoice_status  – /check-payment in-memory status
+          //   status          – top-level status field
+          //   payment_status  – flat payment_status field
+          //   payment_info.payment_status – nested payment info object
+          //   paid            – boolean shorthand
+          //   rows[0].payment_status – array-based response
+          const isPaid =
+            pollData.invoice_status === "PAID" ||
+            pollData.status === "PAID" ||
+            pollData.payment_status === "PAID" ||
+            pollData.payment_info?.payment_status === "PAID" ||
+            pollData.paid === true ||
+            (pollData.rows && pollData.rows.length > 0 && pollData.rows[0].payment_status === "PAID");
+          if (isPaid) {
             clearInterval(qpayPollInterval);
             qpayPollInterval = null;
 
@@ -1384,8 +1400,8 @@ async function initiateQPayPayment({ amount, name, phone, description, staffName
               showCalendarError();
             }
           }
-        } catch (_) {
-          // Silently ignore polling errors — will retry on next interval
+        } catch (err) {
+          console.error("Polling error:", err);
         }
       }, 3000);
     }
