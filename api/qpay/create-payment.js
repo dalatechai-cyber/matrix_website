@@ -45,7 +45,7 @@ module.exports = async function handler(req, res) {
         // --- 3. PAYLOAD БЭЛДЭХ ---
         const payload = {
             merchant_id: "17e69f2a-d1a4-4fe6-a5a2-34a649378414", // <-- Өөрийн 87ec2243... ID-гээ буцааж хийгээрэй
-            amount: 100, // Бодит үнэ
+            amount: finalAmount, // Бодит үнэ
             currency: 'MNT',
             description: finalDescription, // Бодит нэр, утас
             mcc_code: '7230',
