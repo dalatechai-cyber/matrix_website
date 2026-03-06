@@ -12,6 +12,10 @@
  *   Ахлах стилист – 10 000 MNT
  *   Маникюр       – 20 000 MNT
  */
+
+// Dedicated calendar ID for manicurist Г. Мөнхзаяа
+const MUNKHZAYA_CALENDAR_ID = 'c_943dac8f8417fcc6c7bf84a6c8f0f84529b9800f5ade551573b2f637830d14b5@group.calendar.google.com';
+
 const STYLIST_CONFIG = {
   'Ананд': {
     calendarId: 'c_2af068656b60e27cd9063a78b04dffbe24f1aab4543e50c2875f132dc4b12e17@group.calendar.google.com',
@@ -84,14 +88,13 @@ const STYLIST_CONFIG = {
     level: 'Мастер үсчин',
   },
   'Г. Мөнхзаяа': {
-    // TODO: replace with the real Google Calendar ID for Г. Мөнхзаяа once provisioned
-    calendarId: 'PLACEHOLDER_MUNKHZAYA_CALENDAR_ID',
+    calendarId: MUNKHZAYA_CALENDAR_ID,
     price: 20000,
     level: 'Маникюр',
   },
   'g.munkhzaya': {
     // Latin transliteration alias — mirrors the Mongolian entry above (see file-level comment)
-    calendarId: 'PLACEHOLDER_MUNKHZAYA_CALENDAR_ID',
+    calendarId: MUNKHZAYA_CALENDAR_ID,
     price: 20000,
     level: 'Маникюр',
   },
@@ -105,4 +108,4 @@ const STYLIST_CALENDAR_MAP = Object.fromEntries(
   Object.entries(STYLIST_CONFIG).map(([id, cfg]) => [id, cfg.calendarId]),
 );
 
-module.exports = { STYLIST_CONFIG, STYLIST_CALENDAR_MAP };
+module.exports = { STYLIST_CONFIG, STYLIST_CALENDAR_MAP, MUNKHZAYA_CALENDAR_ID };
