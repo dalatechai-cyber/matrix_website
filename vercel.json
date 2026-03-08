@@ -11,6 +11,7 @@
     { "src": "files/**", "use": "@vercel/static" },
     { "src": "hairstylist_pic/**", "use": "@vercel/static" },
     { "src": "Keune/**", "use": "@vercel/static" },
+    { "src": "Pictures_Page/**", "use": "@vercel/static" },
     { "src": "data/**", "use": "@vercel/static" }
   ],
   "rewrites": [
