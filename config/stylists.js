@@ -9,7 +9,6 @@
  *
  * Pricing tiers:
  *   Мастер үсчин       – 20 000 MNT
- *   Ахлах стилист      – 10 000 MNT
  *   1-р зэргийн үсчин  – 10 000 MNT
  *   Маникюр            – 20 000 MNT
  */
@@ -33,33 +32,33 @@ const STYLIST_CONFIG = {
   },
   'Бадамцэцэг': {
     calendarId: 'c_7d47cf135b4ef24b9b4e920f8e981096087b236eb4f7d92a7ad8ce7a1d407529@group.calendar.google.com',
-    price: 10000,
-    level: 'Ахлах стилист',
+    price: 20000,
+    level: 'Мастер үсчин',
   },
   'badamtsetseg': {
     calendarId: 'c_7d47cf135b4ef24b9b4e920f8e981096087b236eb4f7d92a7ad8ce7a1d407529@group.calendar.google.com',
-    price: 10000,
-    level: 'Ахлах стилист',
+    price: 20000,
+    level: 'Мастер үсчин',
   },
   'Батзаяа': {
     calendarId: 'c_2979833247c0886af6789e6fbf205b66477105ceac615a07597ba4f6af975f63@group.calendar.google.com',
     price: 10000,
-    level: 'Ахлах стилист',
+    level: '1-р зэргийн үсчин',
   },
   'batzaya': {
     calendarId: 'c_2979833247c0886af6789e6fbf205b66477105ceac615a07597ba4f6af975f63@group.calendar.google.com',
     price: 10000,
-    level: 'Ахлах стилист',
+    level: '1-р зэргийн үсчин',
   },
   'Мухлай': {
     calendarId: 'c_6efae8dadb0660afc266a939e8bfbd85af95bfc5ed498055ccd11175d181bbaf@group.calendar.google.com',
-    price: 10000,
-    level: 'Ахлах стилист',
+    price: 20000,
+    level: 'Мастер үсчин',
   },
   'muhlai': {
     calendarId: 'c_6efae8dadb0660afc266a939e8bfbd85af95bfc5ed498055ccd11175d181bbaf@group.calendar.google.com',
-    price: 10000,
-    level: 'Ахлах стилист',
+    price: 20000,
+    level: 'Мастер үсчин',
   },
   'Оюунсүрэн': {
     calendarId: 'c_46dc5625ec21ce8c17b61ed2f1c28b4328279cec168b982c49f218cd4452a4b3@group.calendar.google.com',
@@ -74,22 +73,22 @@ const STYLIST_CONFIG = {
   'Тэргэл': {
     calendarId: 'c_1d339159e8bc7a5059cc20d52c7b2b1cda07442336f2c2a5b7880c00d6b442f9@group.calendar.google.com',
     price: 10000,
-    level: 'Ахлах стилист',
+    level: '1-р зэргийн үсчин',
   },
   'tergel': {
     calendarId: 'c_1d339159e8bc7a5059cc20d52c7b2b1cda07442336f2c2a5b7880c00d6b442f9@group.calendar.google.com',
     price: 10000,
-    level: 'Ахлах стилист',
+    level: '1-р зэргийн үсчин',
   },
   'Уянга': {
     calendarId: 'c_27de9527ce91e22bc5255af2dd51bc1db5c700d167d5aaad77062990bfe4875f@group.calendar.google.com',
-    price: 20000,
-    level: 'Мастер үсчин',
+    price: 10000,
+    level: '1-р зэргийн үсчин',
   },
   'uyanga': {
     calendarId: 'c_27de9527ce91e22bc5255af2dd51bc1db5c700d167d5aaad77062990bfe4875f@group.calendar.google.com',
-    price: 20000,
-    level: 'Мастер үсчин',
+    price: 10000,
+    level: '1-р зэргийн үсчин',
   },
   'Г. Мөнхзаяа': {
     calendarId: MUNKHZAYA_CALENDAR_ID,
