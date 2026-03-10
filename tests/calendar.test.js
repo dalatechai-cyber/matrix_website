@@ -382,7 +382,92 @@ test('available-slots: 200 for Г. Мөнхзаяа routes to her calendar', asy
   });
   assert.equal(status, 200);
   assert.equal(body.stylistId, MUNKHZAYA_STYLIST_ID_LATIN);
-  assert.equal(body.availableSlots.length, 10);
+  // VALID_DATE is Monday → 90-min slots: 10:00–18:00 → 9 slots (19:00 excluded: 19:00+90min > 20:00)
+  assert.equal(body.availableSlots.length, 9);
+  assert.ok(body.availableSlots.includes('10:00'));
+  assert.ok(body.availableSlots.includes('18:00'));
+  assert.ok(!body.availableSlots.includes('19:00'), '19:00 slot must be excluded: 19:00+90min exceeds closing time');
+});
+
+// ---------------------------------------------------------------------------
+// Manicurist (Г. Мөнхзаяа) 90-minute appointment duration
+// ---------------------------------------------------------------------------
+test('STYLIST_CONFIG: Г. Мөнхзаяа has durationMinutes of 90', () => {
+  assert.equal(
+    STYLIST_CONFIG[MUNKHZAYA_STYLIST_ID_MN].durationMinutes,
+    90,
+    'Mongolian key should have 90-minute duration',
+  );
+  assert.equal(
+    STYLIST_CONFIG[MUNKHZAYA_STYLIST_ID_LATIN].durationMinutes,
+    90,
+    'Latin alias should also have 90-minute duration',
+  );
+});
+
+test('book: Г. Мөнхзаяа booking creates a 90-minute event (end = start + 90 min)', async () => {
+  calendarStub._insertError = null;
+  calendarStub._insertResult = { data: { id: 'munkhzaya_duration_test' } };
+  calendarStub._lastInsertArg = null;
+  const app = buildApp();
+  const { status } = await request(app, 'POST', '/api/calendar/book', {
+    stylistId: MUNKHZAYA_STYLIST_ID_LATIN,
+    startTime: '2035-06-05T13:00:00+08:00',
+    customerName: 'Test Customer',
+    serviceName: 'Маникюр',
+  });
+  assert.equal(status, 200);
+  const { start, end } = calendarStub._lastInsertArg.requestBody;
+  const startMs = new Date(start.dateTime).getTime();
+  const endMs = new Date(end.dateTime).getTime();
+  const diffMinutes = (endMs - startMs) / (60 * 1000);
+  assert.equal(diffMinutes, 90, 'Munkhzaya booking should last exactly 90 minutes');
+});
+
+test('book: regular hairdresser booking creates a 60-minute event (end = start + 60 min)', async () => {
+  calendarStub._insertError = null;
+  calendarStub._insertResult = { data: { id: 'regular_duration_test' } };
+  calendarStub._lastInsertArg = null;
+  const app = buildApp();
+  const { status } = await request(app, 'POST', '/api/calendar/book', {
+    stylistId: VALID_STYLIST_ID,
+    startTime: '2035-06-04T13:00:00+08:00',
+    customerName: 'Test Customer',
+    serviceName: 'Haircut',
+  });
+  assert.equal(status, 200);
+  const { start, end } = calendarStub._lastInsertArg.requestBody;
+  const startMs = new Date(start.dateTime).getTime();
+  const endMs = new Date(end.dateTime).getTime();
+  const diffMinutes = (endMs - startMs) / (60 * 1000);
+  assert.equal(diffMinutes, 60, 'Regular hairdresser booking should last exactly 60 minutes');
+});
+
+test('available-slots: Г. Мөнхзаяа 90-min booking at 13:00 makes 14:00 unavailable', async () => {
+  calendarStub._freebusyError = null;
+  // Simulate a 90-minute busy block: 13:00–14:30 Ulaanbaatar (UTC+8) = 05:00–06:30 UTC
+  calendarStub._freebusyResult = {
+    data: {
+      calendars: {
+        [MUNKHZAYA_CALENDAR_ID]: {
+          busy: [
+            { start: `${VALID_DATE}T05:00:00Z`, end: `${VALID_DATE}T06:30:00Z` },
+          ],
+        },
+      },
+    },
+  };
+  const app = buildApp();
+  const { status, body } = await request(app, 'GET', '/api/calendar/available-slots', {
+    date: VALID_DATE,
+    stylistId: MUNKHZAYA_STYLIST_ID_LATIN,
+  });
+  assert.equal(status, 200);
+  assert.ok(!body.availableSlots.includes('13:00'), '13:00 should be busy (booked)');
+  assert.ok(!body.availableSlots.includes('14:00'), '14:00 should be unavailable (overlaps with 13:00–14:30 booking)');
+  assert.ok(!body.availableSlots.includes('12:00'), '12:00 should be unavailable (12:00+90min=13:30 overlaps with 13:00 booking)');
+  assert.ok(body.availableSlots.includes('11:00'), '11:00 should be free (11:00+90min=12:30, no overlap)');
+  assert.ok(body.availableSlots.includes('15:00'), '15:00 should be free (after the 90-min block ends at 14:30)');
 });
 
 // ---------------------------------------------------------------------------
