@@ -583,15 +583,35 @@ function renderDayStrip(startDate = new Date()) {
 }
 
 /**
- * Generate all possible 1-hour booking time slot strings for the given date
- * based on business hours:
+ * Generate all possible booking time slot strings for the given date.
+ *
+ * For the manicurist (Г. Мөнхзаяа / Маникюр service), a fixed set of slots is
+ * returned because the gap between 16:00 and 18:00 is 120 minutes — not the
+ * standard 90 — so a simple +90-min loop would produce the wrong result (17:30).
+ *
+ * For all other stylists, 1-hour slots are generated from business hours:
  *   Mon–Sat (getDay 1–6): 10:00–19:00  (10 slots)
  *   Sun     (getDay 0):   11:00–18:00  ( 8 slots)
  *
- * @param {string} dateStr  YYYY-MM-DD
+ * @param {string} dateStr        YYYY-MM-DD
+ * @param {number} durationMinutes
+ * @param {string} [stylistId]    Stylist identifier (used to detect manicurist)
  * @returns {string[]}  e.g. ["10:00", "11:00", ..., "19:00"]
  */
-function generateTimeSlots(dateStr, durationMinutes = 60) {
+function generateTimeSlots(dateStr, durationMinutes = 60, stylistId = "") {
+  // Hardcoded slots for the manicurist: exact times requested by the salon.
+  if (stylistId.includes("Мөнхзаяа") || stylistId.includes("Маникюр")) {
+    const hardcodedSlots = ["10:00", "11:30", "13:00", "14:30", "16:00", "18:00"];
+    const now = new Date();
+    const todayStr = formatDateInput(now);
+    if (dateStr !== todayStr) return hardcodedSlots;
+    return hardcodedSlots.filter((slot) => {
+      const [hour, minute] = slot.split(":").map(Number);
+      const slotDate = new Date(`${dateStr}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00`);
+      return slotDate >= now;
+    });
+  }
+
   // Use noon to avoid UTC-midnight timezone shift affecting getDay()
   const dayOfWeek = new Date(`${dateStr}T12:00:00`).getDay();
   const isSunday = dayOfWeek === 0;
@@ -648,7 +668,7 @@ async function fetchAvailableSlots(date, stylistId) {
     console.error("Failed to fetch available slots:", err);
     // Fall back to showing all business-hours slots for the day (booked-slot
     // filtering is unavailable without the API, but the correct hours are shown).
-    renderAvailableSlots(generateTimeSlots(date, durationMinutes), stylistId, date);
+    renderAvailableSlots(generateTimeSlots(date, durationMinutes, stylistId), stylistId, date);
   } finally {
     if (stylistSel) stylistSel.disabled = false;
   }

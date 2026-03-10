@@ -11,6 +11,11 @@ const DEFAULT_DURATION_MINUTES = 60;
 // Mongolia uses Asia/Ulaanbaatar time (UTC+8, no DST)
 const SALON_TZ_OFFSET = '+08:00';
 
+// Hardcoded time slots for the manicurist (Г. Мөнхзаяа / Маникюр service).
+// The gap between 16:00 and 18:00 is 120 min, so a simple +90-min loop would
+// incorrectly produce 17:30 — these exact times must be used instead.
+const MANICURE_SLOTS = ['10:00', '11:30', '13:00', '14:30', '16:00', '18:00'];
+
 /**
  * Returns the salon's opening and closing hour for the given YYYY-MM-DD date.
  * Mon–Sat: 10:00–20:00  (last bookable slot starts at 19:00)
@@ -81,11 +86,26 @@ router.get('/available-slots', async (req, res) => {
     }
     const busySlots = calendarResult.busy || [];
 
-    // Build all possible slot start hours for the given duration
+    // Build the list of candidate slot times.
+    // For the manicurist (Маникюр) use the hardcoded array; for all other
+    // stylists generate on-the-hour slots from the normal business hours loop.
+    const candidateSlots = (stylist.level === 'Маникюр')
+      ? MANICURE_SLOTS
+      : (() => {
+          const slots = [];
+          for (let h = workStartHour; h <= lastSlotStartHour; h++) {
+            slots.push(`${String(h).padStart(2, '0')}:00`);
+          }
+          return slots;
+        })();
+
     const now = new Date();
     const availableSlots = [];
-    for (let h = workStartHour; h <= lastSlotStartHour; h++) {
-      const slotStart = new Date(`${date}T${String(h).padStart(2, '0')}:00:00${SALON_TZ_OFFSET}`);
+    for (const slotStr of candidateSlots) {
+      const [slotHour, slotMinute] = slotStr.split(':').map(Number);
+      const slotStart = new Date(
+        `${date}T${String(slotHour).padStart(2, '0')}:${String(slotMinute).padStart(2, '0')}:00${SALON_TZ_OFFSET}`
+      );
 
       // Skip slots that have already started
       if (slotStart < now) continue;
@@ -100,7 +120,7 @@ router.get('/available-slots', async (req, res) => {
       });
 
       if (!isBusy) {
-        availableSlots.push(`${String(h).padStart(2, '0')}:00`);
+        availableSlots.push(slotStr);
       }
     }
 

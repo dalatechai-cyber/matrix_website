@@ -382,11 +382,12 @@ test('available-slots: 200 for Г. Мөнхзаяа routes to her calendar', asy
   });
   assert.equal(status, 200);
   assert.equal(body.stylistId, MUNKHZAYA_STYLIST_ID_LATIN);
-  // VALID_DATE is Monday → 90-min slots: 10:00–18:00 → 9 slots (19:00 excluded: 19:00+90min > 20:00)
-  assert.equal(body.availableSlots.length, 9);
+  // VALID_DATE is Monday → hardcoded manicure slots: ["10:00","11:30","13:00","14:30","16:00","18:00"] → 6 slots
+  assert.equal(body.availableSlots.length, 6);
   assert.ok(body.availableSlots.includes('10:00'));
+  assert.ok(body.availableSlots.includes('11:30'));
   assert.ok(body.availableSlots.includes('18:00'));
-  assert.ok(!body.availableSlots.includes('19:00'), '19:00 slot must be excluded: 19:00+90min exceeds closing time');
+  assert.ok(!body.availableSlots.includes('19:00'), '19:00 is not a manicure slot');
 });
 
 // ---------------------------------------------------------------------------
@@ -443,7 +444,7 @@ test('book: regular hairdresser booking creates a 60-minute event (end = start +
   assert.equal(diffMinutes, 60, 'Regular hairdresser booking should last exactly 60 minutes');
 });
 
-test('available-slots: Г. Мөнхзаяа 90-min booking at 13:00 makes 14:00 unavailable', async () => {
+test('available-slots: Г. Мөнхзаяа 90-min booking at 13:00 makes adjacent hardcoded slots unavailable', async () => {
   calendarStub._freebusyError = null;
   // Simulate a 90-minute busy block: 13:00–14:30 Ulaanbaatar (UTC+8) = 05:00–06:30 UTC
   calendarStub._freebusyResult = {
@@ -464,10 +465,13 @@ test('available-slots: Г. Мөнхзаяа 90-min booking at 13:00 makes 14:00 
   });
   assert.equal(status, 200);
   assert.ok(!body.availableSlots.includes('13:00'), '13:00 should be busy (booked)');
-  assert.ok(!body.availableSlots.includes('14:00'), '14:00 should be unavailable (overlaps with 13:00–14:30 booking)');
-  assert.ok(!body.availableSlots.includes('12:00'), '12:00 should be unavailable (12:00+90min=13:30 overlaps with 13:00 booking)');
-  assert.ok(body.availableSlots.includes('11:00'), '11:00 should be free (11:00+90min=12:30, no overlap)');
-  assert.ok(body.availableSlots.includes('15:00'), '15:00 should be free (after the 90-min block ends at 14:30)');
+  // With hardcoded slots, 14:00 and 12:00 are not candidate slots — verify neither appears
+  assert.ok(!body.availableSlots.includes('14:00'), '14:00 is not a manicure slot');
+  assert.ok(!body.availableSlots.includes('12:00'), '12:00 is not a manicure slot');
+  // 11:30 is free: 11:30+90min=13:00, which only touches the busy start (no strict overlap)
+  assert.ok(body.availableSlots.includes('11:30'), '11:30 should be free (11:30+90min=13:00, no strict overlap)');
+  // 14:30 is free: busy ends at 14:30, so 14:30+90min=16:00 has no overlap
+  assert.ok(body.availableSlots.includes('14:30'), '14:30 should be free (after the 90-min block ends at 14:30)');
 });
 
 // ---------------------------------------------------------------------------
