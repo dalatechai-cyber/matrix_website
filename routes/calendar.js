@@ -150,7 +150,7 @@ router.get('/available-slots', async (req, res) => {
  *   { stylistId, startTime, customerName, customerPhone, customerEmail, serviceName }
  */
 router.post('/book', async (req, res) => {
-  const { stylistId, startTime, customerName, customerPhone, customerEmail, serviceName } = req.body || {};
+  const { stylistId, startTime, customerName, customerPhone, customerEmail, serviceName, selectedServices } = req.body || {};
 
   if (!stylistId || !startTime) {
     return res.status(400).json({ error: 'stylistId and startTime are required' });
@@ -169,13 +169,15 @@ router.post('/book', async (req, res) => {
     const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
 
     const descriptionParts = [];
+    if (customerName) descriptionParts.push(`Name: ${customerName}`);
     if (customerPhone) descriptionParts.push(`Phone: ${customerPhone}`);
     if (customerEmail) descriptionParts.push(`Email: ${customerEmail}`);
     descriptionParts.push(`Price: ${stylist.price} MNT (${stylist.level})`);
 
+    const services = selectedServices || serviceName || '';
     const summary = customerPhone
-      ? `${customerPhone} - ${customerName || 'Customer'}`
-      : (customerName || 'Customer');
+      ? `${customerPhone} - ${services || customerName || 'Appointment'}`
+      : (services || customerName || 'Appointment');
 
     const event = {
       summary,

@@ -22,6 +22,26 @@ let productsCache = [];
 let allProductsCache = [];
 let currentProductsPage = 1;
 
+// Services offered by hairdressers
+const HAIR_SERVICES = [
+  "Том хүн", "Хүүхэд", "Хэлбэрт", "Хуйхны цэвэрлэгээ", "Толгойн тос",
+  "Хими / Sika", "Будаг (Уг)", "Будаг (Бүтэн)", "Омбре / Колор",
+  "Эрэгтэй хими", "Чолк тайралт", "Угаалт", "Хусалт", "Сор",
+  "Афра хими", "Гоёл / Засалт", "Хурим", "Сахал", "Шулуун хими",
+  "Тэжээл", "Хими арчилгаа", "CICA нөхөн сэргээх эмчилгээ", "CMC тэжээл",
+];
+
+// Services offered by the manicurist
+const MANICURE_SERVICES = [
+  "Гелэн будалт", "Дип будаг", "Будаггүй маникюр", "Хумс нөхөлт (1 хумс)",
+  "Хумсны гоёл (1 хумс)", "Будаг арилгалт", "Хумс салгалт", "Смарт хумс",
+  "Гелин хумс", "Будаггүй педикюр", "Гель педикюр", "Гарын спа",
+];
+
+// Holds a reference to the current booking form's validation function so that
+// service-checkbox change events (outside the summary panel) can trigger it.
+let _validateBookingFn = null;
+
 // Client-side copy of stylist prices/levels (mirrors config/stylists.js).
 // Note: keep this in sync with the server-side config when stylist pricing changes.
 const STYLIST_CONFIG_CLIENT = {
@@ -762,8 +782,12 @@ function showBookingSummary(stylistId, date, time) {
   function validateBookingForm() {
     const nameVal  = (nameInput?.value  || "").trim();
     const phoneVal = (phoneInput?.value || "").trim();
-    confirmBtn.disabled = !(nameVal.length > 0 && phoneVal.length > 0);
+    const hasService = document.querySelectorAll(".service-checkbox:checked").length > 0;
+    confirmBtn.disabled = !(nameVal.length > 0 && phoneVal.length > 0 && hasService);
   }
+
+  // Register this summary's validation function so service-checkbox changes can trigger it.
+  _validateBookingFn = validateBookingForm;
 
   nameInput?.addEventListener("input",  validateBookingForm);
   phoneInput?.addEventListener("input", validateBookingForm);
@@ -777,12 +801,24 @@ function showBookingSummary(stylistId, date, time) {
       return;
     }
 
+    const checkedServices = Array.from(
+      document.querySelectorAll(".service-checkbox:checked")
+    ).map((cb) => cb.value);
+
+    if (checkedServices.length === 0) {
+      alert("Дор хаяж нэг үйлчилгээ сонгоно уу.");
+      return;
+    }
+
+    const selectedServices = checkedServices.join(", ");
+
     initiateQPayPayment({
       amount: price,
       name: customerName,
       phone: customerPhone,
       description: `Matrix Eco: ${stylistId} - ${date} ${time} - ${customerName} - ${customerPhone}`,
       staffName: stylistId,
+      selectedServices,
       confirmBtn,
       bookingDetails: { stylistId, date, time },
     });
@@ -814,18 +850,67 @@ function selectDay(dateString) {
 }
 
 /**
+ * Render service checkboxes inside #service-checkboxes based on the selected stylist.
+ * Uses MANICURE_SERVICES for Г. Мөнхзаяа, HAIR_SERVICES for all others.
+ * Clears the container when no stylist is selected.
+ */
+function renderServiceCheckboxes(stylistId) {
+  const container = document.getElementById("service-checkboxes");
+  if (!container) return;
+
+  if (!stylistId) {
+    container.innerHTML = "";
+    return;
+  }
+
+  const stylistCfg = STYLIST_CONFIG_CLIENT[stylistId];
+  const services =
+    stylistCfg?.level === "Маникюр" ? MANICURE_SERVICES : HAIR_SERVICES;
+
+  container.innerHTML = "";
+
+  const title = document.createElement("div");
+  title.className = "service-checkboxes-title";
+  title.textContent = "Үйлчилгээ сонгох";
+  container.appendChild(title);
+
+  const grid = document.createElement("div");
+  grid.className = "service-checkboxes-grid";
+
+  services.forEach((s) => {
+    const label = document.createElement("label");
+    label.className = "service-checkbox-item";
+
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.className = "service-checkbox";
+    input.value = s;
+
+    const text = document.createTextNode(s);
+
+    label.appendChild(input);
+    label.appendChild(text);
+    grid.appendChild(label);
+  });
+
+  container.appendChild(grid);
+}
+
+/**
  * Reset the booking form to its initial state.
  * Called after a successful payment or when the user navigates back.
  */
 function resetBookingForm() {
   selectedTime = null;
   selectedDate = null;
+  _validateBookingFn = null;
   const successEl = document.getElementById("booking-success-message");
   if (successEl) successEl.style.display = "none";
   const summaryEl = document.getElementById("booking-summary");
   if (summaryEl) summaryEl.style.display = "none";
   const stylistSel = document.getElementById("stylist-select");
   if (stylistSel) stylistSel.value = "";
+  renderServiceCheckboxes("");
   const avail = document.getElementById("available-time-slots");
   if (avail) avail.innerHTML = '<p class="slots-hint">Үсчин болон өдрийг сонгоно уу.</p>';
   renderDayStrip(new Date());
@@ -838,11 +923,21 @@ todayBtn?.addEventListener("click", () => {
 document.getElementById("stylist-select")?.addEventListener("change", (event) => {
   const summaryEl = document.getElementById("booking-summary");
   if (summaryEl) summaryEl.style.display = "none";
+  renderServiceCheckboxes(event.target.value);
   if (event.target.value && selectedDate) {
     fetchAvailableSlots(selectedDate, event.target.value);
   } else {
     const avail = document.getElementById("available-time-slots");
     if (avail) avail.innerHTML = '<p class="slots-hint">Үсчин болон өдрийг сонгоно уу.</p>';
+  }
+});
+
+// Re-validate the booking form whenever a service checkbox is toggled.
+document.addEventListener("change", (event) => {
+  if (event.target?.classList.contains("service-checkbox")) {
+    if (typeof _validateBookingFn === "function") {
+      _validateBookingFn();
+    }
   }
 });
 
@@ -1211,7 +1306,7 @@ if (videoButtons.length > 0) {
  * @param {HTMLButtonElement} [params.confirmBtn] - The button that triggered the call (for loading state)
  * @param {object} [params.bookingDetails]     - { stylistId, date, time } for the success screen
  */
-async function initiateQPayPayment({ amount, name, phone, description, staffName, confirmBtn, bookingDetails }) {
+async function initiateQPayPayment({ amount, name, phone, description, staffName, selectedServices, confirmBtn, bookingDetails }) {
   const panel     = document.getElementById("qpay-panel");
   const qrImg     = document.getElementById("qpay-qr-img");
   const bankBtns  = document.getElementById("qpay-bank-buttons");
@@ -1407,6 +1502,7 @@ async function initiateQPayPayment({ amount, name, phone, description, staffName
                   startTime,
                   customerName: name,
                   customerPhone: phone,
+                  selectedServices,
                 }),
               });
 

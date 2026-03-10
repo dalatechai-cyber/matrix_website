@@ -551,9 +551,9 @@ test('available-slots: 200 for Отгонжаргал routes to her calendar', a
 });
 
 // ---------------------------------------------------------------------------
-// Event summary format: phone number before customer name
+// Event summary format: phone - selectedServices
 // ---------------------------------------------------------------------------
-test('book: event summary includes phone before name when phone is provided', async () => {
+test('book: event summary uses format "phone - selectedServices" when both are provided', async () => {
   calendarStub._insertError = null;
   calendarStub._insertResult = { data: { id: 'summary_test_001' } };
   calendarStub._lastInsertArg = null;
@@ -563,15 +563,17 @@ test('book: event summary includes phone before name when phone is provided', as
     startTime: '2035-06-04T10:00:00+08:00',
     customerName: 'Ganaa',
     customerPhone: '91915498',
-    serviceName: 'Appointment',
+    selectedServices: 'Том хүн, Будаг (Уг)',
   });
   assert.equal(status, 200);
-  const summary = calendarStub._lastInsertArg.requestBody.summary;
+  const { summary, description } = calendarStub._lastInsertArg.requestBody;
   assert.ok(summary.includes('91915498'), 'summary should contain the phone number');
-  assert.ok(summary.indexOf('91915498') < summary.indexOf('Ganaa'), 'phone should appear before name');
+  assert.ok(summary.includes('Том хүн, Будаг (Уг)'), 'summary should contain selected services');
+  assert.ok(!summary.includes('Ganaa'), 'customer name should not appear in summary');
+  assert.ok(description.includes('Ganaa'), 'customer name should appear in description');
 });
 
-test('book: event summary omits phone separator when no phone is provided', async () => {
+test('book: event summary uses services when no phone is provided', async () => {
   calendarStub._insertError = null;
   calendarStub._insertResult = { data: { id: 'summary_test_002' } };
   calendarStub._lastInsertArg = null;
@@ -580,10 +582,29 @@ test('book: event summary omits phone separator when no phone is provided', asyn
     stylistId: VALID_STYLIST_ID,
     startTime: '2035-06-04T10:00:00+08:00',
     customerName: 'Ganaa',
-    serviceName: 'Appointment',
+    selectedServices: 'Хусалт',
+  });
+  assert.equal(status, 200);
+  const { summary, description } = calendarStub._lastInsertArg.requestBody;
+  assert.ok(summary.includes('Хусалт'), 'summary should contain the selected service');
+  assert.ok(!summary.includes('undefined'), 'summary should not contain "undefined"');
+  assert.ok(description.includes('Ganaa'), 'customer name should appear in description');
+});
+
+test('book: event summary falls back to serviceName when selectedServices not provided', async () => {
+  calendarStub._insertError = null;
+  calendarStub._insertResult = { data: { id: 'summary_test_003' } };
+  calendarStub._lastInsertArg = null;
+  const app = buildApp();
+  const { status } = await request(app, 'POST', '/api/calendar/book', {
+    stylistId: VALID_STYLIST_ID,
+    startTime: '2035-06-04T10:00:00+08:00',
+    customerName: 'Ganaa',
+    customerPhone: '91915498',
+    serviceName: 'Haircut',
   });
   assert.equal(status, 200);
   const summary = calendarStub._lastInsertArg.requestBody.summary;
-  assert.ok(summary.includes('Ganaa'), 'summary should contain the customer name');
-  assert.ok(!summary.includes('undefined'), 'summary should not contain "undefined"');
+  assert.ok(summary.includes('91915498'), 'summary should contain the phone number');
+  assert.ok(summary.includes('Haircut'), 'summary should fall back to serviceName');
 });
