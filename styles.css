@@ -1668,6 +1668,23 @@ a {
   .header-content > .primary-btn {
     display: none;
   }
+  .nav-book-link {
+    display: none;
+  }
+  .nav.nav-open > .nav-book-link {
+    display: block;
+    margin-top: 0.5rem;
+    padding: 0.65rem 1.25rem;
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    background: rgba(100, 211, 154, 0.12);
+    color: var(--accent) !important;
+    font-weight: 600;
+    text-align: center;
+  }
+  .nav.nav-open > .nav-book-link:hover {
+    background: rgba(100, 211, 154, 0.25);
+  }
 }
 
 @media (max-width: 600px) {
