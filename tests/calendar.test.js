@@ -382,12 +382,12 @@ test('available-slots: 200 for Г. Мөнхзаяа routes to her calendar', asy
   });
   assert.equal(status, 200);
   assert.equal(body.stylistId, MUNKHZAYA_STYLIST_ID_LATIN);
-  // VALID_DATE is Monday → hardcoded manicure slots: ["10:00","11:30","13:00","14:30","16:00","18:00"] → 6 slots
-  assert.equal(body.availableSlots.length, 6);
+  // VALID_DATE is Monday → 30-min manicure slots: 10:00–19:30 → 20 slots
+  assert.equal(body.availableSlots.length, 20);
   assert.ok(body.availableSlots.includes('10:00'));
-  assert.ok(body.availableSlots.includes('11:30'));
-  assert.ok(body.availableSlots.includes('18:00'));
-  assert.ok(!body.availableSlots.includes('19:00'), '19:00 is not a manicure slot');
+  assert.ok(body.availableSlots.includes('10:30'));
+  assert.ok(body.availableSlots.includes('19:30'));
+  assert.ok(!body.availableSlots.includes('20:00'), '20:00 is past the last manicure slot');
 });
 
 test('available-slots: 200 Sunday hours for Г. Мөнхзаяа uses Sunday-specific slots', async () => {
@@ -401,34 +401,34 @@ test('available-slots: 200 Sunday hours for Г. Мөнхзаяа uses Sunday-spe
     stylistId: MUNKHZAYA_STYLIST_ID_LATIN,
   });
   assert.equal(status, 200);
-  // VALID_DATE_SUNDAY is Sunday → Sunday manicure slots: ["11:00","12:30","14:00","15:30","17:30"] → 5 slots
-  assert.equal(body.availableSlots.length, 5);
+  // VALID_DATE_SUNDAY is Sunday → 30-min manicure slots: 11:00–18:30 → 16 slots
+  assert.equal(body.availableSlots.length, 16);
   assert.ok(!body.availableSlots.includes('10:00'), '10:00 is not a Sunday manicure slot');
   assert.ok(body.availableSlots.includes('11:00'));
-  assert.ok(body.availableSlots.includes('12:30'));
+  assert.ok(body.availableSlots.includes('11:30'));
   assert.ok(body.availableSlots.includes('14:00'));
-  assert.ok(body.availableSlots.includes('15:30'));
-  assert.ok(body.availableSlots.includes('17:30'));
-  assert.ok(!body.availableSlots.includes('18:00'), '18:00 is not a Sunday manicure slot');
+  assert.ok(body.availableSlots.includes('18:00'));
+  assert.ok(body.availableSlots.includes('18:30'));
+  assert.ok(!body.availableSlots.includes('19:00'), '19:00 is past the last Sunday manicure slot');
 });
 
 // ---------------------------------------------------------------------------
-// Manicurist (Г. Мөнхзаяа) 90-minute appointment duration
+// Manicurist (Г. Мөнхзаяа) dynamic appointment duration via totalDuration
 // ---------------------------------------------------------------------------
-test('STYLIST_CONFIG: Г. Мөнхзаяа has durationMinutes of 90', () => {
+test('STYLIST_CONFIG: Г. Мөнхзаяа has durationMinutes of 30 (minimum slot interval)', () => {
   assert.equal(
     STYLIST_CONFIG[MUNKHZAYA_STYLIST_ID_MN].durationMinutes,
-    90,
-    'Mongolian key should have 90-minute duration',
+    30,
+    'Mongolian key should have 30-minute slot duration',
   );
   assert.equal(
     STYLIST_CONFIG[MUNKHZAYA_STYLIST_ID_LATIN].durationMinutes,
-    90,
-    'Latin alias should also have 90-minute duration',
+    30,
+    'Latin alias should also have 30-minute slot duration',
   );
 });
 
-test('book: Г. Мөнхзаяа booking creates a 90-minute event (end = start + 90 min)', async () => {
+test('book: Г. Мөнхзаяа booking with totalDuration=90 creates a 90-minute event', async () => {
   calendarStub._insertError = null;
   calendarStub._insertResult = { data: { id: 'munkhzaya_duration_test' } };
   calendarStub._lastInsertArg = null;
@@ -438,13 +438,64 @@ test('book: Г. Мөнхзаяа booking creates a 90-minute event (end = start 
     startTime: '2035-06-05T13:00:00+08:00',
     customerName: 'Test Customer',
     serviceName: 'Маникюр',
+    totalDuration: 90,
   });
   assert.equal(status, 200);
   const { start, end } = calendarStub._lastInsertArg.requestBody;
   const startMs = new Date(start.dateTime).getTime();
   const endMs = new Date(end.dateTime).getTime();
   const diffMinutes = (endMs - startMs) / (60 * 1000);
-  assert.equal(diffMinutes, 90, 'Munkhzaya booking should last exactly 90 minutes');
+  assert.equal(diffMinutes, 90, 'totalDuration=90 should create a 90-minute event');
+});
+
+test('book: Г. Мөнхзаяа booking with totalDuration=180 creates a 180-minute event', async () => {
+  calendarStub._insertError = null;
+  calendarStub._insertResult = { data: { id: 'munkhzaya_long_test' } };
+  calendarStub._lastInsertArg = null;
+  const app = buildApp();
+  const { status } = await request(app, 'POST', '/api/calendar/book', {
+    stylistId: MUNKHZAYA_STYLIST_ID_LATIN,
+    startTime: '2035-06-05T10:00:00+08:00',
+    customerName: 'Test Customer',
+    totalDuration: 180,
+  });
+  assert.equal(status, 200);
+  const { start, end } = calendarStub._lastInsertArg.requestBody;
+  const diffMinutes = (new Date(end.dateTime) - new Date(start.dateTime)) / (60 * 1000);
+  assert.equal(diffMinutes, 180, 'totalDuration=180 should create a 180-minute event');
+});
+
+test('book: Г. Мөнхзаяа booking without totalDuration falls back to 60 minutes', async () => {
+  calendarStub._insertError = null;
+  calendarStub._insertResult = { data: { id: 'munkhzaya_fallback_test' } };
+  calendarStub._lastInsertArg = null;
+  const app = buildApp();
+  const { status } = await request(app, 'POST', '/api/calendar/book', {
+    stylistId: MUNKHZAYA_STYLIST_ID_LATIN,
+    startTime: '2035-06-05T13:00:00+08:00',
+    customerName: 'Test Customer',
+  });
+  assert.equal(status, 200);
+  const { start, end } = calendarStub._lastInsertArg.requestBody;
+  const diffMinutes = (new Date(end.dateTime) - new Date(start.dateTime)) / (60 * 1000);
+  assert.equal(diffMinutes, 60, 'Munkhzaya booking without totalDuration should fall back to 60 minutes');
+});
+
+test('book: regular hairdresser booking ignores totalDuration and uses fixed 60 minutes', async () => {
+  calendarStub._insertError = null;
+  calendarStub._insertResult = { data: { id: 'hairdresser_ignore_duration_test' } };
+  calendarStub._lastInsertArg = null;
+  const app = buildApp();
+  const { status } = await request(app, 'POST', '/api/calendar/book', {
+    stylistId: VALID_STYLIST_ID,
+    startTime: '2035-06-04T13:00:00+08:00',
+    customerName: 'Test Customer',
+    totalDuration: 999,
+  });
+  assert.equal(status, 200);
+  const { start, end } = calendarStub._lastInsertArg.requestBody;
+  const diffMinutes = (new Date(end.dateTime) - new Date(start.dateTime)) / (60 * 1000);
+  assert.equal(diffMinutes, 60, 'Regular hairdresser should always use 60 minutes regardless of totalDuration');
 });
 
 test('book: regular hairdresser booking creates a 60-minute event (end = start + 60 min)', async () => {
@@ -466,7 +517,7 @@ test('book: regular hairdresser booking creates a 60-minute event (end = start +
   assert.equal(diffMinutes, 60, 'Regular hairdresser booking should last exactly 60 minutes');
 });
 
-test('available-slots: Г. Мөнхзаяа 90-min booking at 13:00 makes adjacent hardcoded slots unavailable', async () => {
+test('available-slots: busy booking at 13:00–14:30 blocks the overlapping 30-min manicure slots', async () => {
   calendarStub._freebusyError = null;
   // Simulate a 90-minute busy block: 13:00–14:30 Ulaanbaatar (UTC+8) = 05:00–06:30 UTC
   calendarStub._freebusyResult = {
@@ -486,14 +537,17 @@ test('available-slots: Г. Мөнхзаяа 90-min booking at 13:00 makes adjace
     stylistId: MUNKHZAYA_STYLIST_ID_LATIN,
   });
   assert.equal(status, 200);
+  // 13:00 slot is busy (directly booked)
   assert.ok(!body.availableSlots.includes('13:00'), '13:00 should be busy (booked)');
-  // With hardcoded slots, 14:00 and 12:00 are not candidate slots — verify neither appears
-  assert.ok(!body.availableSlots.includes('14:00'), '14:00 is not a manicure slot');
-  assert.ok(!body.availableSlots.includes('12:00'), '12:00 is not a manicure slot');
-  // 11:30 is free: 11:30+90min=13:00, which only touches the busy start (no strict overlap)
-  assert.ok(body.availableSlots.includes('11:30'), '11:30 should be free (11:30+90min=13:00, no strict overlap)');
-  // 14:30 is free: busy ends at 14:30, so 14:30+90min=16:00 has no overlap
-  assert.ok(body.availableSlots.includes('14:30'), '14:30 should be free (after the 90-min block ends at 14:30)');
+  // 13:30 and 14:00 overlap with the busy period 13:00–14:30
+  assert.ok(!body.availableSlots.includes('13:30'), '13:30 should be busy (overlaps with 13:00–14:30)');
+  assert.ok(!body.availableSlots.includes('14:00'), '14:00 should be busy (overlaps with 13:00–14:30)');
+  // 12:30 ends at 13:00 — no strict overlap (slotEnd > busyStart requires 13:00 > 13:00 which is false)
+  assert.ok(body.availableSlots.includes('12:30'), '12:30 should be free (ends exactly at busy start)');
+  // 14:30 starts at 14:30 — no strict overlap (slotStart < busyEnd requires 14:30 < 14:30 which is false)
+  assert.ok(body.availableSlots.includes('14:30'), '14:30 should be free (starts exactly at busy end)');
+  // 12:00 is also free (ends at 12:30, no overlap)
+  assert.ok(body.availableSlots.includes('12:00'), '12:00 should be free (ends at 12:30, no overlap)');
 });
 
 // ---------------------------------------------------------------------------

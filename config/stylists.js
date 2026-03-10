@@ -94,14 +94,14 @@ const STYLIST_CONFIG = {
     calendarId: MUNKHZAYA_CALENDAR_ID,
     price: 20000,
     level: 'Маникюр',
-    durationMinutes: 90,
+    durationMinutes: 30,
   },
   'g.munkhzaya': {
     // Latin transliteration alias — mirrors the Mongolian entry above (see file-level comment)
     calendarId: MUNKHZAYA_CALENDAR_ID,
     price: 20000,
     level: 'Маникюр',
-    durationMinutes: 90,
+    durationMinutes: 30,
   },
   'Отгонжаргал': {
     calendarId: OTGONZARGAL_CALENDAR_ID,
