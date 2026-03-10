@@ -25,15 +25,15 @@ let currentProductsPage = 1;
 // Client-side copy of stylist prices/levels (mirrors config/stylists.js).
 // Note: keep this in sync with the server-side config when stylist pricing changes.
 const STYLIST_CONFIG_CLIENT = {
-  'Ананд':           { price: 20000, level: 'Мастер үсчин' },
-  'Бадамцэцэг':      { price: 10000, level: '1-р зэргийн үсчин' },
-  'Батзаяа':         { price: 10000, level: '1-р зэргийн үсчин' },
-  'Мухлай':          { price: 10000, level: '1-р зэргийн үсчин' },
   'Оюунсүрэн':       { price: 20000, level: 'Мастер үсчин' },
-  'Тэргэл':          { price: 10000, level: '1-р зэргийн үсчин' },
-  'Уянга':           { price: 20000, level: 'Мастер үсчин' },
-  'Г. Мөнхзаяа':     { price: 20000, level: 'Маникюр' },
+  'Бадамцэцэг':      { price: 20000, level: 'Мастер үсчин' },
+  'Ананд':           { price: 20000, level: 'Мастер үсчин' },
+  'Мухлай':          { price: 20000, level: 'Мастер үсчин' },
+  'Батзаяа':         { price: 10000, level: '1-р зэргийн үсчин' },
+  'Уянга':           { price: 10000, level: '1-р зэргийн үсчин' },
   'Отгонжаргал':     { price: 10000, level: '1-р зэргийн үсчин' },
+  'Тэргэл':          { price: 10000, level: '1-р зэргийн үсчин' },
+  'Г. Мөнхзаяа':     { price: 20000, level: 'Маникюр' },
 };
 
 const SERVICE_IMAGE_MAP = {
