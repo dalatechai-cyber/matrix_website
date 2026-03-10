@@ -33,7 +33,7 @@ const STYLIST_CONFIG_CLIENT = {
   'Уянга':           { price: 10000, level: '1-р зэргийн үсчин' },
   'Отгонжаргал':     { price: 10000, level: '1-р зэргийн үсчин' },
   'Тэргэл':          { price: 10000, level: '1-р зэргийн үсчин' },
-  'Г. Мөнхзаяа':     { price: 20000, level: 'Маникюр' },
+  'Г. Мөнхзаяа':     { price: 20000, level: 'Маникюр', durationMinutes: 90 },
 };
 
 const SERVICE_IMAGE_MAP = {
@@ -591,12 +591,13 @@ function renderDayStrip(startDate = new Date()) {
  * @param {string} dateStr  YYYY-MM-DD
  * @returns {string[]}  e.g. ["10:00", "11:00", ..., "19:00"]
  */
-function generateTimeSlots(dateStr) {
+function generateTimeSlots(dateStr, durationMinutes = 60) {
   // Use noon to avoid UTC-midnight timezone shift affecting getDay()
   const dayOfWeek = new Date(`${dateStr}T12:00:00`).getDay();
   const isSunday = dayOfWeek === 0;
   const startHour = isSunday ? 11 : 10;
-  const lastSlotHour = isSunday ? 18 : 19;
+  const workEndHour = isSunday ? 19 : 20;
+  const lastSlotHour = workEndHour - durationMinutes / 60;
   const slots = [];
 
   // For today, skip slots that have already started.
@@ -617,8 +618,9 @@ function generateTimeSlots(dateStr) {
 }
 
 /**
- * Fetch available 1-hour slots from the backend calendar API and render them.
- * Triggered whenever the user changes the date or stylist.
+ * Fetch available slots from the backend calendar API and render them.
+ * Slot duration is 90 minutes for the manicurist (Г. Мөнхзаяа) and 60 minutes
+ * for all other stylists. Triggered whenever the user changes the date or stylist.
  */
 async function fetchAvailableSlots(date, stylistId) {
   const container = document.getElementById("available-time-slots");
@@ -629,6 +631,8 @@ async function fetchAvailableSlots(date, stylistId) {
 
   const stylistSel = document.getElementById("stylist-select");
   if (stylistSel) stylistSel.disabled = true;
+
+  const durationMinutes = (STYLIST_CONFIG_CLIENT[stylistId] || {}).durationMinutes || 60;
 
   try {
     const res = await fetch(
@@ -644,7 +648,7 @@ async function fetchAvailableSlots(date, stylistId) {
     console.error("Failed to fetch available slots:", err);
     // Fall back to showing all business-hours slots for the day (booked-slot
     // filtering is unavailable without the API, but the correct hours are shown).
-    renderAvailableSlots(generateTimeSlots(date), stylistId, date);
+    renderAvailableSlots(generateTimeSlots(date, durationMinutes), stylistId, date);
   } finally {
     if (stylistSel) stylistSel.disabled = false;
   }

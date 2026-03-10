@@ -6,7 +6,8 @@ const { STYLIST_CONFIG } = require('../config/stylists');
 
 const router = express.Router();
 
-const SLOT_DURATION_HOURS = 1;
+// Default appointment duration in minutes (used for all stylists unless overridden in STYLIST_CONFIG)
+const DEFAULT_DURATION_MINUTES = 60;
 // Mongolia uses Asia/Ulaanbaatar time (UTC+8, no DST)
 const SALON_TZ_OFFSET = '+08:00';
 
@@ -34,9 +35,11 @@ function getWorkHours(dateStr) {
 /**
  * GET /api/calendar/available-slots?date=YYYY-MM-DD&stylistId=<id>
  *
- * Returns an array of available 1-hour slot start times (e.g. ["10:00", "14:00"])
+ * Returns an array of available slot start times (e.g. ["10:00", "14:00"])
  * for the requested stylist on the requested date.
  * Mon–Sat: 10:00–20:00; Sun: 11:00–19:00.
+ * Slot duration is 90 minutes for the manicurist (Г. Мөнхзаяа) and 60 minutes
+ * for all other stylists.
  */
 router.get('/available-slots', async (req, res) => {
   const { date, stylistId } = req.query;
@@ -56,7 +59,8 @@ router.get('/available-slots', async (req, res) => {
   }
 
   const { workStartHour, workEndHour } = getWorkHours(date);
-  const lastSlotStartHour = workEndHour - SLOT_DURATION_HOURS;
+  const durationMinutes = stylist.durationMinutes || DEFAULT_DURATION_MINUTES;
+  const lastSlotStartHour = workEndHour - durationMinutes / 60;
   const timeMin = `${date}T${String(workStartHour).padStart(2, '0')}:00:00${SALON_TZ_OFFSET}`;
   const timeMax = `${date}T${String(workEndHour).padStart(2, '0')}:00:00${SALON_TZ_OFFSET}`;
 
@@ -77,7 +81,7 @@ router.get('/available-slots', async (req, res) => {
     }
     const busySlots = calendarResult.busy || [];
 
-    // Build all possible 1-hour slot start hours
+    // Build all possible slot start hours for the given duration
     const now = new Date();
     const availableSlots = [];
     for (let h = workStartHour; h <= lastSlotStartHour; h++) {
@@ -86,7 +90,7 @@ router.get('/available-slots', async (req, res) => {
       // Skip slots that have already started
       if (slotStart < now) continue;
 
-      const slotEnd = new Date(slotStart.getTime() + SLOT_DURATION_HOURS * 60 * 60 * 1000);
+      const slotEnd = new Date(slotStart.getTime() + durationMinutes * 60 * 1000);
 
       const isBusy = busySlots.some((busy) => {
         const busyStart = new Date(busy.start);
@@ -113,7 +117,9 @@ router.get('/available-slots', async (req, res) => {
 /**
  * POST /api/calendar/book
  *
- * Creates a 1-hour Google Calendar event for the specified stylist.
+ * Creates a Google Calendar event for the specified stylist.
+ * Appointment duration is 90 minutes for the manicurist (Г. Мөнхзаяа) and
+ * 60 minutes for all other stylists.
  * This route contains the raw calendar insertion logic and will eventually
  * be triggered from the QPay payment webhook.
  *
@@ -136,7 +142,8 @@ router.post('/book', async (req, res) => {
     const calendar = await getCalendarClient();
 
     const start = new Date(startTime);
-    const end = new Date(start.getTime() + SLOT_DURATION_HOURS * 60 * 60 * 1000);
+    const durationMinutes = stylist.durationMinutes || DEFAULT_DURATION_MINUTES;
+    const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
 
     const descriptionParts = [];
     if (customerPhone) descriptionParts.push(`Phone: ${customerPhone}`);
