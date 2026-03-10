@@ -53,6 +53,10 @@ a {
   padding: 1rem 0;
 }
 
+.header-content > .primary-btn {
+  display: none;
+}
+
 .brand {
   display: flex;
   align-items: center;
@@ -1666,7 +1670,7 @@ a {
     color: var(--accent);
   }
   .header-content > .primary-btn {
-    display: none;
+    display: block;
   }
   .nav-book-link {
     display: none;
