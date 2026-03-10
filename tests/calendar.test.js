@@ -390,6 +390,28 @@ test('available-slots: 200 for Г. Мөнхзаяа routes to her calendar', asy
   assert.ok(!body.availableSlots.includes('19:00'), '19:00 is not a manicure slot');
 });
 
+test('available-slots: 200 Sunday hours for Г. Мөнхзаяа uses Sunday-specific slots', async () => {
+  calendarStub._freebusyError = null;
+  calendarStub._freebusyResult = {
+    data: { calendars: { [MUNKHZAYA_CALENDAR_ID]: { busy: [] } } },
+  };
+  const app = buildApp();
+  const { status, body } = await request(app, 'GET', '/api/calendar/available-slots', {
+    date: VALID_DATE_SUNDAY,
+    stylistId: MUNKHZAYA_STYLIST_ID_LATIN,
+  });
+  assert.equal(status, 200);
+  // VALID_DATE_SUNDAY is Sunday → Sunday manicure slots: ["11:00","12:30","14:00","15:30","17:30"] → 5 slots
+  assert.equal(body.availableSlots.length, 5);
+  assert.ok(!body.availableSlots.includes('10:00'), '10:00 is not a Sunday manicure slot');
+  assert.ok(body.availableSlots.includes('11:00'));
+  assert.ok(body.availableSlots.includes('12:30'));
+  assert.ok(body.availableSlots.includes('14:00'));
+  assert.ok(body.availableSlots.includes('15:30'));
+  assert.ok(body.availableSlots.includes('17:30'));
+  assert.ok(!body.availableSlots.includes('18:00'), '18:00 is not a Sunday manicure slot');
+});
+
 // ---------------------------------------------------------------------------
 // Manicurist (Г. Мөнхзаяа) 90-minute appointment duration
 // ---------------------------------------------------------------------------

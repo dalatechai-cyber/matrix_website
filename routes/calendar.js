@@ -15,6 +15,8 @@ const SALON_TZ_OFFSET = '+08:00';
 // The gap between 16:00 and 18:00 is 120 min, so a simple +90-min loop would
 // incorrectly produce 17:30 — these exact times must be used instead.
 const MANICURE_SLOTS = ['10:00', '11:30', '13:00', '14:30', '16:00', '18:00'];
+// On Sundays the salon opens at 11:00, so the manicurist schedule shifts.
+const MANICURE_SLOTS_SUNDAY = ['11:00', '12:30', '14:00', '15:30', '17:30'];
 
 /**
  * Returns the salon's opening and closing hour for the given YYYY-MM-DD date.
@@ -87,10 +89,11 @@ router.get('/available-slots', async (req, res) => {
     const busySlots = calendarResult.busy || [];
 
     // Build the list of candidate slot times.
-    // For the manicurist (Маникюр) use the hardcoded array; for all other
-    // stylists generate on-the-hour slots from the normal business hours loop.
+    // For the manicurist (Маникюр) use the hardcoded array (Sunday-specific on Sundays);
+    // for all other stylists generate on-the-hour slots from the normal business hours loop.
+    const isSunday = new Date(`${date}T12:00:00${SALON_TZ_OFFSET}`).getUTCDay() === 0;
     const candidateSlots = (stylist.level === 'Маникюр')
-      ? MANICURE_SLOTS
+      ? (isSunday ? MANICURE_SLOTS_SUNDAY : MANICURE_SLOTS)
       : (() => {
           const slots = [];
           for (let h = workStartHour; h <= lastSlotStartHour; h++) {

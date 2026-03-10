@@ -586,8 +586,9 @@ function renderDayStrip(startDate = new Date()) {
  * Generate all possible booking time slot strings for the given date.
  *
  * For the manicurist (Г. Мөнхзаяа / Маникюр service), a fixed set of slots is
- * returned because the gap between 16:00 and 18:00 is 120 minutes — not the
- * standard 90 — so a simple +90-min loop would produce the wrong result (17:30).
+ * returned. On Sundays (salon opens at 11:00) a different set is used:
+ *   Mon–Sat: ["10:00", "11:30", "13:00", "14:30", "16:00", "18:00"]  (6 slots)
+ *   Sun:     ["11:00", "12:30", "14:00", "15:30", "17:30"]            (5 slots)
  *
  * For all other stylists, 1-hour slots are generated from business hours:
  *   Mon–Sat (getDay 1–6): 10:00–19:00  (10 slots)
@@ -599,9 +600,16 @@ function renderDayStrip(startDate = new Date()) {
  * @returns {string[]}  e.g. ["10:00", "11:00", ..., "19:00"]
  */
 function generateTimeSlots(dateStr, durationMinutes = 60, stylistId = "") {
+  // Use noon to avoid UTC-midnight timezone shift affecting getDay()
+  const dayOfWeek = new Date(`${dateStr}T12:00:00`).getDay();
+  const isSunday = dayOfWeek === 0;
+
   // Hardcoded slots for the manicurist: exact times requested by the salon.
+  // On Sundays the salon opens at 11:00, so a different set of slots is used.
   if (stylistId.includes("Мөнхзаяа") || stylistId.includes("Маникюр")) {
-    const hardcodedSlots = ["10:00", "11:30", "13:00", "14:30", "16:00", "18:00"];
+    const hardcodedSlots = isSunday
+      ? ["11:00", "12:30", "14:00", "15:30", "17:30"]
+      : ["10:00", "11:30", "13:00", "14:30", "16:00", "18:00"];
     const now = new Date();
     const todayStr = formatDateInput(now);
     if (dateStr !== todayStr) return hardcodedSlots;
@@ -612,9 +620,6 @@ function generateTimeSlots(dateStr, durationMinutes = 60, stylistId = "") {
     });
   }
 
-  // Use noon to avoid UTC-midnight timezone shift affecting getDay()
-  const dayOfWeek = new Date(`${dateStr}T12:00:00`).getDay();
-  const isSunday = dayOfWeek === 0;
   const startHour = isSunday ? 11 : 10;
   const workEndHour = isSunday ? 19 : 20;
   const lastSlotHour = workEndHour - durationMinutes / 60;
