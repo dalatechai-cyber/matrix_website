@@ -1429,3 +1429,25 @@ async function initiateQPayPayment({ amount, name, phone, description, staffName
     }
   }
 }
+
+// ── Mobile Navigation Toggle ──────────────────────────────────────────────────
+(function () {
+  const navToggle = document.querySelector('.nav-toggle');
+  const nav = document.querySelector('.nav');
+  if (!navToggle || !nav) return;
+
+  navToggle.addEventListener('click', function () {
+    const isOpen = nav.classList.toggle('nav-open');
+    navToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    navToggle.innerHTML = isOpen ? '&#10005;' : '&#9776;';
+  });
+
+  // Close the menu when any nav link is clicked
+  nav.querySelectorAll('a').forEach(function (link) {
+    link.addEventListener('click', function () {
+      nav.classList.remove('nav-open');
+      navToggle.setAttribute('aria-expanded', 'false');
+      navToggle.innerHTML = '&#9776;';
+    });
+  });
+}());

@@ -42,6 +42,7 @@ a {
   backdrop-filter: blur(14px);
   background: rgba(12, 20, 17, 0.8);
   border-bottom: 1px solid rgba(100, 211, 154, 0.2);
+  overflow: visible;
 }
 
 .header-content {
@@ -86,6 +87,10 @@ a {
 
 .nav a:hover {
   color: var(--accent);
+}
+
+.nav-toggle {
+  display: none;
 }
 
 .primary-btn,
@@ -1593,6 +1598,74 @@ a {
 
 @media (max-width: 900px) {
   .nav {
+    display: none;
+    flex-direction: column;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: rgba(12, 20, 17, 0.97);
+    backdrop-filter: blur(14px);
+    border-top: 1px solid rgba(100, 211, 154, 0.2);
+    border-bottom: 1px solid rgba(100, 211, 154, 0.2);
+    padding: 0.75rem 1.5rem 1rem;
+    gap: 0;
+    z-index: 100;
+  }
+  .nav.nav-open {
+    display: flex;
+  }
+  .nav.nav-open > a,
+  .nav.nav-open > .nav-dropdown > .nav-dropdown-label {
+    display: block;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid rgba(100, 211, 154, 0.1);
+    font-size: 1rem;
+    color: var(--muted);
+  }
+  .nav.nav-open > a:hover,
+  .nav.nav-open > .nav-dropdown > .nav-dropdown-label:hover {
+    color: var(--accent);
+  }
+  .nav.nav-open > .nav-dropdown {
+    display: flex;
+    flex-direction: column;
+    border-bottom: 1px solid rgba(100, 211, 154, 0.1);
+  }
+  .nav.nav-open .nav-dropdown-menu {
+    position: static;
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    box-shadow: none;
+    padding: 0 0 0.5rem 1rem;
+    border: none;
+    background: transparent;
+    min-width: unset;
+  }
+  .nav-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid rgba(100, 211, 154, 0.4);
+    border-radius: 8px;
+    color: var(--text, #e8f5ef);
+    font-size: 1.4rem;
+    cursor: pointer;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    line-height: 1;
+    flex-shrink: 0;
+    transition: border-color 0.2s, color 0.2s;
+    margin-left: auto;
+  }
+  .nav-toggle:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .header-content > .primary-btn {
     display: none;
   }
 }
