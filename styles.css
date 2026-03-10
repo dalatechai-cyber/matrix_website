@@ -54,6 +54,10 @@ a {
 }
 
 .header-content > .primary-btn {
+  display: inline-flex;
+}
+
+.nav-book-link {
   display: none;
 }
 
@@ -1670,9 +1674,6 @@ a {
     color: var(--accent);
   }
   .header-content > .primary-btn {
-    display: block;
-  }
-  .nav-book-link {
     display: none;
   }
   .nav.nav-open > .nav-book-link {
