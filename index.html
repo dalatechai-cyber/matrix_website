@@ -183,6 +183,7 @@
             </div>
             <div id="qpay-bank-buttons" class="qpay-bank-buttons"></div>
             <p id="qpay-error" class="qpay-error" style="display:none;"></p>
+            <p class="qpay-warning">⚠️ Анхааруулга: Төлбөр буцаан олгохгүй. Цагаа өөрчлөхийн тулд 3 цагаас өмнө бидэнтэй холбогдоно уу.</p>
           </div>
         </div>
       </section>
@@ -248,6 +249,17 @@
         }
         .qpay-bank-btn:hover { opacity: 0.85; }
         .qpay-error { color: #e53e3e; margin-top: 0.5rem; }
+        .qpay-warning {
+          margin-top: 1rem;
+          padding: 0.6rem 0.9rem;
+          background: rgba(245, 158, 11, 0.12);
+          border: 1px solid rgba(245, 158, 11, 0.45);
+          border-radius: 8px;
+          color: #f59e0b;
+          font-size: 0.82rem;
+          line-height: 1.5;
+          text-align: center;
+        }
         .stylist-picker-label {
           display: flex;
           flex-direction: column;
