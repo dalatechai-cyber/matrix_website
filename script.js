@@ -701,7 +701,7 @@ function showBookingSummary(stylistId, date, time) {
   let price;
   if (levelStr.includes("Мастер") || levelStr.includes("Маникюр")) {
     price = 20000;
-  } else if (levelStr.includes("1-р зэрэг")) {
+  } else if (levelStr.includes("1-р зэргийн")) {
     price = 10000;
   } else {
     price = 10000;
