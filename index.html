@@ -177,7 +177,7 @@
           <!-- QPay Payment Panel (shown after booking is confirmed) -->
           <div id="qpay-panel" style="display:none;" class="qpay-panel" aria-live="polite">
             <h3>QPay-р төлбөр төлөх</h3>
-            <p>QR кодыг уншуулах эсвэл банкны аппаа сонгоно уу.</p>
+            <p class="qpay-subtitle">QR кодыг уншуулах эсвэл банкны аппаа сонгоно уу.</p>
             <div id="qpay-qr-wrapper" class="qpay-qr-wrapper">
               <img id="qpay-qr-img" src="" alt="QPay QR код" class="qpay-qr-img" />
             </div>
@@ -199,6 +199,7 @@
           position: relative;
         }
         .qpay-panel h3 { margin-bottom: 0.5rem; }
+        .qpay-subtitle { color: #000; }
         .qpay-panel-close {
           position: absolute;
           top: 0.75rem;
