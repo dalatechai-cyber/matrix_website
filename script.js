@@ -31,12 +31,21 @@ const HAIR_SERVICES = [
   "Цайруулалт", "Тэжээл", "Хими арчилгаа", "CICA нөхөн сэргээх эмчилгээ", "CMC тэжээл",
 ];
 
-// Services offered by the manicurist
-const MANICURE_SERVICES = [
-  "Гелэн будалт", "Дип будаг", "Будаггүй маникюр", "Хумс нөхөлт",
-  "Хумсны гоёл", "Будаг арилгалт", "Хумс салгалт", "Смарт хумс",
-  "Гелин хумс", "Будаггүй педикюр", "Гель педикюр", "Гарын спа",
-];
+// Services offered by the manicurist, with their duration in minutes
+const MANICURE_DURATIONS = {
+  "Гелэн будалт": 90,
+  "Гелэн будалт (гоёл)": 120,
+  "Гелэн будалт (хумс нөхөлт)": 120,
+  "Будаггүй маникюр": 60,
+  "Дип будаг": 90,
+  "Хумс салгалт": 60,
+  "Будаг арилгалт": 30,
+  "Смарт хумс": 180,
+  "Гель педикюр": 90,
+  "Будаггүй педикюр": 60,
+  "Гарын спа": 60,
+};
+const MANICURE_SERVICES = Object.keys(MANICURE_DURATIONS);
 
 // Holds a reference to the current booking form's validation function so that
 // service-checkbox change events (outside the summary panel) can trigger it.
@@ -605,10 +614,10 @@ function renderDayStrip(startDate = new Date()) {
 /**
  * Generate all possible booking time slot strings for the given date.
  *
- * For the manicurist (Г. Мөнхзаяа / Маникюр service), a fixed set of slots is
- * returned. On Sundays (salon opens at 11:00) a different set is used:
- *   Mon–Sat: ["10:00", "11:30", "13:00", "14:30", "16:00", "18:00"]  (6 slots)
- *   Sun:     ["11:00", "12:30", "14:00", "15:30", "17:30"]            (5 slots)
+ * For the manicurist (Г. Мөнхзаяа / Маникюр service), 30-minute slots are
+ * generated from business hours:
+ *   Mon–Sat (getDay 1–6): 10:00–19:30  (20 slots)
+ *   Sun     (getDay 0):   11:00–18:30  (16 slots)
  *
  * For all other stylists, 1-hour slots are generated from business hours:
  *   Mon–Sat (getDay 1–6): 10:00–19:00  (10 slots)
@@ -617,23 +626,28 @@ function renderDayStrip(startDate = new Date()) {
  * @param {string} dateStr        YYYY-MM-DD
  * @param {number} durationMinutes
  * @param {string} [stylistId]    Stylist identifier (used to detect manicurist)
- * @returns {string[]}  e.g. ["10:00", "11:00", ..., "19:00"]
+ * @returns {string[]}  e.g. ["10:00", "10:30", "11:00", ..., "19:30"]
  */
 function generateTimeSlots(dateStr, durationMinutes = 60, stylistId = "") {
   // Use noon to avoid UTC-midnight timezone shift affecting getDay()
   const dayOfWeek = new Date(`${dateStr}T12:00:00`).getDay();
   const isSunday = dayOfWeek === 0;
 
-  // Hardcoded slots for the manicurist: exact times requested by the salon.
-  // On Sundays the salon opens at 11:00, so a different set of slots is used.
+  // 30-minute slots for the manicurist.
+  // Mon–Sat: 10:00–19:30; Sun: 11:00–18:30.
   if (stylistId.includes("Мөнхзаяа") || stylistId.includes("Маникюр")) {
-    const hardcodedSlots = isSunday
-      ? ["11:00", "12:30", "14:00", "15:30", "17:30"]
-      : ["10:00", "11:30", "13:00", "14:30", "16:00", "18:00"];
+    const startMinutes = isSunday ? 11 * 60 : 10 * 60;
+    const endMinutes   = isSunday ? 18 * 60 + 30 : 19 * 60 + 30;
+    const allSlots = [];
+    for (let t = startMinutes; t <= endMinutes; t += 30) {
+      const h = Math.floor(t / 60);
+      const m = t % 60;
+      allSlots.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+    }
     const now = new Date();
     const todayStr = formatDateInput(now);
-    if (dateStr !== todayStr) return hardcodedSlots;
-    return hardcodedSlots.filter((slot) => {
+    if (dateStr !== todayStr) return allSlots;
+    return allSlots.filter((slot) => {
       const [hour, minute] = slot.split(":").map(Number);
       const slotDate = new Date(`${dateStr}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00`);
       return slotDate >= now;
@@ -811,6 +825,9 @@ function showBookingSummary(stylistId, date, time) {
     }
 
     const selectedServices = checkedServices.join(", ");
+    const totalDuration = checkedServices.reduce(
+      (sum, service) => sum + (MANICURE_DURATIONS[service] || 30), 0
+    );
 
     initiateQPayPayment({
       amount: price,
@@ -819,6 +836,7 @@ function showBookingSummary(stylistId, date, time) {
       description: `Matrix Eco: ${stylistId} - ${date} ${time} - ${customerName} - ${customerPhone}`,
       staffName: stylistId,
       selectedServices,
+      totalDuration,
       confirmBtn,
       bookingDetails: { stylistId, date, time },
     });
@@ -1306,7 +1324,7 @@ if (videoButtons.length > 0) {
  * @param {HTMLButtonElement} [params.confirmBtn] - The button that triggered the call (for loading state)
  * @param {object} [params.bookingDetails]     - { stylistId, date, time } for the success screen
  */
-async function initiateQPayPayment({ amount, name, phone, description, staffName, selectedServices, confirmBtn, bookingDetails }) {
+async function initiateQPayPayment({ amount, name, phone, description, staffName, selectedServices, totalDuration, confirmBtn, bookingDetails }) {
   const panel     = document.getElementById("qpay-panel");
   const qrImg     = document.getElementById("qpay-qr-img");
   const bankBtns  = document.getElementById("qpay-bank-buttons");
@@ -1503,6 +1521,7 @@ async function initiateQPayPayment({ amount, name, phone, description, staffName
                   customerName: name,
                   customerPhone: phone,
                   selectedServices,
+                  totalDuration,
                 }),
               });
 

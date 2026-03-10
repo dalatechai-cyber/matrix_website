@@ -11,13 +11,6 @@ const DEFAULT_DURATION_MINUTES = 60;
 // Mongolia uses Asia/Ulaanbaatar time (UTC+8, no DST)
 const SALON_TZ_OFFSET = '+08:00';
 
-// Hardcoded time slots for the manicurist (Г. Мөнхзаяа / Маникюр service).
-// The gap between 16:00 and 18:00 is 120 min, so a simple +90-min loop would
-// incorrectly produce 17:30 — these exact times must be used instead.
-const MANICURE_SLOTS = ['10:00', '11:30', '13:00', '14:30', '16:00', '18:00'];
-// On Sundays the salon opens at 11:00, so the manicurist schedule shifts.
-const MANICURE_SLOTS_SUNDAY = ['11:00', '12:30', '14:00', '15:30', '17:30'];
-
 /**
  * Returns the salon's opening and closing hour for the given YYYY-MM-DD date.
  * Mon–Sat: 10:00–20:00  (last bookable slot starts at 19:00)
@@ -45,8 +38,9 @@ function getWorkHours(dateStr) {
  * Returns an array of available slot start times (e.g. ["10:00", "14:00"])
  * for the requested stylist on the requested date.
  * Mon–Sat: 10:00–20:00; Sun: 11:00–19:00.
- * Slot duration is 90 minutes for the manicurist (Г. Мөнхзаяа) and 60 minutes
- * for all other stylists.
+ * For the manicurist (Г. Мөнхзаяа), 30-minute slots are generated:
+ *   Mon–Sat: 10:00–19:30 (20 slots); Sun: 11:00–18:30 (16 slots).
+ * For all other stylists, 1-hour slots are generated from business hours.
  */
 router.get('/available-slots', async (req, res) => {
   const { date, stylistId } = req.query;
@@ -89,11 +83,22 @@ router.get('/available-slots', async (req, res) => {
     const busySlots = calendarResult.busy || [];
 
     // Build the list of candidate slot times.
-    // For the manicurist (Маникюр) use the hardcoded array (Sunday-specific on Sundays);
-    // for all other stylists generate on-the-hour slots from the normal business hours loop.
+    // For the manicurist (Маникюр) generate 30-minute slots from business hours:
+    //   Mon–Sat: 10:00–19:30; Sun: 11:00–18:30.
+    // For all other stylists generate on-the-hour slots from the normal business hours loop.
     const isSunday = new Date(`${date}T12:00:00${SALON_TZ_OFFSET}`).getUTCDay() === 0;
     const candidateSlots = (stylist.level === 'Маникюр')
-      ? (isSunday ? MANICURE_SLOTS_SUNDAY : MANICURE_SLOTS)
+      ? (() => {
+          const slots = [];
+          const startMinutes = isSunday ? 11 * 60 : 10 * 60;
+          const endMinutes   = isSunday ? 18 * 60 + 30 : 19 * 60 + 30;
+          for (let t = startMinutes; t <= endMinutes; t += 30) {
+            const h = Math.floor(t / 60);
+            const m = t % 60;
+            slots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+          }
+          return slots;
+        })()
       : (() => {
           const slots = [];
           for (let h = workStartHour; h <= lastSlotStartHour; h++) {
@@ -141,16 +146,17 @@ router.get('/available-slots', async (req, res) => {
  * POST /api/calendar/book
  *
  * Creates a Google Calendar event for the specified stylist.
- * Appointment duration is 90 minutes for the manicurist (Г. Мөнхзаяа) and
- * 60 minutes for all other stylists.
- * This route contains the raw calendar insertion logic and will eventually
- * be triggered from the QPay payment webhook.
+ * For the manicurist (Г. Мөнхзаяа), the appointment duration is taken from
+ * the `totalDuration` field in the request body (sum of selected service
+ * durations in minutes). Falls back to DEFAULT_DURATION_MINUTES (60) if not
+ * provided. For all other stylists, the fixed duration from STYLIST_CONFIG
+ * (or DEFAULT_DURATION_MINUTES) is always used.
  *
  * Expected JSON body:
- *   { stylistId, startTime, customerName, customerPhone, customerEmail, serviceName }
+ *   { stylistId, startTime, customerName, customerPhone, customerEmail, serviceName, totalDuration }
  */
 router.post('/book', async (req, res) => {
-  const { stylistId, startTime, customerName, customerPhone, customerEmail, serviceName, selectedServices } = req.body || {};
+  const { stylistId, startTime, customerName, customerPhone, customerEmail, serviceName, selectedServices, totalDuration } = req.body || {};
 
   if (!stylistId || !startTime) {
     return res.status(400).json({ error: 'stylistId and startTime are required' });
@@ -165,7 +171,19 @@ router.post('/book', async (req, res) => {
     const calendar = await getCalendarClient();
 
     const start = new Date(startTime);
-    const durationMinutes = stylist.durationMinutes || DEFAULT_DURATION_MINUTES;
+    // For the manicurist, use totalDuration from the request (sum of selected
+    // service durations). Fall back to DEFAULT_DURATION_MINUTES (60) if not
+    // provided. For all other stylists, always use the fixed duration from
+    // STYLIST_CONFIG (or DEFAULT_DURATION_MINUTES).
+    const isManicurist = stylist.level === 'Маникюр';
+    let durationMinutes;
+    if (isManicurist) {
+      durationMinutes = (typeof totalDuration === 'number' && totalDuration > 0)
+        ? totalDuration
+        : DEFAULT_DURATION_MINUTES;
+    } else {
+      durationMinutes = stylist.durationMinutes || DEFAULT_DURATION_MINUTES;
+    }
     const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
 
     const descriptionParts = [];
