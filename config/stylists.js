@@ -50,15 +50,15 @@ const STYLIST_CONFIG = {
     price: 10000,
     level: '1-р зэргийн үсчин',
   },
-  'Мухлай': {
+  'Уранчимэг': {
     calendarId: 'c_6efae8dadb0660afc266a939e8bfbd85af95bfc5ed498055ccd11175d181bbaf@group.calendar.google.com',
-    price: 20000,
-    level: 'Мастер үсчин',
+    price: 10000,
+    level: '1-р зэргийн үсчин',
   },
-  'muhlai': {
+  'uranchimeg': {
     calendarId: 'c_6efae8dadb0660afc266a939e8bfbd85af95bfc5ed498055ccd11175d181bbaf@group.calendar.google.com',
-    price: 20000,
-    level: 'Мастер үсчин',
+    price: 10000,
+    level: '1-р зэргийн үсчин',
   },
   'Оюунсүрэн': {
     calendarId: 'c_46dc5625ec21ce8c17b61ed2f1c28b4328279cec168b982c49f218cd4452a4b3@group.calendar.google.com',
@@ -70,12 +70,12 @@ const STYLIST_CONFIG = {
     price: 20000,
     level: 'Мастер үсчин',
   },
-  'Тэргэл': {
+  'Амгаланзаяа': {
     calendarId: 'c_1d339159e8bc7a5059cc20d52c7b2b1cda07442336f2c2a5b7880c00d6b442f9@group.calendar.google.com',
     price: 10000,
     level: '1-р зэргийн үсчин',
   },
-  'tergel': {
+  'amgalanzaya': {
     calendarId: 'c_1d339159e8bc7a5059cc20d52c7b2b1cda07442336f2c2a5b7880c00d6b442f9@group.calendar.google.com',
     price: 10000,
     level: '1-р зэргийн үсчин',
