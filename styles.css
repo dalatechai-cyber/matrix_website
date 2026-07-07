@@ -20,7 +20,10 @@
 
 html, body {
   max-width: 100%;
-  overflow-x: hidden;
+  /* `clip` contains horizontal overflow like `hidden`, but without promoting
+     overflow-y to `auto` — which would turn <body> into a scroll container,
+     break the sticky header, and spawn a second (dead) scrollbar. */
+  overflow-x: clip;
 }
 
 body {
@@ -28,6 +31,35 @@ body {
   color: var(--text);
   background: radial-gradient(circle at top, #1a2c24 0%, #0b1411 55%, #090f0d 100%);
   line-height: 1.6;
+}
+
+/* ── Themed scrollbars ──────────────────────────────────────────────
+   Match the site's dark palette so the scrollbar reads as part of the
+   design rather than a bright browser-default strip. */
+html {
+  scrollbar-width: thin;                                  /* Firefox */
+  scrollbar-color: var(--accent-dark) rgba(12, 20, 17, 0.4);
+}
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(12, 20, 17, 0.4);
+}
+::-webkit-scrollbar-thumb {
+  background-color: var(--accent-dark);
+  background-clip: padding-box;
+  border: 2px solid transparent;                          /* inset floating thumb */
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--accent);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+}
+::-webkit-scrollbar-corner {
+  background: rgba(12, 20, 17, 0.4);
 }
 
 a {
@@ -45,9 +77,35 @@ a {
   top: 0;
   z-index: 10;
   backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   background: rgba(12, 20, 17, 0.8);
   border-bottom: 1px solid rgba(100, 211, 154, 0.2);
   overflow: visible;
+  /* Smooth, unobtrusive shift into the scrolled state (ease-out curve
+     shared with the site's carousels). */
+  transition:
+    background 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    backdrop-filter 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    -webkit-backdrop-filter 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Once the page scrolls, the header settles into a lighter, more
+   translucent frosted glass so content flows softly beneath it, with a
+   subtle lift. Same palette — just refined. */
+.site-header.scrolled {
+  background: rgba(12, 20, 17, 0.6);
+  backdrop-filter: blur(20px) saturate(1.15);
+  -webkit-backdrop-filter: blur(20px) saturate(1.15);
+  border-bottom-color: rgba(100, 211, 154, 0.28);
+  box-shadow: 0 8px 24px -10px rgba(0, 0, 0, 0.5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-header {
+    transition: none;
+  }
 }
 
 .header-content {

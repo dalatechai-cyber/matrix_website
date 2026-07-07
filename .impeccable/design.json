@@ -1,0 +1,166 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-07T00:00:00Z",
+  "title": "Design System: Matrix Eco Salon",
+  "extensions": {
+    "colorMeta": {
+      "accent": {
+        "role": "primary",
+        "displayName": "Moonlit Mint",
+        "canonical": "#64d39a",
+        "tonalRamp": ["#082016", "#0d3323", "#134d34", "#1c6b48", "#2f8d66", "#64d39a", "#9ae4c1", "#cdf3e2"]
+      },
+      "accent-dark": {
+        "role": "primary",
+        "displayName": "Conservatory Green",
+        "canonical": "#2f8d66",
+        "tonalRamp": ["#07160f", "#0c2a1d", "#12432c", "#1c6144", "#2f8d66", "#4fb587", "#86d9b3", "#c2efdb"]
+      },
+      "highlight": {
+        "role": "secondary",
+        "displayName": "Lamplight Gold",
+        "canonical": "#f4d58d",
+        "tonalRamp": ["#2f2610", "#4c3d1a", "#6f5a29", "#9a7f3c", "#c9a75a", "#f4d58d", "#f9e3b3", "#fcf1d8"]
+      },
+      "bg": {
+        "role": "neutral",
+        "displayName": "Forest Black",
+        "canonical": "#0f1a16",
+        "tonalRamp": ["#070c0a", "#0b1411", "#0f1a16", "#121f1a", "#16251f", "#1a2c24", "#274035", "#3a5a4a"]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Deep Fern",
+        "canonical": "#121f1a",
+        "tonalRamp": ["#080f0c", "#0d1712", "#121f1a", "#172a22", "#1e372c", "#294a3b", "#3a6650", "#4f8168"]
+      },
+      "surface-light": {
+        "role": "neutral",
+        "displayName": "Fern Rise",
+        "canonical": "#16251f",
+        "tonalRamp": ["#0a120e", "#101c17", "#16251f", "#1d3128", "#264034", "#325343", "#446f5a", "#588b71"]
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Frosted Sage",
+        "canonical": "#e8f5ef",
+        "tonalRamp": ["#2a3d35", "#3f574c", "#5e7d6f", "#87a798", "#b4c8bf", "#d0e0d8", "#e8f5ef", "#f4faf7"]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Eucalyptus Gray",
+        "canonical": "#b4c8bf",
+        "tonalRamp": ["#243029", "#38473e", "#526558", "#748a7d", "#93a89c", "#b4c8bf", "#d2e0d9", "#eef4f1"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Hero H1 only; the single largest voice." },
+      "headline": { "displayName": "Headline", "purpose": "Page and section H2 headings." },
+      "title": { "displayName": "Title", "purpose": "Card, group, and modal titles." },
+      "body": { "displayName": "Body", "purpose": "Paragraph and list copy; 65–75ch measure." },
+      "label": { "displayName": "Label", "purpose": "Uppercase category tags on product cards." }
+    },
+    "shadows": [
+      { "name": "resting-card", "value": "0 10px 20px rgba(0,0,0,0.18)", "purpose": "Price/product cards at rest." },
+      { "name": "hover-lift", "value": "0 16px 28px rgba(0,0,0,0.25)", "purpose": "Cards on hover, paired with translateY(-2..-6px) and a brighter mint border." },
+      { "name": "floating-layer", "value": "0 24px 60px rgba(0,0,0,0.55)", "purpose": "Modals, dropdown menus, video popovers." },
+      { "name": "header-scroll", "value": "0 8px 24px -10px rgba(0,0,0,0.5)", "purpose": "The tight lift the sticky header gains once the page scrolls." },
+      { "name": "mint-glow", "value": "0 12px 25px rgba(100,211,154,0.2)", "purpose": "Soft accent glow beneath the primary button." }
+    ],
+    "motion": [
+      { "name": "ease-house", "value": "cubic-bezier(0.22, 1, 0.36, 1)", "purpose": "House ease-out curve for header, carousels, and larger transitions." },
+      { "name": "duration-quick", "value": "0.2s", "purpose": "Hover/state feedback on buttons, links, cards." },
+      { "name": "duration-settle", "value": "0.4s", "purpose": "Header scroll-state and other deliberate settles." }
+    ],
+    "breakpoints": [
+      { "name": "xs", "value": "480px" },
+      { "name": "sm", "value": "600px" },
+      { "name": "gallery", "value": "680px" },
+      { "name": "md", "value": "760px" },
+      { "name": "nav", "value": "900px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The booking CTA — mint gradient with dark ink, soft mint glow, lifts on hover.",
+      "html": "<button class=\"ds-btn-primary\">Цаг захиалах</button>",
+      "css": ".ds-btn-primary{background:linear-gradient(135deg,var(--accent,#64d39a),var(--accent-dark,#2f8d66));color:#04110b;padding:0.65rem 1.4rem;border:none;border-radius:999px;font-weight:600;font-family:'Manrope',sans-serif;cursor:pointer;box-shadow:0 12px 25px rgba(100,211,154,0.2);transition:transform 0.2s ease,box-shadow 0.2s ease}.ds-btn-primary:hover{transform:translateY(-2px);box-shadow:0 16px 30px rgba(100,211,154,0.3)}.ds-btn-primary:focus-visible{outline:2px solid var(--accent,#64d39a);outline-offset:2px}"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Quiet secondary action — transparent with a mint hairline border.",
+      "html": "<button class=\"ds-btn-ghost\">Үнийн жагсаалт</button>",
+      "css": ".ds-btn-ghost{background:transparent;color:var(--accent,#64d39a);border:1px solid rgba(100,211,154,0.35);padding:0.65rem 1.4rem;border-radius:999px;font-weight:600;font-family:'Manrope',sans-serif;cursor:pointer;transition:background 0.2s ease,transform 0.2s ease}.ds-btn-ghost:hover{background:rgba(100,211,154,0.08);transform:translateY(-1px)}.ds-btn-ghost:focus-visible{outline:2px solid var(--accent,#64d39a);outline-offset:2px}"
+    },
+    {
+      "name": "Filter Chip",
+      "kind": "chip",
+      "refersTo": "chip-filter",
+      "description": "Product/Keune filter pill; fills toward mint with a glow when active.",
+      "html": "<button class=\"ds-chip ds-active\">Amos</button>",
+      "css": ".ds-chip{padding:0.6rem 1.2rem;border:2px solid rgba(100,211,154,0.3);background:rgba(100,211,154,0.05);color:var(--text,#e8f5ef);border-radius:8px;font-size:0.9rem;font-weight:600;font-family:'Manrope',sans-serif;cursor:pointer;transition:all 0.3s ease}.ds-chip:hover{border-color:rgba(100,211,154,0.6);background:rgba(100,211,154,0.12)}.ds-chip.ds-active{border-color:var(--accent,#64d39a);background:rgba(100,211,154,0.25);color:var(--accent,#64d39a);box-shadow:0 0 12px rgba(100,211,154,0.3)}"
+    },
+    {
+      "name": "Product Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Retail/price card — tinted gradient surface, mint hairline, lifts on hover. No nested cards.",
+      "html": "<article class=\"ds-card\"><div class=\"ds-card-media\"></div><div class=\"ds-card-body\"><span class=\"ds-card-cat\">Hair Care</span><h4>Бүтээгдэхүүн</h4><span class=\"ds-card-price\">₮45,000</span></div></article>",
+      "css": ".ds-card{background:linear-gradient(160deg,rgba(100,211,154,0.08),rgba(12,20,17,0.7));border:1px solid rgba(100,211,154,0.18);border-radius:16px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 10px 20px rgba(0,0,0,0.18);transition:transform 0.2s ease,box-shadow 0.2s ease,border-color 0.2s ease;font-family:'Manrope',sans-serif;color:var(--text,#e8f5ef);max-width:220px}.ds-card:hover{transform:translateY(-4px);border-color:rgba(100,211,154,0.45);box-shadow:0 16px 28px rgba(0,0,0,0.25)}.ds-card-media{height:120px;background:rgba(12,20,17,0.8)}.ds-card-body{padding:1rem;display:flex;flex-direction:column;gap:0.5rem}.ds-card-cat{font-size:0.75rem;color:var(--accent,#64d39a);font-weight:600;text-transform:uppercase;letter-spacing:0.5px}.ds-card-body h4{font-size:0.95rem;margin:0}.ds-card-price{font-size:1.05rem;font-weight:700;color:var(--accent,#64d39a)}"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Dark translucent field with a mint focus ring (dark-surface variant, not the light booking calendar).",
+      "html": "<input class=\"ds-input\" placeholder=\"Таны нэр\" />",
+      "css": ".ds-input{padding:0.7rem 0.9rem;border-radius:10px;border:1px solid rgba(100,211,154,0.2);background:rgba(12,20,17,0.6);color:var(--text,#e8f5ef);font-family:'Manrope',sans-serif;font-size:1rem;outline:none;transition:border-color 0.2s,box-shadow 0.2s}.ds-input::placeholder{color:var(--muted,#b4c8bf)}.ds-input:focus{border-color:var(--accent,#64d39a);box-shadow:0 0 0 3px rgba(100,211,154,0.15)}"
+    },
+    {
+      "name": "Sticky Header",
+      "kind": "nav",
+      "refersTo": "site-header",
+      "description": "Frosted sticky header shown in its scrolled state (lighter frost + lift). Links shift to mint on hover.",
+      "html": "<header class=\"ds-header\"><span class=\"ds-brand\">Matrix Eco Salon</span><nav class=\"ds-nav\"><a href=\"#\">Бидний тухай</a><a href=\"#\">Үйлчилгээ</a><a href=\"#\">Зураг</a></nav></header>",
+      "css": ".ds-header{display:flex;align-items:center;justify-content:space-between;gap:1.5rem;padding:1rem 1.5rem;background:rgba(12,20,17,0.6);-webkit-backdrop-filter:blur(20px) saturate(1.15);backdrop-filter:blur(20px) saturate(1.15);border-bottom:1px solid rgba(100,211,154,0.28);box-shadow:0 8px 24px -10px rgba(0,0,0,0.5);font-family:'Manrope',sans-serif}.ds-brand{font-weight:700;color:var(--text,#e8f5ef)}.ds-nav{display:flex;gap:1.2rem}.ds-nav a{color:var(--muted,#b4c8bf);text-decoration:none;font-size:0.95rem;transition:color 0.2s}.ds-nav a:hover{color:var(--accent,#64d39a)}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Moonlit Conservatory",
+    "overview": "Matrix is a glasshouse of green after dark: deep forest-black surfaces, a soft mint glow that stands in for moonlight, and warm gold that reads as lamplight through the leaves. The system is dark by conviction, not fashion — a calm, low-lit space where hair and skin work is presented like botany under glass. Prestige is carried by material honesty and craft, never by volume; the mint accent earns its impact by being rare against the dark.",
+    "keyCharacteristics": [
+      "Dark, near-black green canvas with a single mint accent and a warm-gold spark",
+      "One typeface (Manrope) working across the whole weight range",
+      "Soft-cornered surfaces with faint mint borders and tinted gradients, not hard cards",
+      "Motion is restrained and eased-out; blur/glow used only where it earns its place",
+      "Bilingual reality: Mongolian Cyrillic content, legible at mobile sizes"
+    ],
+    "rules": [
+      { "name": "The One-Voice Rule", "body": "Moonlit Mint is the only accent that carries meaning. Lamplight Gold is a guest, not a co-host — if a screen needs two accents to feel alive, the layout is wrong, not the palette.", "section": "colors" },
+      { "name": "The Light-Island Rule", "body": "The booking calendar and its inputs are deliberately inverted — white card, dark ink — because a scheduling UI must read like a crisp form, not a mood. It is the one sanctioned light island in a dark site; keep the mint accent for its active states so it still belongs.", "section": "colors" },
+      { "name": "The Weight-Not-Family Rule", "body": "Never introduce a second typeface. Hierarchy and personality come from Manrope's weight range. A serif or a second sans breaks the system.", "section": "typography" },
+      { "name": "The Soft-Depth Rule", "body": "Shadows are always dark, large-radius, and low-opacity. If a shadow looks like a hard 2014-app drop shadow (small blur, high opacity), it is wrong — widen the blur and drop the alpha.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep Moonlit Mint (#64d39a) rare — one accent, small area, high impact.",
+      "Do build depth from tonal layering (Forest Black → Deep Fern → Fern Rise) plus faint mint hairlines and soft, wide, low-opacity shadows.",
+      "Do carry hierarchy with Manrope weights (300–700), never a second family.",
+      "Do ease every transition out (cubic-bezier(0.22, 1, 0.36, 1)) and pair every animation with a prefers-reduced-motion fallback.",
+      "Do keep body text on Frosted Sage / Eucalyptus Gray against the dark base — verify ≥4.5:1 before shipping any new text color.",
+      "Do protect the booking path: browse → decide → book → pay stays obvious on every page and width."
+    ],
+    "donts": [
+      "Don't ship the generic templated salon — no stock hero, no interchangeable beauty-template carousel.",
+      "Don't go loud, flashy, or neon — no high-saturation fills, glossy gradients, or busy competing accents.",
+      "Don't let a second accent (Lamplight Gold) compete with the mint — it is a rare spark, never a co-lead.",
+      "Don't use gradient text (background-clip: text) or decorative glassmorphism; backdrop blur is reserved for the functional sticky header.",
+      "Don't nest cards, and don't spread identical icon+heading+text card grids.",
+      "Don't stamp hard, small-blur drop shadows, or drop text below Eucalyptus Gray on the dark base."
+    ]
+  }
+}
