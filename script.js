@@ -1595,3 +1595,21 @@ async function initiateQPayPayment({ amount, name, phone, description, staffName
     });
   });
 }());
+
+// ── Header scroll state ───────────────────────────────────────────────────────
+// Adds a `scrolled` class to the sticky header once the page leaves the top,
+// letting it transition to a refined frosted-glass background. The toggle is a
+// no-op when the state is unchanged, so a passive listener is cheap and smooth.
+(function () {
+  const header = document.querySelector('.site-header');
+  if (!header) return;
+
+  const THRESHOLD = 10;
+
+  function update() {
+    header.classList.toggle('scrolled', window.scrollY > THRESHOLD);
+  }
+
+  window.addEventListener('scroll', update, { passive: true });
+  update(); // reflect the initial scroll position (e.g. when loaded at an anchor)
+}());
