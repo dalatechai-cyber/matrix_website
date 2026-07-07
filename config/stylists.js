@@ -70,16 +70,6 @@ const STYLIST_CONFIG = {
     price: 20000,
     level: 'Мастер үсчин',
   },
-  'Амгаланзаяа': {
-    calendarId: 'c_1d339159e8bc7a5059cc20d52c7b2b1cda07442336f2c2a5b7880c00d6b442f9@group.calendar.google.com',
-    price: 10000,
-    level: '1-р зэргийн үсчин',
-  },
-  'amgalanzaya': {
-    calendarId: 'c_1d339159e8bc7a5059cc20d52c7b2b1cda07442336f2c2a5b7880c00d6b442f9@group.calendar.google.com',
-    price: 10000,
-    level: '1-р зэргийн үсчин',
-  },
   'Уянга': {
     calendarId: 'c_27de9527ce91e22bc5255af2dd51bc1db5c700d167d5aaad77062990bfe4875f@group.calendar.google.com',
     price: 10000,
