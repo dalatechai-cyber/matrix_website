@@ -3,6 +3,7 @@
 const express = require('express');
 const { getCalendarClient } = require('../services/googleCalendar');
 const { STYLIST_CONFIG } = require('../config/stylists');
+const { getClosures, findClosure, salonDateOf } = require('../config/closures');
 
 const router = express.Router();
 
@@ -33,11 +34,26 @@ function getWorkHours(dateStr) {
 }
 
 /**
+ * GET /api/calendar/closures
+ *
+ * Returns the salon-wide closure periods currently in force, so the booking UI
+ * can mark closed days before the customer picks one. Purely informational:
+ * every booking and payment path enforces closures independently of this.
+ *
+ * Returns: { closures: [ { start, end, title, message, reopenDate }, ... ] }
+ */
+router.get('/closures', (_req, res) => {
+  return res.status(200).json({ closures: getClosures() });
+});
+
+/**
  * GET /api/calendar/available-slots?date=YYYY-MM-DD&stylistId=<id>
  *
  * Returns an array of available slot start times (e.g. ["10:00", "14:00"])
  * for the requested stylist on the requested date.
  * Mon–Sat: 10:00–20:00; Sun: 11:00–19:00.
+ * A date inside a salon closure returns no slots at all, plus the `closure`
+ * that covers it, regardless of what the stylist's calendar says.
  * For the manicurist (Г. Мөнхзаяа), 30-minute slots are generated:
  *   Mon–Sat: 10:00–19:30 (20 slots); Sun: 11:00–18:30 (16 slots).
  * For all other stylists, 1-hour slots are generated from business hours.
@@ -57,6 +73,15 @@ router.get('/available-slots', async (req, res) => {
   const stylist = STYLIST_CONFIG[stylistId];
   if (!stylist) {
     return res.status(400).json({ error: `Unknown stylistId "${stylistId}"` });
+  }
+
+  // The salon is shut salon-wide on this date: offer nothing, whatever the
+  // stylist's calendar happens to say. This is deliberately a 200 with an empty
+  // list rather than an error — the booking UI falls back to showing full
+  // business hours when this endpoint fails, which would re-expose the closed day.
+  const closure = findClosure(date);
+  if (closure) {
+    return res.status(200).json({ date, stylistId, availableSlots: [], closure });
   }
 
   const { workStartHour, workEndHour } = getWorkHours(date);
@@ -165,6 +190,16 @@ router.post('/book', async (req, res) => {
   const stylist = STYLIST_CONFIG[stylistId];
   if (!stylist) {
     return res.status(400).json({ error: `Unknown stylistId "${stylistId}"` });
+  }
+
+  // Never put an appointment on the calendar for a day the salon is shut.
+  const bookingDate = salonDateOf(startTime);
+  const closure = bookingDate && findClosure(bookingDate);
+  if (closure) {
+    return res.status(409).json({
+      error: 'Salon is closed on the requested date',
+      closure,
+    });
   }
 
   try {

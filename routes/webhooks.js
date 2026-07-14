@@ -3,6 +3,7 @@
 const express = require('express');
 const { getCalendarClient } = require('../services/googleCalendar');
 const { STYLIST_CALENDAR_MAP } = require('../config/stylists');
+const { findClosure, salonDateOf } = require('../config/closures');
 
 const router = express.Router();
 
@@ -51,6 +52,20 @@ router.post('/payment-success', async (req, res) => {
     console.warn('Payment webhook: unknown stylistId', body.stylistId);
     return res.status(400).json({
       error: `Bad payload: unknown stylistId "${body.stylistId}"`,
+    });
+  }
+
+  // No appointment goes on a calendar for a day the salon is shut. Payment is
+  // already refused for those dates upstream, so this should never fire — it is
+  // here because every path that books must enforce the closure, not just the
+  // ones we expect to be used.
+  const appointmentDate = salonDateOf(body.appointmentStartTime);
+  const closure = appointmentDate && findClosure(appointmentDate);
+  if (closure) {
+    console.warn('Payment webhook: refusing booking on closed salon date', appointmentDate);
+    return res.status(409).json({
+      error: 'Salon is closed on the requested date',
+      closure,
     });
   }
 

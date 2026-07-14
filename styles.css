@@ -1109,6 +1109,147 @@ a {
   border-color: var(--accent);
 }
 
+/* ── Salon closure (holidays) ──────────────────────────────────────────────
+   Inside .calendar-card the surface is white, where the mint accent measures
+   1.85:1 and cannot carry text. So mint stays a border/tint here and the type
+   uses the deep end of the same green — which keeps the accent rare, the way
+   the rest of the system uses it. */
+
+/* A closed day stays selectable — picking it is how you learn why — but it sits
+   recessed against the near-white open days, so the shut stretch of the week is
+   legible before anyone clicks. */
+.day-btn.is-closed {
+  background: #eceeed;
+  border-color: #d9dedc;
+  color: #56706a;
+}
+
+.day-btn.is-closed:hover {
+  background: #e6e9e8;
+  border-color: #ccd3d0;
+}
+
+/* Selected but shut: mint would read as "available", so this borrows the
+   site's own dark canvas to say "chosen" without saying "go". */
+.day-btn.is-closed.active {
+  background: #2a3a34;
+  border-color: #2a3a34;
+  color: #e8f5ef;
+}
+
+.day-btn-note {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.day-btn.is-closed.active .day-btn-note {
+  color: var(--muted);
+}
+
+/* The notice replaces the slot grid, so the container stops being a grid. */
+.time-slots.has-notice {
+  display: block;
+}
+
+.closure-notice {
+  max-width: 46ch;
+  padding: 0.35rem 0 0.25rem;
+  animation: closure-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.closure-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: #12241c;
+  margin-bottom: 0.4rem;
+  text-wrap: balance;
+}
+
+.closure-message {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: #3f5a50;
+  margin-bottom: 0.95rem;
+  text-wrap: pretty;
+}
+
+/* A mint hairline rather than a bordered panel — a card inside .calendar-card
+   would be a card inside a card. Echoes the section-title underline. */
+.closure-reopen {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-top: 0.7rem;
+  margin-bottom: 1.05rem;
+  border-top: 1px solid rgba(100, 211, 154, 0.28);
+}
+
+.closure-reopen-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: #3f5a50;
+}
+
+.closure-reopen-date {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #17603f;
+  white-space: nowrap;
+}
+
+/* The ghost-button token, re-tuned for the light card. Matches the 44px touch
+   target .time-slot sets, since this replaces those buttons. */
+.closure-cta {
+  min-height: 44px;
+  padding: 0.65rem 1.4rem;
+  border-radius: 999px;
+  border: 1px solid rgba(47, 141, 102, 0.45);
+  background: transparent;
+  color: #17603f;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.closure-cta:hover {
+  background: rgba(100, 211, 154, 0.12);
+  border-color: rgba(47, 141, 102, 0.75);
+}
+
+.closure-cta:focus-visible {
+  outline: 2px solid var(--accent-dark);
+  outline-offset: 2px;
+}
+
+@keyframes closure-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .closure-notice {
+    animation: none;
+  }
+  .closure-cta {
+    transition: none;
+  }
+}
+
 .booking-form {
   background: var(--surface);
   border-radius: 22px;
