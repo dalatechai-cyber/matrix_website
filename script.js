@@ -579,6 +579,108 @@ function renderProductsPagination(totalPages) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Salon closures (holidays)
+//
+// The server is the authority: /api/calendar/available-slots offers no times on
+// a closed date and the payment endpoint refuses to invoice for one. This copy
+// exists so the booking UI can mark closed days up front and explain the
+// closure, rather than leaving the customer with an empty list.
+// ---------------------------------------------------------------------------
+
+/** @type {Array<{start: string, end: string, title: string, message: string, reopenDate: string}>} */
+let salonClosures = [];
+
+/**
+ * The closure covering a YYYY-MM-DD date, if any.
+ * ISO dates compare correctly as plain strings.
+ */
+function closureFor(dateStr) {
+  return salonClosures.find((c) => dateStr >= c.start && dateStr <= c.end) || null;
+}
+
+/**
+ * Load the salon's closure periods. Failure is non-fatal — the day strip simply
+ * goes unmarked, and the server still refuses slots and payment for closed days.
+ */
+async function loadSalonClosures() {
+  try {
+    const res = await fetch("/api/calendar/closures");
+    if (!res.ok) return;
+    const data = await res.json();
+    if (Array.isArray(data.closures)) salonClosures = data.closures;
+  } catch (err) {
+    console.warn("Could not load salon closures:", err);
+  }
+}
+
+/** Render a YYYY-MM-DD date the way the rest of the booking UI reads: "7 сарын 18". */
+function formatClosureDate(dateStr) {
+  const [, month, day] = dateStr.split("-").map(Number);
+  return `${month} сарын ${day}`;
+}
+
+/**
+ * Flag the closed days in the current strip. Kept separate from renderDayStrip
+ * so it can also run once the closures arrive, without rebuilding the strip.
+ */
+function markClosedDays() {
+  if (!dayStrip) return;
+  Array.from(dayStrip.children).forEach((btn) => {
+    const closure = closureFor(btn.dataset.date);
+    btn.classList.toggle("is-closed", Boolean(closure));
+    const existingNote = btn.querySelector(".day-btn-note");
+    if (closure && !existingNote) {
+      const note = document.createElement("span");
+      note.className = "day-btn-note";
+      note.textContent = "Амарна";
+      btn.appendChild(note);
+      btn.title = closure.title;
+    } else if (!closure && existingNote) {
+      existingNote.remove();
+      btn.removeAttribute("title");
+    }
+  });
+}
+
+/**
+ * Explain a closure in place of the time slots, and offer the day bookings
+ * resume as the way forward.
+ *
+ * @param {HTMLElement} container  the #available-time-slots element
+ * @param {{title: string, message: string, reopenDate: string}} closure
+ */
+function renderClosureNotice(container, closure) {
+  container.classList.add("has-notice");
+  container.innerHTML = `
+    <div class="closure-notice">
+      <h4 class="closure-title"></h4>
+      <p class="closure-message"></p>
+      <p class="closure-reopen">
+        <span class="closure-reopen-label">Захиалга нээгдэх өдөр</span>
+        <span class="closure-reopen-date"></span>
+      </p>
+      <button type="button" class="closure-cta">Нээгдэх өдрийг сонгох</button>
+    </div>
+  `;
+  // textContent, not interpolation: the copy is operator-configurable.
+  container.querySelector(".closure-title").textContent = closure.title;
+  container.querySelector(".closure-message").textContent = closure.message;
+  container.querySelector(".closure-reopen-date").textContent = formatClosureDate(closure.reopenDate);
+
+  container.querySelector(".closure-cta").addEventListener("click", () => {
+    const inStrip = dayStrip
+      && Array.from(dayStrip.children).some((btn) => btn.dataset.date === closure.reopenDate);
+    if (inStrip) {
+      selectDay(closure.reopenDate);
+    } else {
+      // Reopening is beyond the week on show — move the strip to it.
+      // Parsed as local midnight so the strip lands on the intended day.
+      renderDayStrip(new Date(`${closure.reopenDate}T00:00:00`));
+    }
+  });
+}
+
 function getDayLabel(date) {
   const MN_WEEKDAYS = ['Ням', 'Дав', 'Мяг', 'Лха', 'Пүр', 'Баа', 'Бям'];
   const dayName = MN_WEEKDAYS[date.getDay()];
@@ -607,6 +709,7 @@ function renderDayStrip(startDate = new Date()) {
     btn.addEventListener("click", () => selectDay(btn.dataset.date));
     dayStrip.appendChild(btn);
   }
+  markClosedDays();
   selectDay(formatDateInput(today));
 }
 
@@ -683,6 +786,15 @@ function generateTimeSlots(dateStr, durationMinutes = 60, stylistId = "") {
 async function fetchAvailableSlots(date, stylistId) {
   const container = document.getElementById("available-time-slots");
   if (!container) return;
+
+  // A day we already know is closed never needs the calendar API.
+  const knownClosure = closureFor(date);
+  if (knownClosure) {
+    renderClosureNotice(container, knownClosure);
+    return;
+  }
+
+  container.classList.remove("has-notice");
   container.innerHTML = '<p class="slots-hint">Уншиж байна...</p>';
   const summaryEl = document.getElementById("booking-summary");
   if (summaryEl) summaryEl.style.display = "none";
@@ -701,9 +813,27 @@ async function fetchAvailableSlots(date, stylistId) {
       throw new Error(err.details || err.error || `HTTP ${res.status}`);
     }
     const data = await res.json();
+
+    // The server has the final say on closures: honour one we had not heard of
+    // yet (e.g. the closures request failed, or a closure was just configured).
+    if (data.closure) {
+      if (!closureFor(date)) {
+        salonClosures = salonClosures.concat(data.closure);
+        markClosedDays();
+      }
+      renderClosureNotice(container, data.closure);
+      return;
+    }
+
     renderAvailableSlots(data.availableSlots, stylistId, date);
   } catch (err) {
     console.error("Failed to fetch available slots:", err);
+    // Never fall back to full business hours on a day the salon is shut.
+    const closure = closureFor(date);
+    if (closure) {
+      renderClosureNotice(container, closure);
+      return;
+    }
     // Fall back to showing all business-hours slots for the day (booked-slot
     // filtering is unavailable without the API, but the correct hours are shown).
     renderAvailableSlots(generateTimeSlots(date, durationMinutes, stylistId), stylistId, date);
@@ -718,6 +848,7 @@ async function fetchAvailableSlots(date, stylistId) {
 function renderAvailableSlots(slots, stylistId, date) {
   const container = document.getElementById("available-time-slots");
   if (!container) return;
+  container.classList.remove("has-notice");
   container.innerHTML = "";
 
   // Client-side guard: hide any slot that has already passed when viewing today.
@@ -806,6 +937,16 @@ function showBookingSummary(stylistId, date, time) {
   phoneInput?.addEventListener("input", validateBookingForm);
 
   summaryEl.querySelector(".confirm-pay-btn").onclick = () => {
+    // Last line of defence in the browser: never start a payment for a day the
+    // salon is shut. The server refuses these too.
+    const closure = closureFor(date);
+    if (closure) {
+      const avail = document.getElementById("available-time-slots");
+      if (avail) renderClosureNotice(avail, closure);
+      summaryEl.style.display = "none";
+      return;
+    }
+
     const customerName  = (nameInput?.value  || "").trim();
     const customerPhone = (phoneInput?.value || "").trim();
 
@@ -855,13 +996,23 @@ function selectDay(dateString) {
   });
   selectedTime = null;
 
-  const stylistSel = document.getElementById("stylist-select");
-  if (stylistSel && stylistSel.value) {
-    fetchAvailableSlots(dateString, stylistSel.value);
+  const avail = document.getElementById("available-time-slots");
+
+  // A closed day has nothing to offer whichever stylist is picked, so explain
+  // the closure rather than asking the customer to choose one first.
+  const closure = closureFor(dateString);
+  if (closure) {
+    if (avail) renderClosureNotice(avail, closure);
   } else {
-    const avail = document.getElementById("available-time-slots");
-    if (avail) avail.innerHTML = '<p class="slots-hint">Үсчинг сонгоно уу.</p>';
+    const stylistSel = document.getElementById("stylist-select");
+    if (stylistSel && stylistSel.value) {
+      fetchAvailableSlots(dateString, stylistSel.value);
+    } else if (avail) {
+      avail.classList.remove("has-notice");
+      avail.innerHTML = '<p class="slots-hint">Үсчинг сонгоно уу.</p>';
+    }
   }
+
   const summaryEl = document.getElementById("booking-summary");
   if (summaryEl) summaryEl.style.display = "none";
 }
@@ -929,7 +1080,10 @@ function resetBookingForm() {
   if (stylistSel) stylistSel.value = "";
   renderServiceCheckboxes("");
   const avail = document.getElementById("available-time-slots");
-  if (avail) avail.innerHTML = '<p class="slots-hint">Үсчин болон өдрийг сонгоно уу.</p>';
+  if (avail) {
+    avail.classList.remove("has-notice");
+    avail.innerHTML = '<p class="slots-hint">Үсчин болон өдрийг сонгоно уу.</p>';
+  }
   renderDayStrip(new Date());
 }
 
@@ -973,6 +1127,14 @@ if (dayStrip) {
   renderDayStrip(new Date());
   const avail = document.getElementById("available-time-slots");
   if (avail) avail.innerHTML = '<p class="slots-hint">Үсчин болон өдрийг сонгоно уу.</p>';
+
+  // Closures arrive after the strip is already on screen, so mark the closed
+  // days and re-run the selection — the day picked on load may be one of them.
+  loadSalonClosures().then(() => {
+    if (!salonClosures.length) return;
+    markClosedDays();
+    if (selectedDate) selectDay(selectedDate);
+  });
 }
 
 // Team modal functionality - only initialize if elements exist on this page
@@ -1385,11 +1547,42 @@ async function initiateQPayPayment({ amount, name, phone, description, staffName
     const response = await fetch("/api/qpay/create-payment", {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ amount, name, phone, description, staffName }),
+      body:    JSON.stringify({
+        amount,
+        name,
+        phone,
+        description,
+        staffName,
+        // The date the deposit is for, so the server can refuse a closed day.
+        bookingDate: (bookingDetails || {}).date,
+      }),
     });
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({}));
+      // The salon is shut that day — explain it rather than showing an error.
+      if (response.status === 409 && errData.closure) {
+        panel.style.display = "none";
+        const summaryEl = document.getElementById("booking-summary");
+        if (summaryEl) summaryEl.style.display = "none";
+        // Nothing is pending, so drop the loading state the panel left behind.
+        if (confirmBtn) {
+          confirmBtn.disabled = false;
+          confirmBtn.textContent = confirmBtnOriginalText || CONFIRM_BTN_DEFAULT_TEXT;
+        }
+        qpayActiveConfirmBtn = null;
+        qpayActiveConfirmBtnText = "";
+        if (!closureFor(errData.closure.start)) {
+          salonClosures = salonClosures.concat(errData.closure);
+          markClosedDays();
+        }
+        const avail = document.getElementById("available-time-slots");
+        if (avail) {
+          renderClosureNotice(avail, errData.closure);
+          avail.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
+        return;
+      }
       throw new Error(errData.error || `HTTP ${response.status}`);
     }
 

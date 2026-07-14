@@ -1,8 +1,23 @@
 const axios = require('axios');
+const { checkPaymentRequest } = require('../../services/closureGuard');
 
 module.exports = async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ message: 'Зөвхөн POST хүсэлт зөвшөөрөгдөнө' });
+    }
+
+    // --- 0. САЛОН АМАРЧ БАЙХ ӨДӨРТ ТӨЛБӨР ҮҮСГЭХГҮЙ ---
+    // No invoice exists for an appointment inside a salon closure, so there is
+    // no way to pay a deposit for a day the salon is shut. With no closure
+    // configured this always passes and the handler behaves exactly as before.
+    const closureCheck = checkPaymentRequest(req.body || {});
+    if (!closureCheck.allowed) {
+        console.warn('Blocked QPay invoice for closed salon date:', closureCheck.date, closureCheck.reason);
+        return res.status(409).json({
+            error: 'Salon is closed on the requested date',
+            reason: closureCheck.reason,
+            closure: closureCheck.closure,
+        });
     }
 
     try {

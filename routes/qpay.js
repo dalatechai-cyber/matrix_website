@@ -4,6 +4,8 @@ const express = require('express');
 const { createInvoice, checkPayment } = require('../services/qpay');
 const { getCalendarClient } = require('../services/googleCalendar');
 const { STYLIST_CONFIG } = require('../config/stylists');
+const { checkPaymentRequest } = require('../services/closureGuard');
+const { findClosure } = require('../config/closures');
 
 const router = express.Router();
 
@@ -54,6 +56,19 @@ async function createCalendarEventForInvoice(invoiceId) {
     return;
   }
 
+  // create-payment refuses to invoice for a closed date, so an invoice for one
+  // should not exist. If it somehow does, the appointment still does not go on
+  // the calendar — and it is logged loudly, because it would mean money was
+  // taken for a day the salon is shut and someone has to refund it.
+  const closure = findClosure(parsed.date);
+  if (closure) {
+    console.error(
+      'PAID invoice for a CLOSED salon date — refusing to book, needs a refund:',
+      invoiceId, parsed.date, parsed.customerPhone,
+    );
+    return;
+  }
+
   const calendar = await getCalendarClient();
   const startDateTime = new Date(`${parsed.date}T${parsed.time}:00+08:00`);
   const endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000);
@@ -90,6 +105,19 @@ router.post('/create-payment', async (req, res) => {
   if (!name || !phone || !amount || !description) {
     return res.status(400).json({
       error: 'name, phone, amount, and description are required',
+    });
+  }
+
+  // Refuse to invoice for an appointment inside a salon closure. Runs after the
+  // required-field check above so a malformed request still reports what is
+  // missing. With no closure configured this always passes.
+  const closureCheck = checkPaymentRequest(req.body || {});
+  if (!closureCheck.allowed) {
+    console.warn('Blocked QPay invoice for closed salon date:', closureCheck.date, closureCheck.reason);
+    return res.status(409).json({
+      error: 'Salon is closed on the requested date',
+      reason: closureCheck.reason,
+      closure: closureCheck.closure,
     });
   }
 
