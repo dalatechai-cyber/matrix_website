@@ -1154,10 +1154,14 @@ a {
   display: block;
 }
 
+/* No entrance animation. A reveal that fades in from opacity 0 never advances
+   while the tab is in the background — the animation sits at currentTime 0 and
+   the fill mode holds the from-state — so the notice would render as an empty
+   gap for anyone who opened the page in a background tab. This message is the
+   whole point of the closure; it is visible unconditionally. */
 .closure-notice {
   max-width: 46ch;
   padding: 0.35rem 0 0.25rem;
-  animation: closure-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .closure-title {
@@ -1230,21 +1234,7 @@ a {
   outline-offset: 2px;
 }
 
-@keyframes closure-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .closure-notice {
-    animation: none;
-  }
   .closure-cta {
     transition: none;
   }
