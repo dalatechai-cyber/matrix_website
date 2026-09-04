@@ -35,6 +35,25 @@ Both payment paths must stay gated: `vercel.json` rewrites
 catch-all serves [routes/qpay.js](routes/qpay.js). Both share
 [services/closureGuard.js](services/closureGuard.js) so they cannot drift.
 
+## Service durations (booking)
+
+Services take different amounts of time — Оффис колор ~4h, хими ~2h — and
+availability must only offer start times where the whole appointment finishes
+before closing, with no overlap against existing bookings. The figures live in
+**[data/serviceDurations.json](data/serviceDurations.json)**, read by the server
+through [config/serviceDurations.js](config/serviceDurations.js) and fetched by
+the booking UI, so there is one source of truth and no client copy to drift.
+
+The server resolves duration from the customer's selected services and ignores
+any `totalDuration` the browser sends — that number decides how much of a
+stylist's day is blocked. An unrecognised service name costs the default
+(60 min), never zero.
+
+Most figures are engineering estimates marked `"confirm": true` and still need
+the salon's sign-off; editing the JSON is the whole change. See
+**[docs/SERVICE_DURATIONS.md](docs/SERVICE_DURATIONS.md)** for the full rationale
+and what is still open.
+
 ## Design Context
 
 Design decisions are governed by two root documents — read them before any

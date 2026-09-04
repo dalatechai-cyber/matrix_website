@@ -6,8 +6,13 @@ const { getCalendarClient } = require('../services/googleCalendar');
 const { STYLIST_CONFIG } = require('../config/stylists');
 const { checkPaymentRequest } = require('../services/closureGuard');
 const { findClosure } = require('../config/closures');
+const { totalDurationFor } = require('../config/serviceDurations');
 
 const router = express.Router();
+
+// Used only when an invoice carries no service list (older invoice, or a direct
+// call); real bookings resolve their length from config/serviceDurations.js.
+const DEFAULT_DURATION_MINUTES = 60;
 
 /**
  * In-memory invoice status store.
@@ -71,7 +76,15 @@ async function createCalendarEventForInvoice(invoiceId) {
 
   const calendar = await getCalendarClient();
   const startDateTime = new Date(`${parsed.date}T${parsed.time}:00+08:00`);
-  const endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000);
+  // Length of the services booked, not a flat hour: this event is read back as
+  // busy time by /available-slots, so a 4-hour colour recorded as 1 hour would
+  // leave the following three hours bookable by someone else. The services are
+  // captured on the invoice at create-payment time (entry.services).
+  const resolved = totalDurationFor(entry.services);
+  const durationMinutes = resolved.resolved
+    ? resolved.minutes
+    : (stylist.durationMinutes || DEFAULT_DURATION_MINUTES);
+  const endDateTime = new Date(startDateTime.getTime() + durationMinutes * 60 * 1000);
 
   await calendar.events.insert({
     calendarId: stylist.calendarId,
@@ -100,7 +113,7 @@ async function createCalendarEventForInvoice(invoiceId) {
  * Returns: { invoice_id: string, qr_image: <Base64 string>, urls: [ { name, link }, ... ] }
  */
 router.post('/create-payment', async (req, res) => {
-  const { name, phone, amount, description, staffName } = req.body || {};
+  const { name, phone, amount, description, staffName, selectedServices, serviceName } = req.body || {};
 
   if (!name || !phone || !amount || !description) {
     return res.status(400).json({
@@ -162,6 +175,9 @@ router.post('/create-payment', async (req, res) => {
       paymentStatuses[result.invoice_id] = {
         status: 'PENDING',
         description,
+        // Kept so the calendar event created on payment can be as long as the
+        // services actually booked. The description format carries no services.
+        services: selectedServices || serviceName || '',
         calendarEventCreated: false,
         createdAt: Date.now(),
       };

@@ -428,7 +428,7 @@ test('STYLIST_CONFIG: Г. Мөнхзаяа has durationMinutes of 30 (minimum sl
   );
 });
 
-test('book: Г. Мөнхзаяа booking with totalDuration=90 creates a 90-minute event', async () => {
+test('book: a 90-minute manicure service creates a 90-minute event', async () => {
   calendarStub._insertError = null;
   calendarStub._insertResult = { data: { id: 'munkhzaya_duration_test' } };
   calendarStub._lastInsertArg = null;
@@ -437,18 +437,17 @@ test('book: Г. Мөнхзаяа booking with totalDuration=90 creates a 90-minu
     stylistId: MUNKHZAYA_STYLIST_ID_LATIN,
     startTime: '2035-06-05T13:00:00+08:00',
     customerName: 'Test Customer',
-    serviceName: 'Маникюр',
-    totalDuration: 90,
+    selectedServices: 'Гелэн будалт',
   });
   assert.equal(status, 200);
   const { start, end } = calendarStub._lastInsertArg.requestBody;
   const startMs = new Date(start.dateTime).getTime();
   const endMs = new Date(end.dateTime).getTime();
   const diffMinutes = (endMs - startMs) / (60 * 1000);
-  assert.equal(diffMinutes, 90, 'totalDuration=90 should create a 90-minute event');
+  assert.equal(diffMinutes, 90, 'Гелэн будалт is a 90-minute service');
 });
 
-test('book: Г. Мөнхзаяа booking with totalDuration=180 creates a 180-minute event', async () => {
+test('book: a 180-minute manicure service creates a 180-minute event', async () => {
   calendarStub._insertError = null;
   calendarStub._insertResult = { data: { id: 'munkhzaya_long_test' } };
   calendarStub._lastInsertArg = null;
@@ -457,15 +456,35 @@ test('book: Г. Мөнхзаяа booking with totalDuration=180 creates a 180-mi
     stylistId: MUNKHZAYA_STYLIST_ID_LATIN,
     startTime: '2035-06-05T10:00:00+08:00',
     customerName: 'Test Customer',
-    totalDuration: 180,
+    selectedServices: 'Смарт хумс',
   });
   assert.equal(status, 200);
   const { start, end } = calendarStub._lastInsertArg.requestBody;
   const diffMinutes = (new Date(end.dateTime) - new Date(start.dateTime)) / (60 * 1000);
-  assert.equal(diffMinutes, 180, 'totalDuration=180 should create a 180-minute event');
+  assert.equal(diffMinutes, 180, 'Смарт хумс is a 180-minute service');
 });
 
-test('book: Г. Мөнхзаяа booking without totalDuration falls back to 60 minutes', async () => {
+test('book: a client-supplied totalDuration cannot inflate the booking', async () => {
+  // The browser's number is never trusted on its own: it decides how much of a
+  // stylist's day is blocked, so anyone could otherwise squat a whole day.
+  calendarStub._insertError = null;
+  calendarStub._insertResult = { data: { id: 'munkhzaya_inflate_test' } };
+  calendarStub._lastInsertArg = null;
+  const app = buildApp();
+  const { status } = await request(app, 'POST', '/api/calendar/book', {
+    stylistId: MUNKHZAYA_STYLIST_ID_LATIN,
+    startTime: '2035-06-05T10:00:00+08:00',
+    customerName: 'Test Customer',
+    selectedServices: 'Будаг арилгалт',
+    totalDuration: 600,
+  });
+  assert.equal(status, 200);
+  const { start, end } = calendarStub._lastInsertArg.requestBody;
+  const diffMinutes = (new Date(end.dateTime) - new Date(start.dateTime)) / (60 * 1000);
+  assert.equal(diffMinutes, 30, 'the configured 30 minutes wins over the claimed 600');
+});
+
+test('book: a booking naming no known service falls back to 60 minutes', async () => {
   calendarStub._insertError = null;
   calendarStub._insertResult = { data: { id: 'munkhzaya_fallback_test' } };
   calendarStub._lastInsertArg = null;
@@ -481,7 +500,7 @@ test('book: Г. Мөнхзаяа booking without totalDuration falls back to 60 
   assert.equal(diffMinutes, 60, 'Munkhzaya booking without totalDuration should fall back to 60 minutes');
 });
 
-test('book: regular hairdresser booking ignores totalDuration and uses fixed 60 minutes', async () => {
+test('book: a hairdresser booking ignores a bare totalDuration', async () => {
   calendarStub._insertError = null;
   calendarStub._insertResult = { data: { id: 'hairdresser_ignore_duration_test' } };
   calendarStub._lastInsertArg = null;
@@ -661,4 +680,195 @@ test('book: event summary falls back to serviceName when selectedServices not pr
   const summary = calendarStub._lastInsertArg.requestBody.summary;
   assert.ok(summary.includes('91915498'), 'summary should contain the phone number');
   assert.ok(summary.includes('Haircut'), 'summary should fall back to serviceName');
+});
+
+// ---------------------------------------------------------------------------
+// Service-duration-aware availability
+//
+// The salon's complaint: booking offered 18:00 for a 4-hour service on a day
+// that closes at 20:00, so the customer arrived for a slot nobody could honour.
+// These pin both halves of that — how late a start may be, and how far ahead a
+// conflict counts.
+// ---------------------------------------------------------------------------
+
+test('available-slots: a 4-hour service hides every late-afternoon start', async () => {
+  calendarStub._freebusyError = null;
+  calendarStub._freebusyResult = {
+    data: { calendars: { [VALID_CALENDAR_ID]: { busy: [] } } },
+  };
+  const app = buildApp();
+  // VALID_DATE is a Monday: 10:00–20:00. "Оффис колор" takes 240 minutes, so
+  // the last honourable start is 16:00.
+  const { status, body } = await request(app, 'GET', '/api/calendar/available-slots', {
+    date: VALID_DATE,
+    stylistId: VALID_STYLIST_ID,
+    services: 'Оффис колор',
+  });
+  assert.equal(status, 200);
+  assert.equal(body.durationMinutes, 240);
+  assert.ok(body.availableSlots.includes('10:00'), 'a morning start still fits');
+  assert.ok(body.availableSlots.includes('16:00'), '16:00 + 4h ends exactly at closing');
+  assert.ok(!body.availableSlots.includes('17:00'), '17:00 would run past closing');
+  assert.ok(!body.availableSlots.includes('18:00'), 'the reported bug: 18:00 must not be offered');
+  assert.ok(!body.availableSlots.includes('19:00'), '19:00 would run three hours past closing');
+  assert.equal(body.availableSlots.length, 7); // 10:00 … 16:00
+});
+
+test('available-slots: a 1-hour service is unaffected (still 10:00–19:00)', async () => {
+  calendarStub._freebusyError = null;
+  calendarStub._freebusyResult = {
+    data: { calendars: { [VALID_CALENDAR_ID]: { busy: [] } } },
+  };
+  const app = buildApp();
+  const { status, body } = await request(app, 'GET', '/api/calendar/available-slots', {
+    date: VALID_DATE,
+    stylistId: VALID_STYLIST_ID,
+    services: 'Энгийн засалт',
+  });
+  assert.equal(status, 200);
+  assert.equal(body.durationMinutes, 60);
+  assert.equal(body.availableSlots.length, 10);
+  assert.ok(body.availableSlots.includes('19:00'));
+});
+
+test('available-slots: selected services add up', async () => {
+  calendarStub._freebusyError = null;
+  calendarStub._freebusyResult = {
+    data: { calendars: { [VALID_CALENDAR_ID]: { busy: [] } } },
+  };
+  const app = buildApp();
+  // Угаалт (30) + Энгийн засалт (60) + Хими / Sika (120) = 210 minutes.
+  const { status, body } = await request(app, 'GET', '/api/calendar/available-slots', {
+    date: VALID_DATE,
+    stylistId: VALID_STYLIST_ID,
+    services: 'Угаалт,Энгийн засалт,Хими / Sika',
+  });
+  assert.equal(status, 200);
+  assert.equal(body.durationMinutes, 210);
+  // Last start whose 3h30 finishes by 20:00, on the hour, is 16:00.
+  assert.ok(body.availableSlots.includes('16:00'));
+  assert.ok(!body.availableSlots.includes('17:00'));
+});
+
+test('available-slots: a long service conflicts with a booking hours later', async () => {
+  calendarStub._freebusyError = null;
+  calendarStub._freebusyResult = {
+    data: {
+      calendars: {
+        [VALID_CALENDAR_ID]: {
+          busy: [
+            // 15:00–16:00 Ulaanbaatar (UTC+8) = 07:00–08:00 UTC
+            { start: `${VALID_DATE}T07:00:00Z`, end: `${VALID_DATE}T08:00:00Z` },
+          ],
+        },
+      },
+    },
+  };
+  const app = buildApp();
+  const { status, body } = await request(app, 'GET', '/api/calendar/available-slots', {
+    date: VALID_DATE,
+    stylistId: VALID_STYLIST_ID,
+    services: 'Оффис колор',
+  });
+  assert.equal(status, 200);
+  // A 4-hour appointment starting at 12:00 runs to 16:00 and swallows the 15:00
+  // booking — the old one-hour overlap window would have offered it.
+  assert.ok(!body.availableSlots.includes('12:00'), '12:00–16:00 overlaps the 15:00 booking');
+  assert.ok(!body.availableSlots.includes('13:00'));
+  assert.ok(!body.availableSlots.includes('14:00'));
+  assert.ok(!body.availableSlots.includes('15:00'));
+  assert.ok(body.availableSlots.includes('11:00'), '11:00–15:00 ends as the booking starts');
+  assert.ok(body.availableSlots.includes('16:00'), '16:00 starts as the booking ends');
+});
+
+test('available-slots: an unknown service name is charged the default, not zero', async () => {
+  calendarStub._freebusyError = null;
+  calendarStub._freebusyResult = {
+    data: { calendars: { [VALID_CALENDAR_ID]: { busy: [] } } },
+  };
+  const app = buildApp();
+  const { status, body } = await request(app, 'GET', '/api/calendar/available-slots', {
+    date: VALID_DATE,
+    stylistId: VALID_STYLIST_ID,
+    services: 'Ийм үйлчилгээ байхгүй',
+  });
+  assert.equal(status, 200);
+  assert.equal(body.durationMinutes, 60, 'unknown names must never shorten an appointment');
+});
+
+test('available-slots: names differing only in punctuation or ё/е still resolve', async () => {
+  calendarStub._freebusyError = null;
+  calendarStub._freebusyResult = {
+    data: { calendars: { [VALID_CALENDAR_ID]: { busy: [] } } },
+  };
+  const app = buildApp();
+  // The price list spells it "Оффис колор/Сор"; the booking checkbox is
+  // "Оффис колор". Both must mean 240 minutes.
+  const { body: viaAlias } = await request(app, 'GET', '/api/calendar/available-slots', {
+    date: VALID_DATE, stylistId: VALID_STYLIST_ID, services: 'Оффис колор/Сор',
+  });
+  assert.equal(viaAlias.durationMinutes, 240);
+
+  const { body: viaYo } = await request(app, 'GET', '/api/calendar/available-slots', {
+    date: VALID_DATE, stylistId: VALID_STYLIST_ID, services: 'Чёлк тайралт',
+  });
+  assert.equal(viaYo.durationMinutes, 15);
+});
+
+test('available-slots: a service too long for the day offers nothing at all', async () => {
+  calendarStub._freebusyError = null;
+  calendarStub._freebusyResult = {
+    data: { calendars: { [VALID_CALENDAR_ID]: { busy: [] } } },
+  };
+  const app = buildApp();
+  // Омбре (300) + Цайруулалт (300) = 10 hours; the Monday window is 10 hours,
+  // so only a 10:00 start fits. Add a wash and nothing fits.
+  const { body: exact } = await request(app, 'GET', '/api/calendar/available-slots', {
+    date: VALID_DATE, stylistId: VALID_STYLIST_ID, services: 'Омбре / Колор,Цайруулалт',
+  });
+  assert.deepEqual(exact.availableSlots, ['10:00']);
+
+  const { body: tooLong } = await request(app, 'GET', '/api/calendar/available-slots', {
+    date: VALID_DATE, stylistId: VALID_STYLIST_ID, services: 'Омбре / Колор,Цайруулалт,Угаалт',
+  });
+  assert.deepEqual(tooLong.availableSlots, [], 'no start can honour an 10h30 appointment');
+});
+
+test('available-slots: the manicurist keeps 30-minute starts but respects length', async () => {
+  calendarStub._freebusyError = null;
+  calendarStub._freebusyResult = {
+    data: { calendars: { [MUNKHZAYA_CALENDAR_ID]: { busy: [] } } },
+  };
+  const app = buildApp();
+  // Смарт хумс is 180 minutes: last start on a Monday is 17:00, and starts are
+  // still offered on the half hour.
+  const { status, body } = await request(app, 'GET', '/api/calendar/available-slots', {
+    date: VALID_DATE,
+    stylistId: MUNKHZAYA_STYLIST_ID_LATIN,
+    services: 'Смарт хумс',
+  });
+  assert.equal(status, 200);
+  assert.equal(body.durationMinutes, 180);
+  assert.ok(body.availableSlots.includes('10:30'), '30-minute grid is preserved');
+  assert.ok(body.availableSlots.includes('17:00'), '17:00 + 3h ends at closing');
+  assert.ok(!body.availableSlots.includes('17:30'), '17:30 would run past closing');
+});
+
+test('book: a 4-hour service is written to the calendar as 4 hours', async () => {
+  // The event IS the busy record every later availability check reads back, so
+  // recording a colour as one hour is what lets a second customer book over it.
+  calendarStub._insertError = null;
+  calendarStub._insertResult = { data: { id: 'office_color_test' } };
+  calendarStub._lastInsertArg = null;
+  const app = buildApp();
+  const { status } = await request(app, 'POST', '/api/calendar/book', {
+    stylistId: VALID_STYLIST_ID,
+    startTime: '2035-06-04T12:00:00+08:00',
+    customerName: 'Test Customer',
+    selectedServices: 'Оффис колор',
+  });
+  assert.equal(status, 200);
+  const { start, end } = calendarStub._lastInsertArg.requestBody;
+  const diffMinutes = (new Date(end.dateTime) - new Date(start.dateTime)) / (60 * 1000);
+  assert.equal(diffMinutes, 240, 'a hairdresser booking must honour the real duration');
 });
