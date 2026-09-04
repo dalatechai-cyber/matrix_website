@@ -4,10 +4,13 @@ const express = require('express');
 const { getCalendarClient } = require('../services/googleCalendar');
 const { STYLIST_CONFIG } = require('../config/stylists');
 const { getClosures, findClosure, salonDateOf } = require('../config/closures');
+const { totalDurationFor } = require('../config/serviceDurations');
 
 const router = express.Router();
 
-// Default appointment duration in minutes (used for all stylists unless overridden in STYLIST_CONFIG)
+// Fallback appointment length in minutes, used only when the request names no
+// services at all (an older client, or a direct call). Real bookings resolve
+// their length from config/serviceDurations.js instead.
 const DEFAULT_DURATION_MINUTES = 60;
 // Mongolia uses Asia/Ulaanbaatar time (UTC+8, no DST)
 const SALON_TZ_OFFSET = '+08:00';
@@ -34,6 +37,32 @@ function getWorkHours(dateStr) {
 }
 
 /**
+ * How long this appointment will occupy the chair, in minutes.
+ *
+ * The customer's selected services decide it, resolved here from
+ * config/serviceDurations.js. A duration sent by the browser is deliberately
+ * NOT trusted: it is the figure that decides how much of a stylist's day gets
+ * blocked, so an unverified number would let anyone reserve a whole day, and
+ * a short one would re-open a slot the salon cannot actually honour. A service
+ * missing from the catalogue is charged the default and reported, never zero.
+ *
+ * `fallbackMinutes` is used only when no services are named at all — the caller
+ * chooses it, because the two callers mean different things by "unknown":
+ * availability wants the stylist's usual slot length, a booking wants a whole
+ * hour rather than the manicurist's 30-minute slot spacing.
+ *
+ * @param {{ services?: string|string[], fallbackMinutes: number }} args
+ * @returns {{ minutes: number, unknown: string[], source: 'services'|'fallback' }}
+ */
+function resolveDurationMinutes({ services, fallbackMinutes }) {
+  const resolved = totalDurationFor(services);
+  if (!resolved.resolved) {
+    return { minutes: fallbackMinutes, unknown: [], source: 'fallback' };
+  }
+  return { minutes: resolved.minutes, unknown: resolved.unknown, source: 'services' };
+}
+
+/**
  * GET /api/calendar/closures
  *
  * Returns the salon-wide closure periods currently in force, so the booking UI
@@ -47,19 +76,27 @@ router.get('/closures', (_req, res) => {
 });
 
 /**
- * GET /api/calendar/available-slots?date=YYYY-MM-DD&stylistId=<id>
+ * GET /api/calendar/available-slots?date=YYYY-MM-DD&stylistId=<id>&services=A,B,C
  *
- * Returns an array of available slot start times (e.g. ["10:00", "14:00"])
- * for the requested stylist on the requested date.
+ * Returns the start times the stylist can actually honour on that date —
+ * i.e. the times where the customer's whole appointment fits.
+ *
+ * `services` is the customer's current selection; its total length (see
+ * config/serviceDurations.js) decides two things:
+ *   1. how late the last start can be — a 4-hour service cannot start at 18:00
+ *      on a day the salon closes at 20:00, so those starts are not offered; and
+ *   2. how far ahead a conflict counts — a 4-hour appointment starting at 14:00
+ *      collides with an existing 17:00 booking.
+ * Omitting `services` keeps the previous behaviour (the stylist's slot length).
+ *
+ * Start times are still offered on the stylist's usual grid: on the hour for
+ * hairdressers, every 30 minutes for the manicurist (Г. Мөнхзаяа).
  * Mon–Sat: 10:00–20:00; Sun: 11:00–19:00.
  * A date inside a salon closure returns no slots at all, plus the `closure`
  * that covers it, regardless of what the stylist's calendar says.
- * For the manicurist (Г. Мөнхзаяа), 30-minute slots are generated:
- *   Mon–Sat: 10:00–19:30 (20 slots); Sun: 11:00–18:30 (16 slots).
- * For all other stylists, 1-hour slots are generated from business hours.
  */
 router.get('/available-slots', async (req, res) => {
-  const { date, stylistId } = req.query;
+  const { date, stylistId, services } = req.query;
 
   if (!date || !stylistId) {
     return res.status(400).json({ error: 'date and stylistId query parameters are required' });
@@ -85,8 +122,17 @@ router.get('/available-slots', async (req, res) => {
   }
 
   const { workStartHour, workEndHour } = getWorkHours(date);
-  const durationMinutes = stylist.durationMinutes || DEFAULT_DURATION_MINUTES;
-  const lastSlotStartHour = workEndHour - durationMinutes / 60;
+  const { minutes: durationMinutes, unknown } = resolveDurationMinutes({
+    services,
+    // No services named: keep the stylist's usual slot length, so an older
+    // client that asks without a selection sees exactly what it always saw.
+    fallbackMinutes: stylist.durationMinutes || DEFAULT_DURATION_MINUTES,
+  });
+  if (unknown.length > 0) {
+    // Not fatal — an unknown name is charged the default — but it means the
+    // booking UI and data/serviceDurations.json have drifted apart.
+    console.warn('available-slots: no duration configured for service(s):', unknown.join(', '));
+  }
   const timeMin = `${date}T${String(workStartHour).padStart(2, '0')}:00:00${SALON_TZ_OFFSET}`;
   const timeMax = `${date}T${String(workEndHour).padStart(2, '0')}:00:00${SALON_TZ_OFFSET}`;
 
@@ -107,30 +153,22 @@ router.get('/available-slots', async (req, res) => {
     }
     const busySlots = calendarResult.busy || [];
 
-    // Build the list of candidate slot times.
-    // For the manicurist (Маникюр) generate 30-minute slots from business hours:
-    //   Mon–Sat: 10:00–19:30; Sun: 11:00–18:30.
-    // For all other stylists generate on-the-hour slots from the normal business hours loop.
-    const isSunday = new Date(`${date}T12:00:00${SALON_TZ_OFFSET}`).getUTCDay() === 0;
-    const candidateSlots = (stylist.level === 'Маникюр')
-      ? (() => {
-          const slots = [];
-          const startMinutes = isSunday ? 11 * 60 : 10 * 60;
-          const endMinutes   = isSunday ? 18 * 60 + 30 : 19 * 60 + 30;
-          for (let t = startMinutes; t <= endMinutes; t += 30) {
-            const h = Math.floor(t / 60);
-            const m = t % 60;
-            slots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
-          }
-          return slots;
-        })()
-      : (() => {
-          const slots = [];
-          for (let h = workStartHour; h <= lastSlotStartHour; h++) {
-            slots.push(`${String(h).padStart(2, '0')}:00`);
-          }
-          return slots;
-        })();
+    // Candidate start times: the stylist's usual grid — every 30 minutes for the
+    // manicurist, on the hour for hairdressers — but never later than a start
+    // whose appointment would still be running at closing time. This is what
+    // stops an 18:00 start being offered for a 4-hour service on a day the salon
+    // shuts at 20:00; with a 1-hour service the last start is 19:00 as before.
+    const stepMinutes = stylist.level === 'Маникюр' ? 30 : 60;
+    const openMinutes = workStartHour * 60;
+    const closeMinutes = workEndHour * 60;
+    const lastStartMinutes = closeMinutes - durationMinutes;
+
+    const candidateSlots = [];
+    for (let t = openMinutes; t <= lastStartMinutes; t += stepMinutes) {
+      const h = Math.floor(t / 60);
+      const m = t % 60;
+      candidateSlots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+    }
 
     const now = new Date();
     const availableSlots = [];
@@ -145,6 +183,8 @@ router.get('/available-slots', async (req, res) => {
 
       const slotEnd = new Date(slotStart.getTime() + durationMinutes * 60 * 1000);
 
+      // A conflict is anything overlapping the WHOLE appointment, not just its
+      // first hour: a 4-hour booking at 14:00 collides with an existing 17:00 one.
       const isBusy = busySlots.some((busy) => {
         const busyStart = new Date(busy.start);
         const busyEnd = new Date(busy.end);
@@ -157,7 +197,7 @@ router.get('/available-slots', async (req, res) => {
       }
     }
 
-    return res.status(200).json({ date, stylistId, availableSlots });
+    return res.status(200).json({ date, stylistId, availableSlots, durationMinutes });
   } catch (err) {
     console.error('Failed to check calendar availability:', err.message || err);
     return res.status(500).json({
@@ -171,14 +211,16 @@ router.get('/available-slots', async (req, res) => {
  * POST /api/calendar/book
  *
  * Creates a Google Calendar event for the specified stylist.
- * For the manicurist (Г. Мөнхзаяа), the appointment duration is taken from
- * the `totalDuration` field in the request body (sum of selected service
- * durations in minutes). Falls back to DEFAULT_DURATION_MINUTES (60) if not
- * provided. For all other stylists, the fixed duration from STYLIST_CONFIG
- * (or DEFAULT_DURATION_MINUTES) is always used.
+ *
+ * The event's length is the real length of the services booked, for EVERY
+ * stylist — not a flat hour. This matters beyond the one appointment: the event
+ * is what /available-slots reads back as busy time, so a 4-hour colour written
+ * as a 1-hour event would leave the following three hours bookable by someone
+ * else. Duration is resolved server-side from `selectedServices`; the client's
+ * `totalDuration` is accepted only where it is longer (see resolveDurationMinutes).
  *
  * Expected JSON body:
- *   { stylistId, startTime, customerName, customerPhone, customerEmail, serviceName, totalDuration }
+ *   { stylistId, startTime, customerName, customerPhone, customerEmail, serviceName, selectedServices, totalDuration }
  */
 router.post('/book', async (req, res) => {
   const { stylistId, startTime, customerName, customerPhone, customerEmail, serviceName, selectedServices, totalDuration } = req.body || {};
@@ -206,18 +248,15 @@ router.post('/book', async (req, res) => {
     const calendar = await getCalendarClient();
 
     const start = new Date(startTime);
-    // For the manicurist, use totalDuration from the request (sum of selected
-    // service durations). Fall back to DEFAULT_DURATION_MINUTES (60) if not
-    // provided. For all other stylists, always use the fixed duration from
-    // STYLIST_CONFIG (or DEFAULT_DURATION_MINUTES).
-    const isManicurist = stylist.level === 'Маникюр';
-    let durationMinutes;
-    if (isManicurist) {
-      durationMinutes = (typeof totalDuration === 'number' && totalDuration > 0)
-        ? totalDuration
-        : DEFAULT_DURATION_MINUTES;
-    } else {
-      durationMinutes = stylist.durationMinutes || DEFAULT_DURATION_MINUTES;
+    const { minutes: durationMinutes, unknown } = resolveDurationMinutes({
+      services: selectedServices || serviceName,
+      // A booking with no identifiable service is given a full hour, not the
+      // manicurist's 30-minute slot spacing — that number is a grid step, not
+      // an appointment length.
+      fallbackMinutes: DEFAULT_DURATION_MINUTES,
+    });
+    if (unknown.length > 0) {
+      console.warn('book: no duration configured for service(s):', unknown.join(', '));
     }
     const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
 
@@ -226,6 +265,9 @@ router.post('/book', async (req, res) => {
     if (customerPhone) descriptionParts.push(`Phone: ${customerPhone}`);
     if (customerEmail) descriptionParts.push(`Email: ${customerEmail}`);
     descriptionParts.push(`Price: ${stylist.price} MNT (${stylist.level})`);
+    // Written out so the stylist can see the length the slot was reserved for,
+    // and spot a service whose configured duration does not match reality.
+    descriptionParts.push(`Duration: ${durationMinutes} min`);
 
     const services = selectedServices || serviceName || '';
     const summary = customerPhone
@@ -244,7 +286,11 @@ router.post('/book', async (req, res) => {
       requestBody: event,
     });
 
-    console.log('Calendar booking created:', response.data.id, 'for stylist', stylistId);
+    console.log(
+      'Calendar booking created:', response.data.id,
+      'for stylist', stylistId,
+      `(${durationMinutes} min)`,
+    );
     return res.status(200).json({
       message: 'Booking created successfully',
       eventId: response.data.id,

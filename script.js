@@ -29,23 +29,75 @@ const HAIR_SERVICES = [
   "Эрэгтэй хими", "Эмэгтэй хими", "Чолк тайралт", "Угаалт", "Хусалт",
   "Сор", "Афро хими", "Гоёл / Засалт", "Хурим", "Сахал", "Шулуун хими",
   "Цайруулалт", "Тэжээл", "Хими арчилгаа", "CICA нөхөн сэргээх эмчилгээ", "CMC тэжээл",
+  // On the price list (data/pricing.json) but previously missing here, so the
+  // salon's longest colour service could not be booked online at all.
+  "Оффис колор",
 ];
 
-// Services offered by the manicurist, with their duration in minutes
-const MANICURE_DURATIONS = {
-  "Гелэн будалт": 90,
-  "Гелэн будалт (гоёл)": 120,
-  "Гелэн будалт (хумс нөхөлт)": 120,
-  "Будаггүй маникюр": 60,
-  "Дип будаг": 90,
-  "Хумс салгалт": 60,
-  "Будаг арилгалт": 30,
-  "Смарт хумс": 180,
-  "Гель педикюр": 90,
-  "Будаггүй педикюр": 60,
-  "Гарын спа": 60,
-};
-const MANICURE_SERVICES = Object.keys(MANICURE_DURATIONS);
+// Services offered by the manicurist. Durations for these — and for the hair
+// services above — live in data/serviceDurations.json (see serviceDurations below).
+const MANICURE_SERVICES = [
+  "Гелэн будалт", "Гелэн будалт (гоёл)", "Гелэн будалт (хумс нөхөлт)",
+  "Будаггүй маникюр", "Дип будаг", "Хумс салгалт", "Будаг арилгалт",
+  "Смарт хумс", "Гель педикюр", "Будаггүй педикюр", "Гарын спа",
+];
+
+// ---------------------------------------------------------------------------
+// Service durations
+//
+// How long a service takes decides which start times the salon can honour, so
+// the server is the authority: /api/calendar/available-slots is told which
+// services are selected and answers with the start times that fit. This copy of
+// data/serviceDurations.json — the very same file the server reads — is only
+// used to show the customer the expected length, and to keep the offline
+// fallback slot list honest if the calendar API is unreachable.
+// ---------------------------------------------------------------------------
+
+/** @type {Map<string, number>} normalised service name -> minutes */
+let serviceDurations = new Map();
+let serviceDurationDefault = 60;
+
+async function loadServiceDurations() {
+  try {
+    const res = await fetch("data/serviceDurations.json");
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const map = new Map();
+    (data.services || []).forEach((entry) => {
+      if (!entry?.name || !(entry.minutes > 0)) return;
+      map.set(normalizeServiceName(entry.name), entry.minutes);
+      (entry.aliases || []).forEach((a) => map.set(normalizeServiceName(a), entry.minutes));
+    });
+    serviceDurations = map;
+    if (data.defaultMinutes > 0) serviceDurationDefault = data.defaultMinutes;
+  } catch (err) {
+    // Non-fatal: the server still enforces the real durations. Only the
+    // "≈ N цаг" hint and the offline fallback lose precision.
+    console.error("Failed to load service durations:", err);
+  }
+}
+
+/** Total minutes for the given service names, defaulting unknown ones. */
+function totalDurationFor(services) {
+  return (services || []).reduce(
+    (sum, s) => sum + (serviceDurations.get(normalizeServiceName(s)) || serviceDurationDefault),
+    0
+  );
+}
+
+/** The service names currently ticked in the booking form. */
+function checkedServiceNames() {
+  return Array.from(document.querySelectorAll(".service-checkbox:checked")).map((cb) => cb.value);
+}
+
+/** "4 цаг", "1 цаг 30 мин", "45 мин" — for the customer-facing hint. */
+function formatDuration(minutes) {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h && m) return `${h} цаг ${m} мин`;
+  if (h) return `${h} цаг`;
+  return `${m} мин`;
+}
 
 // Holds a reference to the current booking form's validation function so that
 // service-checkbox change events (outside the summary panel) can trigger it.
@@ -81,10 +133,13 @@ let serviceImageModal;
 let serviceImageModalTitle;
 let serviceImageModalRow;
 
+// Keep in step with normalizeServiceName() in config/serviceDurations.js — the
+// two must agree or a service will resolve to a different duration on each side.
 function normalizeServiceName(name) {
   return String(name || "")
     .toLowerCase()
     .replace(/[ё]/g, "е")
+    .replace(/[()/,]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -735,30 +790,16 @@ function generateTimeSlots(dateStr, durationMinutes = 60, stylistId = "") {
   const dayOfWeek = new Date(`${dateStr}T12:00:00`).getDay();
   const isSunday = dayOfWeek === 0;
 
-  // 30-minute slots for the manicurist.
-  // Mon–Sat: 10:00–19:30; Sun: 11:00–18:30.
-  if (stylistId.includes("Мөнхзаяа") || stylistId.includes("Маникюр")) {
-    const startMinutes = isSunday ? 11 * 60 : 10 * 60;
-    const endMinutes   = isSunday ? 18 * 60 + 30 : 19 * 60 + 30;
-    const allSlots = [];
-    for (let t = startMinutes; t <= endMinutes; t += 30) {
-      const h = Math.floor(t / 60);
-      const m = t % 60;
-      allSlots.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
-    }
-    const now = new Date();
-    const todayStr = formatDateInput(now);
-    if (dateStr !== todayStr) return allSlots;
-    return allSlots.filter((slot) => {
-      const [hour, minute] = slot.split(":").map(Number);
-      const slotDate = new Date(`${dateStr}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00`);
-      return slotDate >= now;
-    });
-  }
+  // Start times every 30 minutes for the manicurist, on the hour for hairdressers
+  // — mirroring routes/calendar.js. The last start is the latest one whose
+  // appointment still finishes by closing time, so a long service never offers a
+  // time the salon would have to work past close to honour.
+  const isManicurist = stylistId.includes("Мөнхзаяа") || stylistId.includes("Маникюр");
+  const stepMinutes = isManicurist ? 30 : 60;
+  const openMinutes = (isSunday ? 11 : 10) * 60;
+  const closeMinutes = (isSunday ? 19 : 20) * 60;
+  const lastStartMinutes = closeMinutes - durationMinutes;
 
-  const startHour = isSunday ? 11 : 10;
-  const workEndHour = isSunday ? 19 : 20;
-  const lastSlotHour = workEndHour - durationMinutes / 60;
   const slots = [];
 
   // For today, skip slots that have already started.
@@ -768,20 +809,22 @@ function generateTimeSlots(dateStr, durationMinutes = 60, stylistId = "") {
   const todayStr = formatDateInput(now);
   const isToday = dateStr === todayStr;
 
-  for (let h = startHour; h <= lastSlotHour; h++) {
-    if (isToday) {
-      const slotDate = new Date(`${dateStr}T${String(h).padStart(2, "0")}:00:00`);
-      if (slotDate < now) continue;
-    }
-    slots.push(`${String(h).padStart(2, "0")}:00`);
+  for (let t = openMinutes; t <= lastStartMinutes; t += stepMinutes) {
+    const h = String(Math.floor(t / 60)).padStart(2, "0");
+    const m = String(t % 60).padStart(2, "0");
+    if (isToday && new Date(`${dateStr}T${h}:${m}:00`) < now) continue;
+    slots.push(`${h}:${m}`);
   }
   return slots;
 }
 
 /**
  * Fetch available slots from the backend calendar API and render them.
- * Slot duration is 90 minutes for the manicurist (Г. Мөнхзаяа) and 60 minutes
- * for all other stylists. Triggered whenever the user changes the date or stylist.
+ *
+ * The customer's ticked services go with the request: how long they take is
+ * what decides which start times the salon can actually honour, so a 4-hour
+ * colour offers no late-afternoon starts. Triggered whenever the date, the
+ * stylist, or the service selection changes.
  */
 async function fetchAvailableSlots(date, stylistId) {
   const container = document.getElementById("available-time-slots");
@@ -802,12 +845,15 @@ async function fetchAvailableSlots(date, stylistId) {
   const stylistSel = document.getElementById("stylist-select");
   if (stylistSel) stylistSel.disabled = true;
 
-  const durationMinutes = (STYLIST_CONFIG_CLIENT[stylistId] || {}).durationMinutes || 60;
+  const services = checkedServiceNames();
+  const durationMinutes = services.length > 0
+    ? totalDurationFor(services)
+    : ((STYLIST_CONFIG_CLIENT[stylistId] || {}).durationMinutes || 60);
 
   try {
-    const res = await fetch(
-      `/api/calendar/available-slots?date=${encodeURIComponent(date)}&stylistId=${encodeURIComponent(stylistId)}`
-    );
+    const params = new URLSearchParams({ date, stylistId });
+    if (services.length > 0) params.set("services", services.join(","));
+    const res = await fetch(`/api/calendar/available-slots?${params.toString()}`);
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.details || err.error || `HTTP ${res.status}`);
@@ -825,7 +871,10 @@ async function fetchAvailableSlots(date, stylistId) {
       return;
     }
 
-    renderAvailableSlots(data.availableSlots, stylistId, date);
+    renderAvailableSlots(data.availableSlots, stylistId, date, {
+      durationMinutes: data.durationMinutes || durationMinutes,
+      hasServices: services.length > 0,
+    });
   } catch (err) {
     console.error("Failed to fetch available slots:", err);
     // Never fall back to full business hours on a day the salon is shut.
@@ -834,9 +883,13 @@ async function fetchAvailableSlots(date, stylistId) {
       renderClosureNotice(container, closure);
       return;
     }
-    // Fall back to showing all business-hours slots for the day (booked-slot
-    // filtering is unavailable without the API, but the correct hours are shown).
-    renderAvailableSlots(generateTimeSlots(date, durationMinutes, stylistId), stylistId, date);
+    // Fall back to showing business-hours slots for the day. Booked-slot
+    // filtering is unavailable without the API, but the hours are still cut to
+    // the ones the selected services can finish before closing.
+    renderAvailableSlots(generateTimeSlots(date, durationMinutes, stylistId), stylistId, date, {
+      durationMinutes,
+      hasServices: services.length > 0,
+    });
   } finally {
     if (stylistSel) stylistSel.disabled = false;
   }
@@ -845,11 +898,21 @@ async function fetchAvailableSlots(date, stylistId) {
 /**
  * Render the array of available time strings as clickable slot buttons.
  */
-function renderAvailableSlots(slots, stylistId, date) {
+function renderAvailableSlots(slots, stylistId, date, meta = {}) {
   const container = document.getElementById("available-time-slots");
   if (!container) return;
   container.classList.remove("has-notice");
   container.innerHTML = "";
+
+  // Tell the customer how long they are booking for. Without this, a short list
+  // of morning-only times looks like the salon is busy, when in fact their
+  // 4-hour service simply cannot start any later.
+  if (meta.hasServices && meta.durationMinutes > 0) {
+    const hint = document.createElement("p");
+    hint.className = "slots-duration-hint";
+    hint.textContent = `Сонгосон үйлчилгээ: ойролцоогоор ${formatDuration(meta.durationMinutes)}`;
+    container.appendChild(hint);
+  }
 
   // Client-side guard: hide any slot that has already passed when viewing today.
   const now = new Date();
@@ -860,7 +923,13 @@ function renderAvailableSlots(slots, stylistId, date) {
     : (slots || []);
 
   if (filteredSlots.length === 0) {
-    container.innerHTML = '<p class="slots-hint">Тухайн өдөрт чөлөөт цаг байхгүй байна.</p>';
+    const empty = document.createElement("p");
+    empty.className = "slots-hint";
+    // Say WHY there is nothing, so a long service does not read as a full day.
+    empty.textContent = meta.hasServices && meta.durationMinutes > 0
+      ? `Сонгосон үйлчилгээ (${formatDuration(meta.durationMinutes)}) багтах чөлөөт цаг тухайн өдөрт байхгүй байна. Өөр өдөр сонгох эсвэл үйлчилгээгээ цөөрүүлж үзнэ үү.`
+      : "Тухайн өдөрт чөлөөт цаг байхгүй байна.";
+    container.appendChild(empty);
     return;
   }
 
@@ -965,9 +1034,10 @@ function showBookingSummary(stylistId, date, time) {
     }
 
     const selectedServices = checkedServices.join(", ");
-    const totalDuration = checkedServices.reduce(
-      (sum, service) => sum + (MANICURE_DURATIONS[service] || 30), 0
-    );
+    // Every service has a duration, hair included — this used to charge any
+    // non-manicure service a flat 30 minutes. The server re-resolves it anyway
+    // and takes the longer of the two, so this can only ever be a hint.
+    const totalDuration = totalDurationFor(checkedServices);
 
     initiateQPayPayment({
       amount: price,
@@ -1103,12 +1173,25 @@ document.getElementById("stylist-select")?.addEventListener("change", (event) =>
   }
 });
 
-// Re-validate the booking form whenever a service checkbox is toggled.
+// Re-validate the booking form whenever a service checkbox is toggled, and
+// re-ask for the available times: adding a 4-hour colour to the basket changes
+// which start times the salon can honour, so the list must be recomputed rather
+// than left showing times that no longer fit.
 document.addEventListener("change", (event) => {
-  if (event.target?.classList.contains("service-checkbox")) {
-    if (typeof _validateBookingFn === "function") {
-      _validateBookingFn();
-    }
+  if (!event.target?.classList.contains("service-checkbox")) return;
+
+  if (typeof _validateBookingFn === "function") {
+    _validateBookingFn();
+  }
+
+  const stylistSel = document.getElementById("stylist-select");
+  if (stylistSel?.value && selectedDate) {
+    // The chosen time may no longer fit the new selection; make the customer
+    // pick again from the refreshed list rather than carry a stale one forward.
+    selectedTime = null;
+    const summaryEl = document.getElementById("booking-summary");
+    if (summaryEl) summaryEl.style.display = "none";
+    fetchAvailableSlots(selectedDate, stylistSel.value);
   }
 });
 
@@ -1127,6 +1210,10 @@ if (dayStrip) {
   renderDayStrip(new Date());
   const avail = document.getElementById("available-time-slots");
   if (avail) avail.innerHTML = '<p class="slots-hint">Үсчин болон өдрийг сонгоно уу.</p>';
+
+  // Durations are needed before the first slot list is rendered, but nothing
+  // blocks on them: the server enforces the real figures either way.
+  loadServiceDurations();
 
   // Closures arrive after the strip is already on screen, so mark the closed
   // days and re-run the selection — the day picked on load may be one of them.
