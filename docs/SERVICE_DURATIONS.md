@@ -80,6 +80,17 @@ Key decisions, and why:
   salon's own spelling differ in punctuation and in ё/е — `Будаг/угны`,
   `Будаг (Уг)` and `Оффис колор/Сор` all resolve. `normalizeServiceName()` exists
   in both `config/serviceDurations.js` and `script.js` and the two must agree.
+  Some of those aliases are now **retired labels** rather than alternative
+  spellings: neither the price list nor the booking checkboxes offer
+  `Будаг/угны`, `Будаг/бүтэн`, `Будаг (Уг)`, `Будаг (Бүтэн)`, `Оффис колор/Сор`
+  or `Хими / Sika` — the salon calls those two dye services **Үндэс** (roots)
+  and **Будаг** (a full dye, priced by hair length). They stay in the catalogue because names
+  still arrive under them — a browser holding a cached `script.js` posts the old
+  checkbox value, and staff quote the salon's own spelling — and an unrecognised
+  name silently costs the default 60 minutes. (Appointments already in the
+  calendars are unaffected either way: availability reads them through
+  `freebusy`, which returns start and end times, so no past event's length is
+  ever re-derived from its title.)
 
 ## The figures need salon sign-off
 
@@ -100,7 +111,9 @@ grep '"confirm": true' data/serviceDurations.json   # everything awaiting review
 ## Verifying
 
 ```bash
-npm test    # 119 tests; the duration-aware ones are at the end of tests/calendar.test.js
+npm test    # 128 tests; the duration-aware ones are at the end of
+            # tests/calendar.test.js, the salon's price-list and contact
+            # facts in tests/content.test.js
 ```
 
 The behavioural check on a deployed build: open the booking section, pick any
