@@ -80,9 +80,11 @@ Key decisions, and why:
   salon's own spelling differ in punctuation and in ё/е — `Будаг/угны`,
   `Будаг (Уг)` and `Оффис колор/Сор` all resolve. `normalizeServiceName()` exists
   in both `config/serviceDurations.js` and `script.js` and the two must agree.
-  Some of those aliases are now **retired price-list labels** rather than
-  alternative spellings: the list no longer offers `Будаг/угны`, `Будаг/бүтэн`,
-  `Оффис колор/Сор` or `Хими / Sika`. They stay in the catalogue because names
+  Some of those aliases are now **retired labels** rather than alternative
+  spellings: neither the price list nor the booking checkboxes offer
+  `Будаг/угны`, `Будаг/бүтэн`, `Будаг (Уг)`, `Будаг (Бүтэн)`, `Оффис колор/Сор`
+  or `Хими / Sika` — the salon calls those two dye services **Үндэс** (roots)
+  and **Будаг** (a full dye, priced by hair length). They stay in the catalogue because names
   still arrive under them — a browser holding a cached `script.js` posts the old
   checkbox value, and staff quote the salon's own spelling — and an unrecognised
   name silently costs the default 60 minutes. (Appointments already in the

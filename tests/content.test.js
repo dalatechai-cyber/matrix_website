@@ -101,6 +101,18 @@ test('price list: the CICA treatment is priced per session and per course, not a
   assert.deepEqual(cica.variants.map((v) => v.price), [198000, 154000], 'one session 198k, course 154k');
 });
 
+test('price list: roots is its own service, separate from dye by length', () => {
+  // «Үг» and «Үндэс» name the same thing. The salon sells roots on its own at
+  // 135,000₮ AND sells a full dye priced by length whose shortest tier happens to
+  // cost the same — two services, one shared figure. Collapsing them loses the
+  // roots price, which is what happened the first time round.
+  const roots = serviceNamed('Үндэс');
+  assert.ok(roots, 'Үндэс is missing from the price list');
+  assert.equal(roots.price, 135000);
+  assert.equal(roots.variants, undefined, 'roots is a single price, not a tiered service');
+  assert.ok(roots.note, 'the card must say the price covers roots only');
+});
+
 test('price list: dye is priced by hair length, not as a range', () => {
   const dye = serviceNamed('Будаг');
   assert.ok(dye, 'Будаг is missing from the price list');
@@ -139,12 +151,13 @@ test('price list: Сор and Оффис колор are separate services', () =>
 
 test('price list: renamed services still resolve to a booking duration', () => {
   const { durationForService } = require('../config/serviceDurations');
-  for (const name of ['Эмчилгээний хими', 'Оффис колор', 'Сор']) {
+  for (const name of ['Эмчилгээний хими', 'Оффис колор', 'Сор', 'Үндэс', 'Будаг']) {
     assert.ok(durationForService(name) > 0, `${name} has no duration — booking would guess`);
   }
   // Retired labels stay resolvable because names still arrive under them: a
   // browser holding a cached script.js posts the old checkbox value.
-  for (const [retired, minutes] of [['Хими / Sika', 120], ['Оффис колор/Сор', 240], ['Будаг/угны', 90], ['Будаг/бүтэн', 120]]) {
+  for (const [retired, minutes] of [['Хими / Sika', 120], ['Оффис колор/Сор', 240], ['Будаг/угны', 90],
+                                    ['Будаг/бүтэн', 120], ['Будаг (Уг)', 90], ['Будаг (Бүтэн)', 120]]) {
     assert.equal(durationForService(retired), minutes, `retired label ${retired} stopped resolving`);
   }
 });

@@ -73,6 +73,23 @@ loses bookable slots; too short and the original bug comes back milder. Someone
 at the salon should walk the list. Editing the JSON is the entire change — no
 code, no redeploy logic, and the booking UI picks it up on next load.
 
+### Dye is two services, and it took two passes to see it
+
+`Тариф.xlsx` has `будаг/уг  135000` and `будаг  176000-200000` as two columns.
+Read as one scale — three lengths, cheapest 135,000₮ — the roots price vanishes,
+which is exactly the mistake this repo made first. The salon's model is **two
+axes**:
+
+| Service | Price |
+| --- | --- |
+| **Үндэс** (roots only; «Үг» and «Үндэс» are the same word) | 135,000₮ |
+| **Будаг** (full dye), by hair length | хүзүүний урт 135,000₮ · далны дээгүүр 176,000₮ · далнаас доош 200,000₮ |
+
+The shortest length tier costs the same 135,000₮ as roots. That coincidence is
+what makes the two collapsible, so `tests/content.test.js` asserts both exist
+separately. The booking checkboxes now use the same two names, with
+`Будаг (Уг)` / `Будаг (Бүтэн)` kept as aliases at their old 90 and 120 minutes.
+
 ### The price list lives in two repositories
 
 `data/pricing.json` is not the only copy of the salon's prices. The Messenger and
