@@ -25,7 +25,7 @@ let currentProductsPage = 1;
 // Services offered by hairdressers
 const HAIR_SERVICES = [
   "Энгийн засалт", "Хэлбэрт", "Хуйхны цэвэрлэгээ", "Толгойн тос",
-  "Хими / Sika", "Будаг (Уг)", "Будаг (Бүтэн)", "Омбре / Колор",
+  "Эмчилгээний хими", "Будаг (Уг)", "Будаг (Бүтэн)", "Омбре / Колор",
   "Эрэгтэй хими", "Эмэгтэй хими", "Чолк тайралт", "Угаалт", "Хусалт",
   "Сор", "Афро хими", "Гоёл / Засалт", "Хурим", "Сахал", "Шулуун хими",
   "Цайруулалт", "Тэжээл", "Хими арчилгаа", "CICA нөхөн сэргээх эмчилгээ", "CMC тэжээл",
@@ -239,6 +239,110 @@ function formatPrice(price) {
   return `${formatter.format(price)} ₮`;
 }
 
+/**
+ * One price-list entry, as a DOM node.
+ *
+ * A service either carries `variants` — each with its own price — or a single
+ * price/range. Variants exist where the salon prices by a real dimension: hair
+ * length for Будаг, one session versus a course for the CICA treatment. When a
+ * service names that dimension in `variantsNote`, the card shows the note in
+ * place of an aggregate min–max summary, because a span like "135,000 – 200,000 ₮"
+ * reads as a vague quote when the salon in fact charges a fixed price per length.
+ *
+ * `note` does the same job for a service without variants: it replaces the
+ * generic "Үнэ" line with what the price actually covers.
+ */
+function createServiceCard(service) {
+  const imageButtonMarkup = createServiceImageButtonMarkup(service.name);
+
+  if (service.variants) {
+    const groupId = `group-${service.name.replace(/\s+/g, "-")}`;
+    const groupCard = document.createElement("div");
+    groupCard.className = "price-card price-group";
+
+    let summaryMarkup;
+    if (service.variantsNote) {
+      summaryMarkup = `<div class="muted">${service.variantsNote}</div>`;
+    } else {
+      // Calculate min/max from variants (or just use first price if single price)
+      let minPrice = Infinity;
+      let maxPrice = 0;
+      service.variants.forEach((variant) => {
+        if (variant.price !== undefined) {
+          minPrice = Math.min(minPrice, variant.price);
+          maxPrice = Math.max(maxPrice, variant.price);
+        } else {
+          minPrice = Math.min(minPrice, variant.min);
+          maxPrice = Math.max(maxPrice, variant.max);
+        }
+      });
+      const priceDisplay = minPrice === maxPrice ? formatPrice(maxPrice) : formatRange(minPrice, maxPrice);
+      summaryMarkup = `
+        <div class="price">${priceDisplay}</div>
+        <div class="muted">${service.variants.length} сонголт</div>
+      `;
+    }
+
+    groupCard.innerHTML = `
+      <div class="group-header-label">
+        <div class="group-header">
+          <h4>${service.name}</h4>
+        </div>
+        ${summaryMarkup}
+      </div>
+      ${imageButtonMarkup}
+    `;
+
+    // Variants container
+    const variantsContainer = document.createElement("div");
+    variantsContainer.id = groupId;
+    variantsContainer.className = "price-variants";
+
+    service.variants.forEach((variant) => {
+      const variantCard = document.createElement("div");
+      variantCard.className = "price-variant";
+      const priceText = variant.price !== undefined ? formatPrice(variant.price) : formatRange(variant.min, variant.max);
+      variantCard.innerHTML = `
+        <div class="variant-name">${variant.type}</div>
+        <div class="price">${priceText}</div>
+      `;
+      variantsContainer.appendChild(variantCard);
+
+      // Add to service select
+      if (serviceSelect) {
+        const option = document.createElement("option");
+        option.value = `${service.name} - ${variant.type}`;
+        option.textContent = `${service.name} (${variant.type}) - ${priceText}`;
+        serviceSelect.appendChild(option);
+      }
+    });
+
+    groupCard.appendChild(variantsContainer);
+    return groupCard;
+  }
+
+  // Single service without variants
+  const card = document.createElement("div");
+  card.className = "price-card";
+  const priceText = service.price !== undefined ? formatPrice(service.price) : formatRange(service.min, service.max);
+  card.innerHTML = `
+    <h4>${service.name}</h4>
+    <div class="price">${priceText}</div>
+    <div class="muted">${service.note || "Үнэ"}</div>
+    ${imageButtonMarkup}
+  `;
+
+  // Add to service select
+  if (serviceSelect) {
+    const option = document.createElement("option");
+    option.value = service.name;
+    option.textContent = `${service.name} - ${priceText}`;
+    serviceSelect.appendChild(option);
+  }
+
+  return card;
+}
+
 function renderPricing(pricingData) {
   if (!pricingGrid) return;
   pricingGrid.innerHTML = "";
@@ -278,173 +382,14 @@ function renderPricing(pricingData) {
 
         // Render services in subcategory
         subcategory.services.forEach((service) => {
-          const imageButtonMarkup = createServiceImageButtonMarkup(service.name);
-          if (service.variants) {
-            // Service with variants - collapsible
-            const groupId = `group-${service.name.replace(/\s+/g, "-")}`;
-            const groupCard = document.createElement("div");
-            groupCard.className = "price-card price-group";
-
-            // Calculate min/max from variants (or just use first price if single price)
-            let minPrice = Infinity;
-            let maxPrice = 0;
-            service.variants.forEach((variant) => {
-              if (variant.price !== undefined) {
-                minPrice = Math.min(minPrice, variant.price);
-                maxPrice = Math.max(maxPrice, variant.price);
-              } else {
-                minPrice = Math.min(minPrice, variant.min);
-                maxPrice = Math.max(maxPrice, variant.max);
-              }
-            });
-
-            const priceDisplay = minPrice === maxPrice ? formatPrice(maxPrice) : formatRange(minPrice, maxPrice);
-
-            groupCard.innerHTML = `
-              <div class="group-header-label">
-                <div class="group-header">
-                  <h4>${service.name}</h4>
-                </div>
-                <div class="price">${priceDisplay}</div>
-                <div class="muted">${service.variants.length} сонголт</div>
-              </div>
-              ${imageButtonMarkup}
-            `;
-            subcategoryContainer.appendChild(groupCard);
-
-            // Variants container
-            const variantsContainer = document.createElement("div");
-            variantsContainer.id = groupId;
-            variantsContainer.className = "price-variants";
-
-            service.variants.forEach((variant) => {
-              const variantCard = document.createElement("div");
-              variantCard.className = "price-variant";
-              const priceText = variant.price !== undefined ? formatPrice(variant.price) : formatRange(variant.min, variant.max);
-              variantCard.innerHTML = `
-                <div class="variant-name">${variant.type}</div>
-                <div class="price">${priceText}</div>
-              `;
-              variantsContainer.appendChild(variantCard);
-
-              // Add to service select
-              if (serviceSelect) {
-                const option = document.createElement("option");
-                option.value = `${service.name} - ${variant.type}`;
-                option.textContent = `${service.name} (${variant.type}) - ${priceText}`;
-                serviceSelect.appendChild(option);
-              }
-            });
-
-            groupCard.appendChild(variantsContainer);
-          } else {
-            // Single service without variants
-            const card = document.createElement("div");
-            card.className = "price-card";
-            const priceText = service.price !== undefined ? formatPrice(service.price) : formatRange(service.min, service.max);
-            card.innerHTML = `
-              <h4>${service.name}</h4>
-              <div class="price">${priceText}</div>
-              <div class="muted">Үнэ</div>
-              ${imageButtonMarkup}
-            `;
-            subcategoryContainer.appendChild(card);
-
-            // Add to service select
-            if (serviceSelect) {
-              const option = document.createElement("option");
-              option.value = service.name;
-              option.textContent = `${service.name} - ${priceText}`;
-              serviceSelect.appendChild(option);
-            }
-          }
+          subcategoryContainer.appendChild(createServiceCard(service));
         });
-
         pricingGrid.appendChild(subcategoryContainer);
       });
     } else {
       // Old structure with services or variants
       category.services.forEach((service) => {
-        const imageButtonMarkup = createServiceImageButtonMarkup(service.name);
-        if (service.variants) {
-          // Service with variants - collapsible
-          const groupId = `group-${service.name.replace(/\s+/g, "-")}`;
-          const groupCard = document.createElement("div");
-          groupCard.className = "price-card price-group";
-
-          // Calculate min/max from variants
-          let minPrice = Infinity;
-          let maxPrice = 0;
-          service.variants.forEach((variant) => {
-            if (variant.price !== undefined) {
-              minPrice = Math.min(minPrice, variant.price);
-              maxPrice = Math.max(maxPrice, variant.price);
-            } else {
-              minPrice = Math.min(minPrice, variant.min);
-              maxPrice = Math.max(maxPrice, variant.max);
-            }
-          });
-
-          const priceDisplay = minPrice === maxPrice ? formatPrice(maxPrice) : formatRange(minPrice, maxPrice);
-
-          groupCard.innerHTML = `
-            <div class="group-header-label">
-              <div class="group-header">
-                <h4>${service.name}</h4>
-              </div>
-              <div class="price">${priceDisplay}</div>
-              <div class="muted">${service.variants.length} сонголт</div>
-            </div>
-            ${imageButtonMarkup}
-          `;
-          pricingGrid.appendChild(groupCard);
-
-          // Variants container
-          const variantsContainer = document.createElement("div");
-          variantsContainer.id = groupId;
-          variantsContainer.className = "price-variants";
-
-          service.variants.forEach((variant) => {
-            const variantCard = document.createElement("div");
-            variantCard.className = "price-variant";
-            const priceText = variant.price !== undefined ? formatPrice(variant.price) : formatRange(variant.min, variant.max);
-            variantCard.innerHTML = `
-              <div class="variant-name">${variant.type}</div>
-              <div class="price">${priceText}</div>
-            `;
-            variantsContainer.appendChild(variantCard);
-
-            // Add to service select
-            if (serviceSelect) {
-              const option = document.createElement("option");
-              option.value = `${service.name} - ${variant.type}`;
-              option.textContent = `${service.name} (${variant.type}) - ${priceText}`;
-              serviceSelect.appendChild(option);
-            }
-          });
-
-          groupCard.appendChild(variantsContainer);
-        } else {
-          // Single service without variants
-          const card = document.createElement("div");
-          card.className = "price-card";
-          const priceText = service.price !== undefined ? formatPrice(service.price) : formatRange(service.min, service.max);
-          card.innerHTML = `
-            <h4>${service.name}</h4>
-            <div class="price">${priceText}</div>
-            <div class="muted">Үнэ</div>
-            ${imageButtonMarkup}
-          `;
-          pricingGrid.appendChild(card);
-
-          // Add to service select
-          if (serviceSelect) {
-            const option = document.createElement("option");
-            option.value = service.name;
-            option.textContent = `${service.name} - ${priceText}`;
-            serviceSelect.appendChild(option);
-          }
-        }
+        pricingGrid.appendChild(createServiceCard(service));
       });
     }
   });

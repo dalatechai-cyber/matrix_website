@@ -6,7 +6,7 @@
     { "name": "Хэлбэрт", "minutes": 45, "confirm": true },
     { "name": "Хуйхны цэвэрлэгээ", "minutes": 60, "confirm": true },
     { "name": "Толгойн тос", "minutes": 45, "confirm": true },
-    { "name": "Хими / Sika", "minutes": 120 },
+    { "name": "Эмчилгээний хими", "minutes": 120, "aliases": ["Хими / Sika"] },
     { "name": "Эмэгтэй хими", "minutes": 120 },
     { "name": "Эрэгтэй хими", "minutes": 120 },
     { "name": "Будаг (Уг)", "minutes": 90, "confirm": true, "aliases": ["Будаг/угны", "Будаг /угны/"] },

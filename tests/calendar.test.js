@@ -737,11 +737,11 @@ test('available-slots: selected services add up', async () => {
     data: { calendars: { [VALID_CALENDAR_ID]: { busy: [] } } },
   };
   const app = buildApp();
-  // Угаалт (30) + Энгийн засалт (60) + Хими / Sika (120) = 210 minutes.
+  // Угаалт (30) + Энгийн засалт (60) + Эмчилгээний хими (120) = 210 minutes.
   const { status, body } = await request(app, 'GET', '/api/calendar/available-slots', {
     date: VALID_DATE,
     stylistId: VALID_STYLIST_ID,
-    services: 'Угаалт,Энгийн засалт,Хими / Sika',
+    services: 'Угаалт,Энгийн засалт,Эмчилгээний хими',
   });
   assert.equal(status, 200);
   assert.equal(body.durationMinutes, 210);
@@ -802,8 +802,9 @@ test('available-slots: names differing only in punctuation or ё/е still resolv
     data: { calendars: { [VALID_CALENDAR_ID]: { busy: [] } } },
   };
   const app = buildApp();
-  // The price list spells it "Оффис колор/Сор"; the booking checkbox is
-  // "Оффис колор". Both must mean 240 minutes.
+  // "Оффис колор/Сор" is a retired label — the price list used to run the two
+  // separate services together under it, and bookings taken then still carry the
+  // string. It is kept as an alias of "Оффис колор", so both mean 240 minutes.
   const { body: viaAlias } = await request(app, 'GET', '/api/calendar/available-slots', {
     date: VALID_DATE, stylistId: VALID_STYLIST_ID, services: 'Оффис колор/Сор',
   });
@@ -813,6 +814,40 @@ test('available-slots: names differing only in punctuation or ё/е still resolv
     date: VALID_DATE, stylistId: VALID_STYLIST_ID, services: 'Чёлк тайралт',
   });
   assert.equal(viaYo.durationMinutes, 15);
+
+  // "Хими / Sika" is the label the booking list used before the salon confirmed
+  // the service is «Эмчилгээний хими». Appointments booked under it are still
+  // in the calendars, so it must keep resolving to the same 2 hours.
+  const { body: viaOldPerm } = await request(app, 'GET', '/api/calendar/available-slots', {
+    date: VALID_DATE, stylistId: VALID_STYLIST_ID, services: 'Хими / Sika',
+  });
+  assert.equal(viaOldPerm.durationMinutes, 120);
+
+  const { body: viaNewPerm } = await request(app, 'GET', '/api/calendar/available-slots', {
+    date: VALID_DATE, stylistId: VALID_STYLIST_ID, services: 'Эмчилгээний хими',
+  });
+  assert.equal(viaNewPerm.durationMinutes, 120);
+});
+
+test('available-slots: Сор and Оффис колор are separate services, not one', async () => {
+  calendarStub._freebusyError = null;
+  calendarStub._freebusyResult = {
+    data: { calendars: { [VALID_CALENDAR_ID]: { busy: [] } } },
+  };
+  const app = buildApp();
+  // The salon runs plain Сор and Оффис колор (three dyes combined) as different
+  // services at different lengths. A customer who ticks Сор must not have four
+  // hours of the stylist's day taken, and one who ticks Оффис колор must not be
+  // offered a start that only fits three.
+  const { body: sor } = await request(app, 'GET', '/api/calendar/available-slots', {
+    date: VALID_DATE, stylistId: VALID_STYLIST_ID, services: 'Сор',
+  });
+  assert.equal(sor.durationMinutes, 180);
+
+  const { body: office } = await request(app, 'GET', '/api/calendar/available-slots', {
+    date: VALID_DATE, stylistId: VALID_STYLIST_ID, services: 'Оффис колор',
+  });
+  assert.equal(office.durationMinutes, 240);
 });
 
 test('available-slots: a service too long for the day offers nothing at all', async () => {
