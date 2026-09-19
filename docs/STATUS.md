@@ -73,11 +73,44 @@ loses bookable slots; too short and the original bug comes back milder. Someone
 at the salon should walk the list. Editing the JSON is the entire change — no
 code, no redeploy logic, and the booking UI picks it up on next load.
 
+### The gallery photos are someone else's marketing
+
+The retired booking number **7741-7777 was live on `zurag.html` as pixels**, not
+text — burned into a contact banner across the bottom of `Pictures_Page/Male/pic9.jpg`
+and `Pictures_Page/Female/pic7.jpg`, twice in each (a reception line
+`77417777→1→5→5` and a stylist extension). No grep over the repo could see it.
+Both banners were cropped off; the photos above them are untouched, re-encoded
+with their own quantization tables so nothing else changed.
+
+The banners say more than a phone number. They advertise **ЖЕМ ПАЛАС** (Gem
+Palace) and **WWW.MATRIXSALON.MN** — a different branch and a different domain
+from this salon's own Yaarmag address and `matrixecosalon.org`. Three more
+gallery images (`Female/pic3`, `pic4`, `pic5`) carry the same banner's header
+strip, cropped so the digits fall below the frame; they hold no contact details
+and were left alone. Four posters in `files/` (`Budag.jpeg`, `OfficeOroolt.jpeg`,
+`HollywoodOroolt.jpeg`, `EleganceOroolt.jpeg`) carry a **seven-branch location
+list** and third-party financing logos, and `files/OfficeColor.png` carries a
+**15% OFF campaign that expired 2023-02-20** — which is why `SERVICE_IMAGE_MAP`
+no longer points «Будаг» or «Оффис колор» at them.
+
+**For a human:** these assets came from the larger Matrix chain's marketing, so
+any re-export can bring the wrong number, branch or domain back with it. Before
+adding a picture to the gallery or to `SERVICE_IMAGE_MAP`, look at the bottom
+10% of the frame. Photographs of this salon's own work, without a burned-in
+banner, would retire the problem for good.
+
 ### Live-site verification was never done
 
 The session that wrote this could not reach the deployed site: the environment's
 egress policy blocks `*.vercel.app` **and** `matrixecosalon.org` (403 at the
 gateway), and preview deployments sit behind Vercel SSO.
+
+**There is a way through, found later:** the Vercel MCP tool
+`mcp__Vercel__web_fetch_vercel_url` fetches production URLs fine — that is how
+the burned-in number above was confirmed live, and how `robots.txt`,
+`sitemap.xml` and `manifest.json` were confirmed to 404. It does **not** get past
+SSO on a preview deployment's HTML, so a branch still has to merge before the
+rendered page can be read.
 
 What was done instead: the real Express app run over real HTTP with only the
 Google Calendar client stubbed — same routing, same Cyrillic query decoding,
