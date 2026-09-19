@@ -73,6 +73,26 @@ loses bookable slots; too short and the original bug comes back milder. Someone
 at the salon should walk the list. Editing the JSON is the entire change — no
 code, no redeploy logic, and the booking UI picks it up on next load.
 
+### The price list lives in two repositories
+
+`data/pricing.json` is not the only copy of the salon's prices. The Messenger and
+website chatbot — **[dalatechai-cyber/matrix-chatbot](https://github.com/dalatechai-cyber/matrix-chatbot)**,
+live at `matrix-chatbot-seven.vercel.app` — keeps its own list in
+`config/currentClient.js`, and that list is what the bot quotes to a customer.
+When the salon corrected three services in September 2026, both copies were
+wrong in the same way, because both were built from the same reading of
+`Тариф.xlsx`.
+
+Worse, the bot's `lib/systemPromptBuilder.js` had a standing rule *instructing* it
+to reproduce one of the errors (that «CICA» and «Сор» each name two services), and
+its contact block and three pinned handoff replies carried the retired phone
+number — the number a customer is given at the moment the bot gives up.
+
+**So a price or a service name changed here is only half the change.** The other
+half is that repo. The same is true of the salon's phone number, its address and
+its opening hours. There is no shared source between them; keeping them in step
+is a human step, every time.
+
 ### The gallery photos are someone else's marketing
 
 The retired booking number **7741-7777 was live on `zurag.html` as pixels**, not
