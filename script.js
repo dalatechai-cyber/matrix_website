@@ -116,9 +116,14 @@ const STYLIST_CONFIG_CLIENT = {
   'Г. Мөнхзаяа':     { price: 20000, level: 'Маникюр', durationMinutes: 90 },
 };
 
+// Photos shown behind a card's "Зураг харах" button, keyed by normalised service
+// name. Only work the salon can stand behind today belongs here: files/ also holds
+// OfficeColor.png (a 15%-OFF campaign that ran 07–20 Feb 2023) and Budag.jpeg (an
+// interest-free-instalment promo listing seven branches this salon does not have),
+// and neither is a picture of the service. Until the salon supplies a photo of the
+// colour work itself, «Будаг» and «Оффис колор» show no button rather than an
+// expired discount — the site is not discount-driven (PRODUCT.md).
 const SERVICE_IMAGE_MAP = {
-  "будаг": ["files/Budag.jpeg"],
-  "оффис колор": ["files/OfficeColor.png"],
   "холливуд ороолт": ["files/HollywoodOroolt.jpeg"],
   "элегант ороолт": ["files/EleganceOroolt.jpeg"],
   "оффис ороолт": ["files/OfficeOroolt.jpeg"],

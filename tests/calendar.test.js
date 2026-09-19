@@ -803,8 +803,9 @@ test('available-slots: names differing only in punctuation or ё/е still resolv
   };
   const app = buildApp();
   // "Оффис колор/Сор" is a retired label — the price list used to run the two
-  // separate services together under it, and bookings taken then still carry the
-  // string. It is kept as an alias of "Оффис колор", so both mean 240 minutes.
+  // separate services together under it. It is kept as an alias of "Оффис колор"
+  // because the string still arrives (a cached script.js, or staff quoting the
+  // salon's own spelling), and both must mean 240 minutes.
   const { body: viaAlias } = await request(app, 'GET', '/api/calendar/available-slots', {
     date: VALID_DATE, stylistId: VALID_STYLIST_ID, services: 'Оффис колор/Сор',
   });
@@ -816,8 +817,8 @@ test('available-slots: names differing only in punctuation or ё/е still resolv
   assert.equal(viaYo.durationMinutes, 15);
 
   // "Хими / Sika" is the label the booking list used before the salon confirmed
-  // the service is «Эмчилгээний хими». Appointments booked under it are still
-  // in the calendars, so it must keep resolving to the same 2 hours.
+  // the service is «Эмчилгээний хими». A browser still holding the old script.js
+  // posts it, so it must keep resolving to the same 2 hours.
   const { body: viaOldPerm } = await request(app, 'GET', '/api/calendar/available-slots', {
     date: VALID_DATE, stylistId: VALID_STYLIST_ID, services: 'Хими / Sika',
   });

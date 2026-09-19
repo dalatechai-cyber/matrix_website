@@ -142,8 +142,8 @@ test('price list: renamed services still resolve to a booking duration', () => {
   for (const name of ['Эмчилгээний хими', 'Оффис колор', 'Сор']) {
     assert.ok(durationForService(name) > 0, `${name} has no duration — booking would guess`);
   }
-  // Retired labels stay resolvable: appointments booked under them are still in
-  // the stylists' calendars.
+  // Retired labels stay resolvable because names still arrive under them: a
+  // browser holding a cached script.js posts the old checkbox value.
   for (const [retired, minutes] of [['Хими / Sika', 120], ['Оффис колор/Сор', 240], ['Будаг/угны', 90], ['Будаг/бүтэн', 120]]) {
     assert.equal(durationForService(retired), minutes, `retired label ${retired} stopped resolving`);
   }

@@ -52,7 +52,7 @@ Design decisions worth knowing before changing this:
 - **The slot grid did not change** — hairdressers on the hour, manicurist every
   30 minutes. Only the *last* start moved.
 
-`npm test` → **119 passing**.
+`npm test` → **128 passing**.
 
 ---
 
@@ -131,7 +131,7 @@ three options.
 
 | | |
 | --- | --- |
-| Tests | `npm test` (119) |
+| Tests | `npm test` (128) |
 | Durations | `data/serviceDurations.json` |
 | Server accessor | `config/serviceDurations.js` |
 | Full rationale | [docs/SERVICE_DURATIONS.md](SERVICE_DURATIONS.md) |

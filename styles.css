@@ -389,9 +389,8 @@ a {
   box-shadow: 0 18px 32px rgba(0, 0, 0, 0.28);
 }
 
-/* Cards stretch to match the tallest (group) card in their row. Center a
-   simple card's content so the extra height reads as calm padding rather
-   than rows spread awkwardly apart. */
+/* Cards size to their own content (see .subcategory-services). Centering keeps a
+   simple card's two lines settled if a row ever stretches it anyway. */
 .price-card:not(.price-group) {
   align-content: center;
 }
@@ -469,6 +468,10 @@ a {
   display: grid;
   gap: 0.8rem;
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  /* Each card keeps its own height, as in .pricing-grid. A service priced by
+     hair length is three rows taller than its neighbours, and stretching the
+     row to match leaves a one-line card holding 300px of nothing. */
+  align-items: start;
   margin-bottom: 0.8rem;
   max-height: 9999px;
   transition: all 0.3s ease;
@@ -1325,6 +1328,18 @@ a {
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 2rem;
   align-items: center;
+}
+
+/* The address and the phone numbers are the conversion path on a phone — one
+   opens Maps, the others dial. The global `a { color: inherit }` left them
+   identical to the sentence around them in every state, so they carry the accent
+   (9.6:1 on the base, and already the treatment of the social links below) plus
+   an underline, which marks them as links without relying on colour alone. */
+.contact-grid p a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
 }
 
 .contact-card {
