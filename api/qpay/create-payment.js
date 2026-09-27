@@ -86,7 +86,7 @@ module.exports = async function handler(req, res) {
         // Evidence for a later dispute, alongside the line written on the
         // calendar event: which invoice was created after the customer agreed.
         console.log('Deposit terms accepted:', JSON.stringify({
-            invoice_id: invoiceRes.data && invoiceRes.data.invoice_id,
+            invoice_id: invoiceRes.data && (invoiceRes.data.invoice_id || invoiceRes.data.id),
             staffName,
             customerGender: rulesCheck.customerGender,
             bookingDate: req.body.bookingDate,
