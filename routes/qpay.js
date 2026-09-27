@@ -12,6 +12,8 @@ const { sendSalonAlert } = require('../services/telegram');
 const { findClosure } = require('../config/closures');
 const { totalDurationFor } = require('../config/serviceDurations');
 
+const { blockedByMaintenance, MAINTENANCE_MESSAGE } = require('../config/siteMode');
+
 const router = express.Router();
 
 // Used only when an invoice carries no service list (older invoice, or a direct
@@ -124,6 +126,11 @@ function cleanAmountForCallback(amount) {
  */
 router.post('/create-payment', async (req, res) => {
   const { name, phone, amount, description, staffName, selectedServices, serviceName } = req.body || {};
+
+  // Maintenance: no new invoices (payments already made are still honoured).
+  if (blockedByMaintenance(req)) {
+    return res.status(503).json({ error: MAINTENANCE_MESSAGE, maintenance: true });
+  }
 
   if (!name || !phone || !amount || !description) {
     return res.status(400).json({

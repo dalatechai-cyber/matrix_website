@@ -8,6 +8,8 @@ const { totalDurationFor } = require('../config/serviceDurations');
 const { normalizeCustomerGender, checkGenderMatch } = require('../services/bookingRules');
 const { ensurePaidBooking, alertBookingFailure } = require('../services/bookingWriter');
 
+const { blockedByMaintenance, MAINTENANCE_MESSAGE } = require('../config/siteMode');
+
 const router = express.Router();
 
 // Fallback appointment length in minutes, used only when the request names no
@@ -95,6 +97,12 @@ router.get('/closures', (_req, res) => {
  */
 router.get('/available-slots', async (req, res) => {
   const { date, stylistId, services } = req.query;
+
+  // Maintenance: offer no times (the pages already show the notice; this
+  // covers a tab opened before it was switched on).
+  if (blockedByMaintenance(req)) {
+    return res.status(503).json({ error: MAINTENANCE_MESSAGE, maintenance: true });
+  }
 
   if (!date || !stylistId) {
     return res.status(400).json({ error: 'date and stylistId query parameters are required' });

@@ -2,10 +2,18 @@ const axios = require('axios');
 const { checkPaymentRequest } = require('../../services/closureGuard');
 const { checkPaymentBookingRules, consentTime, REFRESH_MESSAGE } = require('../../services/bookingRules');
 const { callbackUrlForPayment, publicOrigin } = require('../../services/lateBooking');
+const { blockedByMaintenance, MAINTENANCE_MESSAGE } = require('../../config/siteMode');
 
 module.exports = async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ message: 'Зөвхөн POST хүсэлт зөвшөөрөгдөнө' });
+    }
+
+    // --- 0а. ЗАСВАРТАЙ ҮЕД ШИНЭ ТӨЛБӨР ҮҮСГЭХГҮЙ ---
+    // SITE_MAINTENANCE=on: no new invoices. Payments already made are still
+    // booked (check-payment, /api/calendar/book and the QPay callback stay open).
+    if (blockedByMaintenance(req)) {
+        return res.status(503).json({ error: MAINTENANCE_MESSAGE, maintenance: true });
     }
 
     // --- 0. САЛОН АМАРЧ БАЙХ ӨДӨРТ ТӨЛБӨР ҮҮСГЭХГҮЙ ---
