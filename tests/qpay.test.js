@@ -380,7 +380,7 @@ async function expectRefused(body, reason) {
   });
   assert.equal(status, 422);
   assert.equal(res.reason, reason);
-  assert.equal(res.error, 'Хуудсаа шинэчлээд дахин оролдоно уу.');
+  assert.equal(res.error, 'Уучлаарай, хуудсаа шинэчлээд дахин оролдоно уу.');
   assert.equal(axiosStub._calls.length, 0, 'QPay must not be called');
   assert.equal(paymentStatuses['inv_rule_001'], undefined);
 }

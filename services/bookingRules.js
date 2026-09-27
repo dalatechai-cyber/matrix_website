@@ -28,7 +28,7 @@ const DEPOSIT_TERMS_TEXT =
  * tab still running a script.js from before the rules existed — and reloading
  * is exactly what fixes it.
  */
-const REFRESH_MESSAGE = 'Хуудсаа шинэчлээд дахин оролдоно уу.';
+const REFRESH_MESSAGE = 'Уучлаарай, хуудсаа шинэчлээд дахин оролдоно уу.';
 
 // How far a browser-reported consent time may sit from the server's clock and
 // still be recorded as given. Outside it, the server's own time is used.
