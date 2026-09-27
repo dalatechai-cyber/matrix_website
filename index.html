@@ -189,6 +189,11 @@
             <div id="qpay-qr-wrapper" class="qpay-qr-wrapper">
               <img id="qpay-qr-img" src="" alt="QPay QR код" class="qpay-qr-img" />
             </div>
+            <p id="qpay-countdown" class="qpay-countdown"></p>
+            <div id="qpay-expired" class="qpay-expired" style="display:none;" role="alert">
+              <p>QR кодын хугацаа дууслаа. Шинэ QR код авах бол доорх товчийг дарна уу.</p>
+              <button type="button" id="qpay-renew-btn" class="primary-btn qpay-renew-btn">Шинэ QR код авах</button>
+            </div>
             <div id="qpay-bank-buttons" class="qpay-bank-buttons"></div>
             <p id="qpay-error" class="qpay-error" style="display:none;"></p>
             <p class="qpay-warning">⚠️ Анхааруулга: Төлбөр буцаан олгохгүй. Цагаа өөрчлөхийн тулд 3 цагийн өмнө бидэнтэй холбогдоно уу.</p>
@@ -258,6 +263,37 @@
         }
         .qpay-bank-btn:hover { opacity: 0.85; }
         .qpay-error { color: #e53e3e; margin-top: 0.5rem; }
+        .qpay-countdown {
+          margin: 0.5rem 0 0.25rem;
+          font-weight: 700;
+          font-size: 0.95rem;
+          font-variant-numeric: tabular-nums;
+          color: #14432f;
+        }
+        .qpay-expired {
+          margin: 0.75rem 0;
+          padding: 1rem;
+          border-radius: 10px;
+          background: #fffbeb;
+          border: 1.5px solid rgba(245, 158, 11, 0.55);
+          color: #1a1a1a;
+          line-height: 1.5;
+        }
+        .qpay-expired p { margin: 0 0 0.75rem; }
+        .qpay-renew-btn { width: 100%; min-height: 48px; }
+        .qpay-renew-btn:disabled { opacity: 0.6; }
+        .slot-taken-notice {
+          width: 100%;
+          margin: 0 0 0.6rem;
+          padding: 0.6rem 0.8rem;
+          border-radius: 8px;
+          background: #fef2f2;
+          border: 1.5px solid #fca5a5;
+          color: #991b1b;
+          font-weight: 600;
+          font-size: 0.875rem;
+          line-height: 1.45;
+        }
         .qpay-warning {
           margin-top: 1rem;
           padding: 0.6rem 0.9rem;
@@ -518,6 +554,6 @@
       </div>
     </footer>
 
-    <script src="script.js?v=2026-09-27c"></script>
+    <script src="script.js?v=2026-09-27d"></script>
   </body>
 </html>

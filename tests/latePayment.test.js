@@ -22,7 +22,7 @@ process.env.TELEGRAM_BOT_TOKEN = 'bot-token';
 process.env.TELEGRAM_CHAT_ID = '-100123';
 
 // --- Google Calendar stub: an in-memory calendar per calendarId -------------
-const cal = { events: {}, busy: [], inserts: [], insertError: null, freebusyCalls: 0 };
+const cal = { events: {}, busy: [], inserts: [], insertError: null, freebusyCalls: 0, patches: [] };
 // --- axios stub: QPay + Telegram -------------------------------------------
 const net = { paid: true, invoiceDesc: 'Сараа - 99112233', telegram: [], checkError: null, calls: [], paymentObject: null };
 
@@ -48,6 +48,11 @@ Module._load = function (request) {
                   && (!q || `${e.summary} ${e.description}`.includes(q))),
               },
             }),
+            patch: async ({ eventId, requestBody }) => {
+              cal.patches.push({ eventId, requestBody });
+              Object.assign(cal.events[eventId], requestBody);
+              return { data: cal.events[eventId] };
+            },
             get: async ({ eventId }) => {
               if (cal.events[eventId]) return { data: cal.events[eventId] };
               const e = new Error('Not Found'); e.code = 404; throw e;
@@ -92,7 +97,7 @@ const qpayRouter = require('../routes/qpay');
 const calendarRouter = require('../routes/calendar');
 const createPaymentHandler = require('../api/qpay/create-payment');
 const { callbackUrlFor } = require('../services/lateBooking');
-const { eventIdForInvoice } = require('../services/bookingWriter');
+const { eventIdForInvoice, eventIdForBooking } = require('../services/bookingWriter');
 const qpayService = require('../services/qpay');
 
 function buildApp() {
@@ -134,7 +139,7 @@ function callbackPath(overrides = {}) {
 }
 
 beforeEach(() => {
-  cal.events = {}; cal.busy = []; cal.inserts = []; cal.insertError = null; cal.freebusyCalls = 0;
+  cal.events = {}; cal.busy = []; cal.inserts = []; cal.insertError = null; cal.freebusyCalls = 0; cal.patches = [];
   net.paid = true; net.invoiceDesc = 'Сараа - 99112233'; net.telegram = []; net.checkError = null; net.calls = []; net.paymentObject = null;
   qpayService._resetTokenCache();
 });
@@ -145,7 +150,7 @@ test('late payment, slot still free: the appointment is booked, no alert', async
   assert.equal(body.handled, 'booked');
   assert.equal(cal.inserts.length, 1);
   const ev = cal.inserts[0];
-  assert.equal(ev.id, eventIdForInvoice('inv_1'));
+  assert.equal(ev.id, eventIdForBooking(OUYNSUREN_CAL, new Date('2035-06-04T06:00:00Z'), '99112233'));
   assert.equal(ev.calendarId, OUYNSUREN_CAL);
   assert.equal(ev.start.dateTime, '2035-06-04T06:00:00.000Z');
   assert.equal(ev.end.dateTime, '2035-06-04T07:00:00.000Z');
@@ -269,7 +274,8 @@ test('a callback naming only the payment (GET ?qpay_payment_id=) is resolved to 
   const { status, body } = await request(buildApp(), 'GET', callbackPath() + '&qpay_payment_id=pay_12');
   assert.equal(status, 200);
   assert.equal(body.handled, 'booked');
-  assert.equal(cal.inserts[0].id, eventIdForInvoice('inv_12'));
+  assert.equal(cal.inserts[0].id, eventIdForBooking(OUYNSUREN_CAL, new Date('2035-06-04T06:00:00Z'), '99112233'));
+  assert.ok(cal.inserts[0].description.includes('QPay invoice: inv_12'));
 });
 
 test('no invoice id at all, but the browser already booked this phone into the slot: no alert', async () => {
@@ -288,6 +294,46 @@ test('a late test payment is booked as «ТЕСТ»', async () => {
   const { body } = await request(buildApp(), 'POST', callbackPath({ test: true, amount: 100 }), { object_id: 'inv_t1' });
   assert.equal(body.handled, 'booked');
   assert.ok(cal.inserts[0].summary.startsWith('ТЕСТ – '), cal.inserts[0].summary);
+});
+
+test('an expired QR replaced by a new one: paying the new invoice books once', async () => {
+  // Invoice A expired unpaid; the customer took a new QR (invoice B) and paid it.
+  const app = buildApp();
+  const cb = await request(app, 'POST', callbackPath(), { object_id: 'inv_B' });
+  assert.equal(cb.body.handled, 'booked');
+  const book = await request(app, 'POST', '/api/calendar/book', {
+    stylistId: 'Оюунсүрэн', startTime: '2035-06-04T14:00:00+08:00', customerPhone: '99112233',
+    selectedServices: 'Энгийн засалт', customerGender: 'female', invoiceId: 'inv_B',
+  });
+  assert.equal(book.body.alreadyBooked, true);
+  assert.equal(cal.inserts.length, 1);
+  assert.equal(net.telegram.length, 0);
+});
+
+test('both the old and the new invoice paid: one booking, staff told once to refund one', async () => {
+  const app = buildApp();
+  await request(app, 'POST', callbackPath(), { object_id: 'inv_A' });
+  const second = await request(app, 'POST', callbackPath(), { object_id: 'inv_B' });
+  assert.equal(second.body.handled, 'already-booked');
+  assert.equal(cal.inserts.length, 1, 'never a second appointment');
+  assert.equal(net.telegram.length, 1);
+  assert.ok(net.telegram[0].includes('давхар төлбөр') && net.telegram[0].includes('inv_B'), net.telegram[0]);
+  // QPay retrying the second callback does not alert again.
+  await request(app, 'POST', callbackPath(), { object_id: 'inv_B' });
+  assert.equal(net.telegram.length, 1);
+  assert.equal(cal.inserts.length, 1);
+});
+
+test('a booking written under the older per-invoice id is still recognised', async () => {
+  cal.events[eventIdForInvoice('inv_old')] = {
+    id: eventIdForInvoice('inv_old'), calendarId: OUYNSUREN_CAL, status: 'confirmed',
+    description: 'QPay invoice: inv_old', start: { dateTime: '2035-06-04T06:00:00.000Z' }, end: { dateTime: '2035-06-04T07:00:00.000Z' },
+  };
+  cal.busy = [{ start: '2035-06-04T06:00:00Z', end: '2035-06-04T07:00:00Z' }];
+  const { body } = await request(buildApp(), 'POST', callbackPath(), { object_id: 'inv_old' });
+  assert.equal(body.handled, 'already-booked');
+  assert.equal(cal.inserts.length, 0);
+  assert.equal(net.telegram.length, 0);
 });
 
 test('a long appointment keeps its signed length when booked late', async () => {

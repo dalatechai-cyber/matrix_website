@@ -219,3 +219,12 @@ test('booking: the browser list of hairdressers matches the server, gender inclu
     assert.equal(server.level, level, `${id} level differs`);
   }
 });
+
+test('booking: the QR expiry wording is the approved text', () => {
+  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const script = fs.readFileSync(path.join(ROOT, 'script.js'), 'utf8');
+  assert.ok(html.includes('QR кодын хугацаа дууслаа. Шинэ QR код авах бол доорх товчийг дарна уу.'));
+  assert.ok(html.includes('>Шинэ QR код авах</button>'));
+  assert.ok(script.includes('`QR код ${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")} хүчинтэй`'));
+  assert.ok(script.includes('Уучлаарай, энэ цаг өөр хүнд захиалагдсан байна. Өөр цаг сонгоно уу.'));
+});
