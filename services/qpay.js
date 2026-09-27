@@ -119,8 +119,45 @@ async function checkPayment(invoiceId) {
   }
 }
 
+/**
+ * Fetch an invoice's details (status, amount, description) from QPay.
+ *
+ * @param {string} invoiceId
+ * @returns {Promise<object>}
+ */
+async function getInvoice(invoiceId) {
+  const accessToken = await getQPayToken();
+  const response = await axios.get(
+    `${QPAY_BASE_URL}/invoice/${encodeURIComponent(invoiceId)}`,
+    { headers: { Authorization: `Bearer ${accessToken}` }, timeout: 8000 },
+  );
+  return response.data;
+}
+
+/**
+ * Fetch one payment's details; `object_id` is the invoice it paid.
+ *
+ * @param {string} paymentId
+ * @returns {Promise<object>}
+ */
+async function getPayment(paymentId) {
+  const accessToken = await getQPayToken();
+  const response = await axios.get(
+    `${QPAY_BASE_URL}/payment/${encodeURIComponent(paymentId)}`,
+    { headers: { Authorization: `Bearer ${accessToken}` }, timeout: 8000 },
+  );
+  return response.data;
+}
+
+/** Whether a /payment/check response shows the invoice as paid. */
+function isPaidCheck(data) {
+  if (!data) return false;
+  if (data.invoice_status === 'PAID') return true;
+  return Array.isArray(data.rows) && data.rows.some((row) => row && row.payment_status === 'PAID');
+}
+
 function _resetTokenCache() {
   _tokenCache = null;
 }
 
-module.exports = { getQPayToken, createInvoice, checkPayment, _resetTokenCache };
+module.exports = { getQPayToken, createInvoice, checkPayment, getInvoice, getPayment, isPaidCheck, _resetTokenCache };

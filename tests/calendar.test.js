@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const { test } = require('node:test');
+const { test, beforeEach } = require('node:test');
 const http = require('node:http');
 const express = require('express');
 
@@ -22,6 +22,8 @@ const calendarStub = {
   _insertResult: null,
   _insertError: null,
   _lastInsertArg: null,
+  // Events already on the calendar, by id (for the per-invoice idempotency check).
+  _events: {},
 };
 
 const Module = require('node:module');
@@ -48,6 +50,10 @@ Module._load = function (request, parent, isMain) {
             },
           },
           events: {
+            get: async ({ eventId }) => {
+              if (calendarStub._events[eventId]) return { data: calendarStub._events[eventId] };
+              const err = new Error('Not Found'); err.code = 404; throw err;
+            },
             insert: async (arg) => {
               calendarStub._lastInsertArg = arg;
               if (calendarStub._insertError) throw calendarStub._insertError;
@@ -60,6 +66,13 @@ Module._load = function (request, parent, isMain) {
   }
   return originalLoad.apply(this, arguments);
 };
+
+// Each test starts with an empty calendar: no busy periods, no events.
+beforeEach(() => {
+  calendarStub._freebusyResult = null;
+  calendarStub._freebusyError = null;
+  calendarStub._events = {};
+});
 
 // Load route and service utilities after stubs are in place
 const calendarRouter = require('../routes/calendar');

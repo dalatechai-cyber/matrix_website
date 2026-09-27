@@ -5,14 +5,8 @@ const { getCalendarClient } = require('../services/googleCalendar');
 const { STYLIST_CONFIG } = require('../config/stylists');
 const { getClosures, findClosure, salonDateOf } = require('../config/closures');
 const { totalDurationFor } = require('../config/serviceDurations');
-const {
-  CUSTOMER_GENDER_LABELS,
-  DEPOSIT_TERMS_TEXT,
-  normalizeCustomerGender,
-  checkGenderMatch,
-  consentTime,
-  formatSalonTime,
-} = require('../services/bookingRules');
+const { normalizeCustomerGender, checkGenderMatch } = require('../services/bookingRules');
+const { ensurePaidBooking, alertBookingFailure } = require('../services/bookingWriter');
 
 const router = express.Router();
 
@@ -272,70 +266,43 @@ router.post('/book', async (req, res) => {
     console.warn('book: no customer gender recorded for booking with', stylistId);
   }
 
+  const start = new Date(startTime);
+  if (Number.isNaN(start.getTime())) {
+    return res.status(400).json({ error: 'startTime is not a valid date' });
+  }
+  const booking = {
+    stylistId,
+    start,
+    services: selectedServices || serviceName || '',
+    customerName,
+    customerPhone,
+    customerEmail,
+    customerGender: gender,
+    depositTermsAccepted,
+    depositTermsAcceptedAt,
+    invoiceId,
+  };
+
   try {
     const calendar = await getCalendarClient();
-
-    const start = new Date(startTime);
-    const { minutes: durationMinutes, unknown } = resolveDurationMinutes({
-      services: selectedServices || serviceName,
-      // A booking with no identifiable service is given a full hour.
-      fallbackMinutes: DEFAULT_DURATION_MINUTES,
-    });
-    if (unknown.length > 0) {
-      console.warn('book: no duration configured for service(s):', unknown.join(', '));
+    // The deposit is the stylist's tier price (the same figure the page charged).
+    const result = await ensurePaidBooking(calendar, booking, { amount: stylist.price });
+    if (result.status === 'conflict') {
+      // The customer has paid, but the slot went to someone else in the
+      // meantime. Staff have been alerted to arrange a time; tell the browser
+      // so the customer is not shown a confirmation for a slot they lack.
+      return res.status(409).json({ error: 'Slot no longer free', conflict: true });
     }
-    const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
-
-    const descriptionParts = [];
-    if (customerName) descriptionParts.push(`Name: ${customerName}`);
-    if (customerPhone) descriptionParts.push(`Phone: ${customerPhone}`);
-    if (customerEmail) descriptionParts.push(`Email: ${customerEmail}`);
-    descriptionParts.push(`Price: ${stylist.price} MNT (${stylist.level})`);
-    // Written out so the stylist can see the length the slot was reserved for,
-    // and spot a service whose configured duration does not match reality.
-    descriptionParts.push(`Duration: ${durationMinutes} min`);
-    descriptionParts.push(`Customer: ${gender ? `${CUSTOMER_GENDER_LABELS[gender]} (${gender})` : 'not recorded'}`);
-    if (depositTermsAccepted === true) {
-      const consent = consentTime(depositTermsAcceptedAt);
-      const note = consent.source === 'server' ? ' (time recorded at booking)' : '';
-      descriptionParts.push(`Deposit terms accepted: ${formatSalonTime(consent.at)}${note}`);
-      descriptionParts.push(`Agreed: «${DEPOSIT_TERMS_TEXT}»`);
-    } else {
-      console.warn('book: deposit terms agreement not recorded for booking with', stylistId);
-      descriptionParts.push('Deposit terms accepted: NOT RECORDED');
-    }
-    if (typeof invoiceId === 'string' && invoiceId) {
-      descriptionParts.push(`QPay invoice: ${invoiceId.slice(0, 100)}`);
-    }
-
-    const services = selectedServices || serviceName || '';
-    const summary = customerPhone
-      ? `${customerPhone} - ${services || customerName || 'Appointment'}`
-      : (services || customerName || 'Appointment');
-
-    const event = {
-      summary,
-      description: descriptionParts.join('\n'),
-      start: { dateTime: start.toISOString() },
-      end: { dateTime: end.toISOString() },
-    };
-
-    const response = await calendar.events.insert({
-      calendarId: stylist.calendarId,
-      requestBody: event,
-    });
-
-    console.log(
-      'Calendar booking created:', response.data.id,
-      'for stylist', stylistId,
-      `(${durationMinutes} min)`,
-    );
     return res.status(200).json({
       message: 'Booking created successfully',
-      eventId: response.data.id,
+      eventId: result.eventId,
+      alreadyBooked: result.status === 'already-booked',
     });
   } catch (err) {
     console.error('Failed to create calendar booking:', err.message || err);
+    // Only a paid customer's browser gets here; they now hold a receipt and no
+    // appointment. Make sure a person knows.
+    await alertBookingFailure({ ...booking, amount: stylist.price, error: err.message || err });
     return res.status(500).json({
       error: 'Failed to create calendar booking',
       details: err.message || String(err),
