@@ -1711,6 +1711,9 @@ async function initiateQPayPayment({ amount, name, phone, description, staffName
         staffName,
         // The date the deposit is for, so the server can refuse a closed day.
         bookingDate: (bookingDetails || {}).date,
+        // Signed into the invoice's callback, so a payment that arrives after
+        // this page stops watching is still booked at the right length.
+        selectedServices,
         // The server refuses an invoice without these: the hairdresser must
         // serve this customer, and the deposit terms must have been agreed.
         customerGender,
@@ -1778,8 +1781,13 @@ async function initiateQPayPayment({ amount, name, phone, description, staffName
     // Start polling for payment confirmation if we have an invoice_id
     try {
       if (invoice_id) {
-        const MAX_POLL_ATTEMPTS = 100; // 5 minutes at 3-second intervals
+        // Every 3 s for the first 5 minutes, then every 12 s up to 30 minutes.
+        // A customer who pays later still than that (or closes the page) is
+        // booked by QPay's own callback to the server instead.
+        const FAST_POLL_TICKS = 100;
+        const MAX_POLL_TICKS = 600;
         let pollAttempts = 0;
+        let paidHandled = false;
         console.log("QR rendered. Starting poll for invoice:", invoice_id);
         qpayPollInterval = setInterval(async () => {
           if (!invoice_id) {
@@ -1789,12 +1797,14 @@ async function initiateQPayPayment({ amount, name, phone, description, staffName
             return;
           }
           pollAttempts++;
-          if (pollAttempts > MAX_POLL_ATTEMPTS) {
+          if (pollAttempts > MAX_POLL_TICKS) {
             clearInterval(qpayPollInterval);
             qpayPollInterval = null;
             console.warn('QPay polling timed out for invoice:', invoice_id);
             return;
           }
+          if (pollAttempts > FAST_POLL_TICKS && pollAttempts % 4 !== 0) return;
+          if (paidHandled) return;
           try {
             const pollRes = await fetch("/api/qpay/check-payment", {
               method: "POST",
@@ -1819,7 +1829,8 @@ async function initiateQPayPayment({ amount, name, phone, description, staffName
             pollData.payment_info?.payment_status === "PAID" ||
             pollData.paid === true ||
             (pollData.rows && pollData.rows.length > 0 && pollData.rows[0].payment_status === "PAID");
-          if (isPaid) {
+          if (isPaid && !paidHandled) {
+            paidHandled = true;
             clearInterval(qpayPollInterval);
             qpayPollInterval = null;
 
@@ -1853,6 +1864,7 @@ async function initiateQPayPayment({ amount, name, phone, description, staffName
             const { stylistId = "", date = "", time = "" } = bookingDetails || {};
             const startTime = date && time ? `${date}T${time}:00+08:00` : "";
             const calendarErrorMsg = "Төлбөр төлөгдсөн ч цаг бүртгэхэд алдаа гарлаа. Бидэнтэй холбогдоно уу.";
+            const slotTakenMsg = "Төлбөр тань амжилттай орсон. Харамсалтай нь сонгосон цаг тань энэ хооронд өөр хүнд захиалагдсан байна. Салоны ажилтан тантай удахгүй холбогдож өөр цаг тохирно.";
 
             function showCalendarError() {
               if (!successEl) return;
@@ -1901,6 +1913,16 @@ async function initiateQPayPayment({ amount, name, phone, description, staffName
                   successEl.querySelector(".js-success-stylist").textContent = stylistId;
                   successEl.querySelector(".js-success-date").textContent    = date;
                   successEl.querySelector(".js-success-time").textContent    = time;
+                  successEl.querySelector(".booking-close-btn")?.addEventListener("click", () => {
+                    resetBookingForm();
+                  });
+                } else if (bookRes.status === 409 && (await bookRes.json().catch(() => ({}))).conflict) {
+                  // Paid, but the slot went to someone else meanwhile. The salon
+                  // has been alerted with the customer's details.
+                  successEl.innerHTML = `
+                    <p class="booking-error-text">${slotTakenMsg}</p>
+                    <button type="button" class="primary-btn booking-close-btn">Хаах</button>
+                  `;
                   successEl.querySelector(".booking-close-btn")?.addEventListener("click", () => {
                     resetBookingForm();
                   });

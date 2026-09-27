@@ -57,6 +57,27 @@ create-payment handlers (same reason as the closure guard):
 gender or agreement (it marks them "not recorded" instead) — only an explicit
 mismatch.
 
+## Paid invoices always end in a booking or an alert
+
+Every invoice carries a signed `callback_url`
+([services/lateBooking.js](services/lateBooking.js)) that QPay calls on payment,
+so a customer who pays after the page stops polling (5 min fast, then up to
+30 min) or closes it is still handled by `/api/qpay/late-payment`. The browser's
+`/api/calendar/book` and that callback share
+[services/bookingWriter.js](services/bookingWriter.js): one calendar event id per
+invoice (no duplicates, whichever arrives first), and if the slot was taken in
+the meantime, a non-blocking "⚠ ТӨЛСӨН, ЦАГ ДАВХЦСАН" note on the calendar plus a
+Telegram alert with the customer's details. Set in Vercel:
+
+| Variable | Meaning |
+| --- | --- |
+| `TELEGRAM_BOT_TOKEN` | Bot that posts salon alerts (from @BotFather) |
+| `TELEGRAM_CHAT_ID` | Salon chat/group the bot posts into |
+| `BOOKING_CALLBACK_SECRET` | Optional signing key for callbacks; defaults to one derived from `QPAY_PASSWORD` |
+
+Without the Telegram variables alerts are only logged (`SALON ALERT NOT SENT`)
+— the calendar note still records the paid customer.
+
 The salon no longer offers manicure (September 2026): no manicure service,
 price or stylist may appear or be bookable. The manicurist's Google Calendar
 keeps her past appointments and is simply no longer referenced.

@@ -1,10 +1,19 @@
 const axios = require('axios');
 const { checkPaymentRequest } = require('../../services/closureGuard');
 const { checkPaymentBookingRules, consentTime, REFRESH_MESSAGE } = require('../../services/bookingRules');
+const { callbackUrlForPayment, publicOrigin } = require('../../services/lateBooking');
+const { blockedByMaintenance, MAINTENANCE_MESSAGE } = require('../../config/siteMode');
 
 module.exports = async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ message: 'Зөвхөн POST хүсэлт зөвшөөрөгдөнө' });
+    }
+
+    // --- 0а. ЗАСВАРТАЙ ҮЕД ШИНЭ ТӨЛБӨР ҮҮСГЭХГҮЙ ---
+    // SITE_MAINTENANCE=on: no new invoices. Payments already made are still
+    // booked (check-payment, /api/calendar/book and the QPay callback stay open).
+    if (blockedByMaintenance(req)) {
+        return res.status(503).json({ error: MAINTENANCE_MESSAGE, maintenance: true });
     }
 
     // --- 0. САЛОН АМАРЧ БАЙХ ӨДӨРТ ТӨЛБӨР ҮҮСГЭХГҮЙ ---
@@ -59,6 +68,12 @@ module.exports = async function handler(req, res) {
         const token = tokenRes.data.access_token;
 
         // --- 3. PAYLOAD БЭЛДЭХ ---
+        // QPay calls callback_url when the customer pays, even long after the
+        // QR appeared or with the page closed; routes/qpay.js /late-payment
+        // then books the slot or alerts the salon. The URL carries the booking,
+        // signed (services/lateBooking.js). Omitted if it cannot be built.
+        const consent = consentTime(req.body.depositTermsAcceptedAt);
+        const callbackUrl = callbackUrlForPayment(publicOrigin(req), req.body, { agreedAt: consent.at, amount: finalAmount });
         const payload = {
             merchant_id: "17e69f2a-d1a4-4fe6-a5a2-34a649378414", // <-- Өөрийн 87ec2243... ID-гээ буцааж хийгээрэй
             amount: finalAmount, // Бодит үнэ
@@ -67,6 +82,8 @@ module.exports = async function handler(req, res) {
             mcc_code: '7230',
             bank_accounts: bankAccountsPayload
         };
+        if (callbackUrl) payload.callback_url = callbackUrl;
+        else console.warn('create-payment: no payment callback for this invoice (booking unreadable or no signing key)');
 
         // --- 4. INVOICE ҮҮСГЭХ ---
         const invoiceRes = await axios.post('https://quickqr.qpay.mn/v2/invoice', 
@@ -76,9 +93,8 @@ module.exports = async function handler(req, res) {
 
         // Evidence for a later dispute, alongside the line written on the
         // calendar event: which invoice was created after the customer agreed.
-        const consent = consentTime(req.body.depositTermsAcceptedAt);
         console.log('Deposit terms accepted:', JSON.stringify({
-            invoice_id: invoiceRes.data && invoiceRes.data.invoice_id,
+            invoice_id: invoiceRes.data && (invoiceRes.data.invoice_id || invoiceRes.data.id),
             staffName,
             customerGender: rulesCheck.customerGender,
             bookingDate: req.body.bookingDate,

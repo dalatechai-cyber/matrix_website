@@ -1,13 +1,18 @@
 'use strict';
 
 const express = require('express');
-const { createInvoice, checkPayment } = require('../services/qpay');
+const { createInvoice, checkPayment, getInvoice, getPayment, isPaidCheck } = require('../services/qpay');
 const { getCalendarClient } = require('../services/googleCalendar');
 const { STYLIST_CONFIG } = require('../config/stylists');
 const { checkPaymentRequest } = require('../services/closureGuard');
 const { checkPaymentBookingRules, consentTime, REFRESH_MESSAGE } = require('../services/bookingRules');
+const { callbackUrlForPayment, publicOrigin, decodeCallback } = require('../services/lateBooking');
+const { ensurePaidBooking, alertBookingFailure, hasBookingForPhone } = require('../services/bookingWriter');
+const { sendSalonAlert } = require('../services/telegram');
 const { findClosure } = require('../config/closures');
 const { totalDurationFor } = require('../config/serviceDurations');
+
+const { blockedByMaintenance, MAINTENANCE_MESSAGE } = require('../config/siteMode');
 
 const router = express.Router();
 
@@ -101,6 +106,10 @@ async function createCalendarEventForInvoice(invoiceId) {
   console.log('Calendar event created for invoice:', invoiceId, 'stylist:', parsed.stylistId);
 }
 
+function cleanAmountForCallback(amount) {
+  return Number(String(amount).replace(/[^0-9]/g, '')) || 0;
+}
+
 /**
  * POST /api/qpay/create-payment
  *
@@ -117,6 +126,11 @@ async function createCalendarEventForInvoice(invoiceId) {
  */
 router.post('/create-payment', async (req, res) => {
   const { name, phone, amount, description, staffName, selectedServices, serviceName } = req.body || {};
+
+  // Maintenance: no new invoices (payments already made are still honoured).
+  if (blockedByMaintenance(req)) {
+    return res.status(503).json({ error: MAINTENANCE_MESSAGE, maintenance: true });
+  }
 
   if (!name || !phone || !amount || !description) {
     return res.status(400).json({
@@ -147,7 +161,11 @@ router.post('/create-payment', async (req, res) => {
   }
 
   try {
-    const callbackUrl = `${process.env.BASE_URL || 'https://mydomain.com'}/api/qpay/webhook`;
+    const consent = consentTime(req.body.depositTermsAcceptedAt);
+    // The signed late-payment callback (services/lateBooking.js), as in the
+    // standalone handler; the old in-memory webhook only when it cannot be built.
+    const callbackUrl = callbackUrlForPayment(publicOrigin(req), req.body, { agreedAt: consent.at, amount: cleanAmountForCallback(amount) })
+      || `${process.env.BASE_URL || 'https://mydomain.com'}/api/qpay/webhook`;
     // Sanitize amount: strip any non-numeric characters (e.g. "20,000 ₮" → 20000).
     // Amounts in MNT are always whole numbers so decimal points are not expected.
     const cleanAmount = Number(String(amount).replace(/[^0-9]/g, ''));
@@ -171,7 +189,6 @@ router.post('/create-payment', async (req, res) => {
 
     // Track this invoice as PENDING so the polling endpoint can report its status.
     // Store the full booking description for calendar event creation on payment.
-    const consent = consentTime(req.body.depositTermsAcceptedAt);
     console.log('Deposit terms accepted:', JSON.stringify({
       invoice_id: result.invoice_id,
       staffName,
@@ -290,9 +307,7 @@ router.post('/check-payment', async (req, res) => {
     // `invoice_status` at all. Reading only the latter would answer UNKNOWN
     // for an invoice the customer has paid, leaving them at the QR with no
     // booking made.
-    const paidRow = Array.isArray(qpayData && qpayData.rows)
-      && qpayData.rows.some((row) => row && row.payment_status === 'PAID');
-    const invoiceStatus = (qpayData && qpayData.invoice_status) || (paidRow ? 'PAID' : undefined);
+    const invoiceStatus = (qpayData && qpayData.invoice_status) || (isPaidCheck(qpayData) ? 'PAID' : undefined);
 
     if (invoiceStatus === 'PAID') {
       // Mark as PAID in the in-memory store
@@ -315,6 +330,127 @@ router.post('/check-payment', async (req, res) => {
     // Fall back to in-memory status so the client is not left without a response
     const fallbackStatus = entry ? entry.status : 'UNKNOWN';
     return res.status(200).json({ invoice_status: fallbackStatus });
+  }
+});
+
+/**
+ * GET|POST /api/qpay/late-payment?b=<booking token>&h=<signature>
+ *
+ * QPay's payment callback for every invoice the site creates (the URL is set
+ * as the invoice's callback_url; see services/lateBooking.js). It is what
+ * books a customer whose browser is no longer watching — they paid after the
+ * page stopped polling, or closed it. When the browser did book, this finds
+ * that booking and does nothing (both write the same calendar event id).
+ *
+ * The outcome for a paid invoice is always one of: the appointment on the
+ * calendar, or the salon alerted on Telegram with the customer's details.
+ * Answers 200 once handled so QPay stops retrying.
+ */
+router.all('/late-payment', async (req, res) => {
+  const booking = decodeCallback(req.query.b, req.query.h);
+  if (!booking) {
+    console.warn('late-payment: rejected callback with an invalid booking token');
+    return res.status(403).json({ error: 'invalid callback' });
+  }
+
+  const body = req.body && typeof req.body === 'object' ? req.body : {};
+  const pick = (...vals) => vals.map((v) => (v == null ? '' : String(v).trim())).find(Boolean) || null;
+  let invoiceId = pick(body.object_id, body.invoice_id, body.id, req.query.object_id, req.query.invoice_id);
+  const paymentId = pick(body.payment_id, req.query.qpay_payment_id, req.query.payment_id);
+  console.log('late-payment: QPay callback', JSON.stringify({
+    invoiceId, paymentId, bodyKeys: Object.keys(body), queryKeys: Object.keys(req.query),
+    stylistId: booking.stylistId, date: booking.date, time: booking.time,
+  }));
+
+  // QPay may name only the payment; its record names the invoice.
+  if (!invoiceId && paymentId) {
+    try {
+      const payment = await getPayment(paymentId);
+      invoiceId = pick(payment && payment.object_id, payment && payment.invoice_id);
+    } catch (err) {
+      console.warn('late-payment: payment lookup failed', paymentId, err.message || err);
+    }
+  }
+
+  const details = { ...booking, services: booking.services, amount: booking.amount, invoiceId };
+  if (!invoiceId) {
+    // Nothing to verify the payment against, so nothing is booked from it. If
+    // the browser already booked this customer into this slot, all is well;
+    // otherwise a person has to look.
+    try {
+      const calendar = await getCalendarClient();
+      if (await hasBookingForPhone(calendar, booking.stylistId, booking.start, booking.customerPhone)) {
+        return res.status(200).json({ received: true, handled: 'already-booked' });
+      }
+    } catch (err) {
+      console.warn('late-payment: could not look for an existing booking', err.message || err);
+    }
+    // Nothing to verify the payment against. Do not book on an unverified
+    // claim, but make sure a person looks.
+    await sendSalonAlert([
+      '⚠️ QPay-с төлбөрийн мэдэгдэл ирсэн боловч нэхэмжлэлийн дугаар алга',
+      `Утас: ${booking.customerPhone || '—'}, үсчин ${booking.stylistId}, ${booking.date} ${booking.time}`,
+      'QPay дээр төлбөрийг шалгаад, төлөгдсөн бол цагийг гараар бүртгэнэ үү.',
+    ].join('\n'));
+    return res.status(200).json({ received: true, handled: 'alerted-no-invoice-id' });
+  }
+
+  let paid;
+  try {
+    paid = isPaidCheck(await checkPayment(invoiceId));
+  } catch (err) {
+    console.error('late-payment: could not confirm payment with QPay', invoiceId, err.message || err);
+    // Let QPay retry; a person checks meanwhile in case it never does.
+    await sendSalonAlert([
+      '⚠️ QPay-н төлбөрийг баталгаажуулж чадсангүй (дахин оролдоно)',
+      `QPay ${invoiceId}; утас ${booking.customerPhone || '—'}, үсчин ${booking.stylistId}, ${booking.date} ${booking.time}`,
+      'Төлөгдсөн эсэхийг QPay дээр шалгана уу.',
+    ].join('\n'));
+    return res.status(502).json({ error: 'payment check failed' });
+  }
+  if (!paid) return res.status(200).json({ received: true, handled: 'not-paid' });
+
+  // Name and phone as written on the invoice; the phone must match the token.
+  let customerName = null;
+  try {
+    const invoice = await getInvoice(invoiceId);
+    const desc = String((invoice && (invoice.invoice_description || invoice.description)) || '');
+    const digits = desc.replace(/\D/g, '');
+    if (booking.customerPhone && digits && !digits.includes(booking.customerPhone)) {
+      console.error('late-payment: invoice phone does not match the booking token', invoiceId);
+      await alertBookingFailure({ ...details, error: 'нэхэмжлэлийн утас захиалгатай таарахгүй байна' });
+      return res.status(200).json({ received: true, handled: 'alerted-mismatch' });
+    }
+    customerName = desc.split(' - ')[0].trim() || null;
+  } catch (err) {
+    console.warn('late-payment: invoice details unavailable, booking without the name', invoiceId, err.message || err);
+  }
+
+  if (findClosure(booking.date)) {
+    await alertBookingFailure({ ...details, customerName, error: 'салон амарч байгаа өдөр' });
+    return res.status(200).json({ received: true, handled: 'alerted-closed' });
+  }
+
+  try {
+    const calendar = await getCalendarClient();
+    const result = await ensurePaidBooking(calendar, {
+      stylistId: booking.stylistId,
+      start: booking.start,
+      services: booking.services,
+      durationMinutes: booking.durationMinutes,
+      customerName,
+      customerPhone: booking.customerPhone,
+      customerGender: booking.customerGender,
+      depositTermsAccepted: !!booking.depositTermsAcceptedAt,
+      depositTermsAcceptedAt: booking.depositTermsAcceptedAt,
+      invoiceId,
+    }, { late: true, amount: booking.amount });
+    console.log('late-payment: outcome', invoiceId, result.status);
+    return res.status(200).json({ received: true, handled: result.status });
+  } catch (err) {
+    console.error('late-payment: could not write the booking', invoiceId, err.message || err);
+    await alertBookingFailure({ ...details, customerName, error: err.message || err });
+    return res.status(200).json({ received: true, handled: 'alerted-error' });
   }
 });
 
