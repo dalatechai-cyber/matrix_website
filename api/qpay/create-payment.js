@@ -2,7 +2,7 @@ const axios = require('axios');
 const { checkPaymentRequest } = require('../../services/closureGuard');
 const { checkPaymentBookingRules, consentTime, REFRESH_MESSAGE } = require('../../services/bookingRules');
 const { callbackUrlForPayment, publicOrigin } = require('../../services/lateBooking');
-const { blockedByMaintenance, MAINTENANCE_MESSAGE } = require('../../config/siteMode');
+const { blockedByMaintenance, MAINTENANCE_MESSAGE, depositFor, isTestRequest } = require('../../config/siteMode');
 
 module.exports = async function handler(req, res) {
     if (req.method !== 'POST') {
@@ -45,8 +45,13 @@ module.exports = async function handler(req, res) {
         const { amount, name, phone, staffName } = req.body;
 
         // "20,000 ₮" гэж ирсэн ч зөвхөн тоог нь ялгаж авах
-        const cleanAmount = Number(String(amount).replace(/[^0-9.]/g, ''));
-        const finalAmount = cleanAmount > 0 ? cleanAmount : 100; // Хэрэв алдаа гарвал 100₮-өөр хамгаална
+        // Дүнг сервер тогтооно: үсчний зэрэглэлийн үнэ, эсвэл зөвхөн тестийн
+        // гарын үсэгтэй cookie-той хөтөчид 100₮. Хөтчөөс ирсэн дүнг үл тооно.
+        const finalAmount = depositFor(req, staffName);
+        if (!finalAmount) {
+            return res.status(422).json({ error: 'Unknown stylist' });
+        }
+        const isTest = isTestRequest(req);
 
         // Гүйлгээний утгад Нэр, Утсыг нь оруулах
         const finalDescription = `${name || 'Үйлчлүүлэгч'} - ${phone || 'Утасгүй'}`.substring(0, 255);
@@ -73,7 +78,7 @@ module.exports = async function handler(req, res) {
         // then books the slot or alerts the salon. The URL carries the booking,
         // signed (services/lateBooking.js). Omitted if it cannot be built.
         const consent = consentTime(req.body.depositTermsAcceptedAt);
-        const callbackUrl = callbackUrlForPayment(publicOrigin(req), req.body, { agreedAt: consent.at, amount: finalAmount });
+        const callbackUrl = callbackUrlForPayment(publicOrigin(req), req.body, { agreedAt: consent.at, amount: finalAmount, test: isTest });
         const payload = {
             merchant_id: "17e69f2a-d1a4-4fe6-a5a2-34a649378414", // <-- Өөрийн 87ec2243... ID-гээ буцааж хийгээрэй
             amount: finalAmount, // Бодит үнэ

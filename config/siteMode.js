@@ -1,6 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const { STYLIST_CONFIG } = require('./stylists');
 
 /**
  * Two switches, both OFF unless set in Vercel (then Redeploy):
@@ -71,6 +72,17 @@ function blockedByMaintenance(req) {
   return isMaintenance() && !isTestRequest(req);
 }
 
+/**
+ * The deposit to invoice, decided here and never by the browser: the
+ * stylist's tier price, or 100₮ only for the tester's signed cookie.
+ * null when the stylist is unknown.
+ */
+function depositFor(req, stylistId) {
+  const stylist = STYLIST_CONFIG[stylistId];
+  if (!stylist || !(stylist.price > 0)) return null;
+  return isTestRequest(req) ? TEST_DEPOSIT_MNT : stylist.price;
+}
+
 function testCookieHeader() {
   return `${TEST_COOKIE}=${testCookieValue()}; Path=/; Max-Age=${12 * 3600}; HttpOnly; Secure; SameSite=Lax`;
 }
@@ -129,6 +141,7 @@ module.exports = {
   isTestToken,
   isTestRequest,
   blockedByMaintenance,
+  depositFor,
   testCookieHeader,
   maintenancePage,
 };

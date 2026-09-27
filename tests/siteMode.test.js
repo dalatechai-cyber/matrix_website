@@ -12,11 +12,12 @@ const http = require('node:http');
 
 process.env.QPAY_USERNAME = 'u';
 process.env.QPAY_PASSWORD = 'p';
+process.env.QPAY_MERCHANT_ID = 'm';
 process.env.SALON_CLOSURE_START = 'none';
 
 const Module = require('node:module');
 const originalLoad = Module._load;
-const calls = { insert: 0, qpay: 0 };
+const calls = { insert: 0, qpay: 0, invoices: [], events: [] };
 Module._load = function (request) {
   if (request === 'googleapis') {
     return {
@@ -26,7 +27,7 @@ Module._load = function (request) {
           freebusy: { query: async () => ({ data: { calendars: {} } }) },
           events: {
             get: async () => { const e = new Error('nf'); e.code = 404; throw e; },
-            insert: async ({ requestBody }) => { calls.insert += 1; return { data: { id: requestBody.id || 'e1' } }; },
+            insert: async ({ requestBody }) => { calls.insert += 1; calls.events.push(requestBody); return { data: { id: requestBody.id || 'e1' } }; },
           },
         }),
       },
@@ -34,7 +35,11 @@ Module._load = function (request) {
   }
   if (request === 'axios') {
     return {
-      post: async () => { calls.qpay += 1; return { data: { access_token: 't', invoice_id: 'inv', count: 0, rows: [] } }; },
+      post: async (url, body) => {
+        calls.qpay += 1;
+        if (String(url).endsWith('/invoice')) calls.invoices.push(body);
+        return { data: { access_token: 't', invoice_id: 'inv', count: 0, rows: [] } };
+      },
       get: async () => { calls.qpay += 1; return { data: {} }; },
     };
   }
@@ -68,7 +73,7 @@ function request(method, path, { body, cookie } = {}) {
 
 function invokeStandalone(body, cookie) {
   return new Promise((resolve) => {
-    createPaymentHandler({ method: 'POST', headers: cookie ? { cookie } : {}, body },
+    createPaymentHandler({ method: 'POST', headers: cookie ? { cookie, host: 'www.matrixecosalon.org' } : { host: 'www.matrixecosalon.org' }, body },
       { status(c) { this.c = c; return this; }, json(b) { resolve({ status: this.c, body: b }); } });
   });
 }
@@ -84,7 +89,7 @@ const PAGES = ['/', '/index.html', '/services.html', '/team.html', '/zurag.html'
 beforeEach(() => {
   delete process.env.SITE_MAINTENANCE;
   process.env.BOOKING_TEST_TOKEN = TOKEN;
-  calls.insert = 0; calls.qpay = 0;
+  calls.insert = 0; calls.qpay = 0; calls.invoices = []; calls.events = [];
 });
 
 test('maintenance off (default): every page is the real page', async () => {
@@ -171,4 +176,53 @@ test('changing BOOKING_TEST_TOKEN invalidates old test cookies', async () => {
   process.env.BOOKING_TEST_TOKEN = 'another-token-0123456789abcdef';
   const r = await request('GET', '/', { cookie });
   assert.equal(r.status, 503);
+});
+
+const PAY = {
+  name: 'Тест', phone: '99112233', staffName: 'Ананд', customerGender: 'male', depositTermsAccepted: true,
+  bookingDate: '2035-06-04', description: 'Matrix Eco: Ананд - 2035-06-04 14:00 - Тест - 99112233',
+};
+
+test('a real customer is always charged the stylist price, whatever amount the page sends', async () => {
+  for (const amount of [100, '100', 1, 0, 'abc', undefined]) {
+    calls.invoices = [];
+    await invokeStandalone({ ...PAY, amount });
+    assert.equal(calls.invoices[0].amount, 20000, `sent ${amount}`);
+    assert.ok(calls.invoices[0].callback_url.includes('.r&h='), 'callback marks a real booking');
+  }
+  calls.invoices = [];
+  const r = await request('POST', '/api/qpay/create-payment', { body: { ...PAY, amount: 100 } });
+  assert.equal(r.status, 200);
+  assert.equal(calls.invoices[0].amount, 20000);
+});
+
+test('only the tester\'s signed cookie gets the 100₮ deposit, on both payment paths', async () => {
+  const cookie = await testCookie();
+  await invokeStandalone({ ...PAY, amount: 20000 }, cookie);
+  assert.equal(calls.invoices[0].amount, 100);
+  assert.ok(calls.invoices[0].callback_url.includes('.t&h='), 'callback marks a test booking');
+  await request('POST', '/api/qpay/create-payment', { body: { ...PAY, amount: 20000 }, cookie });
+  assert.equal(calls.invoices[1].amount, 100);
+  // With test mode switched off, the same cookie is worth nothing.
+  delete process.env.BOOKING_TEST_TOKEN;
+  await invokeStandalone({ ...PAY, amount: 20000 }, cookie);
+  assert.equal(calls.invoices[2].amount, 20000);
+});
+
+test('a booking from the tester\'s browser is titled «ТЕСТ»; a customer\'s is not', async () => {
+  const cookie = await testCookie();
+  const body = { stylistId: 'Ананд', startTime: '2035-06-04T15:00:00+08:00', customerPhone: '99112233', customerGender: 'male' };
+  await request('POST', '/api/calendar/book', { body: { ...body, invoiceId: 'inv_t' }, cookie });
+  await request('POST', '/api/calendar/book', { body: { ...body, invoiceId: 'inv_r' } });
+  assert.ok(calls.events[0].summary.startsWith('ТЕСТ – '), calls.events[0].summary);
+  assert.ok(calls.events[0].description.startsWith('ТЕСТ'), 'description says test too');
+  assert.ok(!calls.events[1].summary.includes('ТЕСТ'), calls.events[1].summary);
+});
+
+test('/api/site-mode tells only the tester\'s browser it is in test mode', async () => {
+  const cookie = await testCookie();
+  const t = JSON.parse((await request('GET', '/api/site-mode', { cookie })).text);
+  const c = JSON.parse((await request('GET', '/api/site-mode')).text);
+  assert.deepEqual(t, { test: true, testDeposit: 100 });
+  assert.deepEqual(c, { test: false, testDeposit: null });
 });

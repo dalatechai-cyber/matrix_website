@@ -284,6 +284,12 @@ test('no invoice id at all, but the browser already booked this phone into the s
   assert.equal(cal.inserts.length, 1);
 });
 
+test('a late test payment is booked as «ТЕСТ»', async () => {
+  const { body } = await request(buildApp(), 'POST', callbackPath({ test: true, amount: 100 }), { object_id: 'inv_t1' });
+  assert.equal(body.handled, 'booked');
+  assert.ok(cal.inserts[0].summary.startsWith('ТЕСТ – '), cal.inserts[0].summary);
+});
+
 test('a long appointment keeps its signed length when booked late', async () => {
   const { body } = await request(buildApp(), 'POST', callbackPath({ services: 'Оффис колор' }), { object_id: 'inv_11' });
   assert.equal(body.handled, 'booked');
