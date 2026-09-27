@@ -78,6 +78,19 @@ Telegram alert with the customer's details. Set in Vercel:
 Without the Telegram variables alerts are only logged (`SALON ALERT NOT SENT`)
 — the calendar note still records the paid customer.
 
+## Maintenance and test mode
+
+Both off unless set in Vercel (Production), and like every env var they take
+effect only after a Redeploy — see [config/siteMode.js](config/siteMode.js).
+
+| Variable | Effect |
+| --- | --- |
+| `SITE_MAINTENANCE=on` | Every page (served by `server.js`, not static) shows the maintenance notice; availability and both create-payment paths refuse. Paid paths stay open. |
+| `BOOKING_TEST_TOKEN` (16+ chars) | `/?test=<token>` gives that browser a signed HttpOnly cookie: bypasses maintenance, deposit 100₮, booking titled «ТЕСТ». |
+
+The deposit is always decided server-side (`depositFor`): the stylist's price,
+or 100₮ only for the test cookie. The page's `amount` is never charged.
+
 The salon no longer offers manicure (September 2026): no manicure service,
 price or stylist may appear or be bookable. The manicurist's Google Calendar
 keeps her past appointments and is simply no longer referenced.
