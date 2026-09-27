@@ -8,7 +8,7 @@ const { totalDurationFor } = require('../config/serviceDurations');
 const { normalizeCustomerGender, checkGenderMatch } = require('../services/bookingRules');
 const { ensurePaidBooking, alertBookingFailure } = require('../services/bookingWriter');
 
-const { blockedByMaintenance, MAINTENANCE_MESSAGE } = require('../config/siteMode');
+const { blockedByMaintenance, MAINTENANCE_MESSAGE, isTestRequest } = require('../config/siteMode');
 
 const router = express.Router();
 
@@ -289,6 +289,8 @@ router.post('/book', async (req, res) => {
     depositTermsAccepted,
     depositTermsAcceptedAt,
     invoiceId,
+    // Made from the tester's browser (signed test cookie): marked «ТЕСТ».
+    test: isTestRequest(req),
   };
 
   try {

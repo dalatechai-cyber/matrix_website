@@ -12,7 +12,7 @@ const { sendSalonAlert } = require('../services/telegram');
 const { findClosure } = require('../config/closures');
 const { totalDurationFor } = require('../config/serviceDurations');
 
-const { blockedByMaintenance, MAINTENANCE_MESSAGE } = require('../config/siteMode');
+const { blockedByMaintenance, MAINTENANCE_MESSAGE, depositFor, isTestRequest } = require('../config/siteMode');
 
 const router = express.Router();
 
@@ -106,10 +106,6 @@ async function createCalendarEventForInvoice(invoiceId) {
   console.log('Calendar event created for invoice:', invoiceId, 'stylist:', parsed.stylistId);
 }
 
-function cleanAmountForCallback(amount) {
-  return Number(String(amount).replace(/[^0-9]/g, '')) || 0;
-}
-
 /**
  * POST /api/qpay/create-payment
  *
@@ -164,14 +160,17 @@ router.post('/create-payment', async (req, res) => {
     const consent = consentTime(req.body.depositTermsAcceptedAt);
     // The signed late-payment callback (services/lateBooking.js), as in the
     // standalone handler; the old in-memory webhook only when it cannot be built.
-    const callbackUrl = callbackUrlForPayment(publicOrigin(req), req.body, { agreedAt: consent.at, amount: cleanAmountForCallback(amount) })
-      || `${process.env.BASE_URL || 'https://mydomain.com'}/api/qpay/webhook`;
-    // Sanitize amount: strip any non-numeric characters (e.g. "20,000 ₮" → 20000).
-    // Amounts in MNT are always whole numbers so decimal points are not expected.
-    const cleanAmount = Number(String(amount).replace(/[^0-9]/g, ''));
-    if (!cleanAmount || isNaN(cleanAmount)) {
+    // The browser still sends an amount; a malformed one is refused, but the
+    // amount charged is the server's: the stylist's price, or 100₮ only for
+    // the tester's signed cookie (config/siteMode.js).
+    const sentAmount = Number(String(amount).replace(/[^0-9]/g, ''));
+    if (!sentAmount || isNaN(sentAmount)) {
       return res.status(400).json({ error: 'amount must be a valid positive number' });
     }
+    const cleanAmount = depositFor(req, staffName);
+    if (!cleanAmount) return res.status(422).json({ error: 'Unknown stylist' });
+    const callbackUrl = callbackUrlForPayment(publicOrigin(req), req.body, { agreedAt: consent.at, amount: cleanAmount, test: isTestRequest(req) })
+      || `${process.env.BASE_URL || 'https://mydomain.com'}/api/qpay/webhook`;
     // The QPay invoice description shows only the customer name and phone.
     // The full booking description (with stylist/date/time) is stored internally
     // so the webhook can use it to create the Google Calendar event.
@@ -444,6 +443,7 @@ router.all('/late-payment', async (req, res) => {
       depositTermsAccepted: !!booking.depositTermsAcceptedAt,
       depositTermsAcceptedAt: booking.depositTermsAcceptedAt,
       invoiceId,
+      test: booking.test,
     }, { late: true, amount: booking.amount });
     console.log('late-payment: outcome', invoiceId, result.status);
     return res.status(200).json({ received: true, handled: result.status });

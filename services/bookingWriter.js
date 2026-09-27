@@ -57,7 +57,7 @@ function durationFor(services) {
  */
 function buildBookingEvent({
   stylistId, start, services, durationMinutes, customerName, customerPhone, customerEmail,
-  customerGender, depositTermsAccepted, depositTermsAcceptedAt, invoiceId, extraLines = [],
+  customerGender, depositTermsAccepted, depositTermsAcceptedAt, invoiceId, test = false, extraLines = [],
 }) {
   const stylist = STYLIST_CONFIG[stylistId];
   let minutes = durationMinutes;
@@ -70,6 +70,7 @@ function buildBookingEvent({
   const gender = normalizeCustomerGender(customerGender);
 
   const lines = [];
+  if (test) lines.push('ТЕСТ — test booking made through the test link (100₮ test deposit). Not a real customer.');
   if (customerName) lines.push(`Name: ${customerName}`);
   if (customerPhone) lines.push(`Phone: ${customerPhone}`);
   if (customerEmail) lines.push(`Email: ${customerEmail}`);
@@ -95,9 +96,10 @@ function buildBookingEvent({
   lines.push(...extraLines);
 
   const serviceText = Array.isArray(services) ? services.join(', ') : (services || '');
-  const summary = customerPhone
+  const base = customerPhone
     ? `${customerPhone} - ${serviceText || customerName || 'Appointment'}`
     : (serviceText || customerName || 'Appointment');
+  const summary = test ? `ТЕСТ – ${base}` : base;
 
   return {
     durationMinutes: minutes,
@@ -149,10 +151,10 @@ function isConflictError(err) {
 }
 
 /** Plain-text alert for staff (Mongolian, so it reads naturally in the salon's chat). */
-function conflictAlertText({ stylistId, start, customerName, customerPhone, services, amount, invoiceId, late }) {
+function conflictAlertText({ stylistId, start, customerName, customerPhone, services, amount, invoiceId, late, test }) {
   const local = formatSalonTime(start).replace(':00 (UTC+8)', '');
   return [
-    '⚠️ Урьдчилгаа төлсөн үйлчлүүлэгчийн цаг давхцсан',
+    `${test ? '[ТЕСТ] ' : ''}⚠️ Урьдчилгаа төлсөн үйлчлүүлэгчийн цаг давхцсан`,
     `Үйлчлүүлэгч: ${customerName || '—'}, утас ${customerPhone || '—'}`,
     `Үсчин: ${stylistId}`,
     `Сонгосон цаг: ${local}`,
@@ -194,9 +196,11 @@ async function ensurePaidBooking(calendar, booking, { late = false, amount = nul
     const note = buildBookingEvent({
       ...booking,
       durationMinutes: built.durationMinutes,
+      test: false,
       extraLines: ['', 'SLOT TAKEN when the payment arrived — this customer has PAID but has NO appointment. Contact them to arrange a time.'],
     }).requestBody;
-    note.summary = `⚠ ТӨЛСӨН, ЦАГ ДАВХЦСАН – ${note.summary}`;
+    note.summary = `${booking.test ? 'ТЕСТ – ' : ''}⚠ ТӨЛСӨН, ЦАГ ДАВХЦСАН – ${note.summary}`;
+    if (booking.test) note.description = `ТЕСТ — test booking made through the test link (100₮ test deposit). Not a real customer.\n${note.description}`;
     note.transparency = 'transparent';
     note.extendedProperties = { private: { [CONFLICT_FLAG]: '1' } };
     try {
@@ -253,10 +257,10 @@ async function hasBookingForPhone(calendar, stylistId, start, phone) {
 }
 
 /** Alert staff that a paid booking could not be written at all. */
-async function alertBookingFailure({ stylistId, start, customerName, customerPhone, services, amount, invoiceId, error }) {
+async function alertBookingFailure({ stylistId, start, customerName, customerPhone, services, amount, invoiceId, error, test }) {
   const local = start ? formatSalonTime(start).replace(':00 (UTC+8)', '') : '—';
   return sendSalonAlert([
-    '⚠️ Урьдчилгаа төлсөн боловч цаг бүртгэж чадсангүй',
+    `${test ? '[ТЕСТ] ' : ''}⚠️ Урьдчилгаа төлсөн боловч цаг бүртгэж чадсангүй`,
     `Үйлчлүүлэгч: ${customerName || '—'}, утас ${customerPhone || '—'}`,
     `Үсчин: ${stylistId || '—'}`,
     `Сонгосон цаг: ${local}`,

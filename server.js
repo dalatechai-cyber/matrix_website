@@ -5,7 +5,7 @@ require('dotenv').config();
 const path = require('path');
 const express = require('express');
 const {
-  blockedByMaintenance, isTestToken, testCookieHeader, maintenancePage,
+  blockedByMaintenance, isTestToken, isTestRequest, testCookieHeader, maintenancePage, TEST_DEPOSIT_MNT,
 } = require('./config/siteMode');
 const webhookRouter = require('./routes/webhooks');
 const qpayRouter = require('./routes/qpay');
@@ -43,6 +43,14 @@ app.get(['/', '/:page.html'], (req, res, next) => {
   return res.sendFile(path.join(__dirname, `${page}.html`), (err) => {
     if (err && !res.headersSent) next(err);
   });
+});
+
+// Tells the booking page whether this browser is the tester's (the test
+// cookie is HttpOnly), so it can show the test banner and the 100₮ deposit.
+app.get('/api/site-mode', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  const test = isTestRequest(req);
+  return res.json({ test, testDeposit: test ? TEST_DEPOSIT_MNT : null });
 });
 
 app.use('/api/webhooks', webhookRouter);

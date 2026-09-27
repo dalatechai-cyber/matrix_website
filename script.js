@@ -131,6 +131,11 @@ function stylistServesGender(stylistId, gender) {
   return !!(cfg && gender && cfg.gender === gender);
 }
 
+// Set when this browser opened the secret test link (see config/siteMode.js):
+// the server then charges 100₮ and marks the booking «ТЕСТ». Display only —
+// the server decides the amount either way.
+let bookingTestDeposit = null;
+
 // When the customer ticked the non-refundable-deposit box, as an ISO string;
 // null while unticked. Sent with the payment and written on the booking.
 let depositTermsAcceptedAt = null;
@@ -940,6 +945,7 @@ function showBookingSummary(stylistId, date, time) {
   } else {
     price = 10000;
   }
+  if (bookingTestDeposit) price = bookingTestDeposit;
   const priceText = `${formatter.format(price)} ₮`;
 
   summaryEl.innerHTML = `
@@ -1273,6 +1279,23 @@ if (dayStrip) {
   // return to the page.
   applyCustomerGender();
   window.addEventListener("pageshow", applyCustomerGender);
+
+  // Tester's browser only: a visible banner so a test is never mistaken for
+  // a real booking, and the 100₮ the server will charge.
+  fetch("/api/site-mode", { cache: "no-store" })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((mode) => {
+      if (!mode || !mode.test) return;
+      bookingTestDeposit = mode.testDeposit || 100;
+      const card = document.querySelector("#booking .calendar-card");
+      if (card && !card.querySelector(".test-mode-banner")) {
+        const banner = document.createElement("p");
+        banner.className = "test-mode-banner";
+        banner.textContent = `ТЕСТ ГОРИМ — урьдчилгаа ${bookingTestDeposit}₮, захиалга «ТЕСТ» гэж тэмдэглэгдэнэ.`;
+        card.insertBefore(banner, card.firstChild);
+      }
+    })
+    .catch(() => {});
 
   // Durations are needed before the first slot list is rendered, but nothing
   // blocks on them: the server enforces the real figures either way.

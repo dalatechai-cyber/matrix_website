@@ -16,7 +16,8 @@ const { normalizeCustomerGender } = require('./bookingRules');
  * callback can be trusted to describe the booking the customer asked for.
  * Payment is still confirmed with QPay before anything is booked.
  *
- * Token: v1.<stylist>.<YYYYMMDD>.<HHMM>.<f|m|x>.<phone>.<services>.<minutes>.<agreedAt>.<amount>
+ * Token: v1.<stylist>.<YYYYMMDD>.<HHMM>.<f|m|x>.<phone>.<services>.<minutes>.<agreedAt>.<amount>.<r|t>
+ * (the last field: t = a test booking made through the BOOKING_TEST_TOKEN link)
  * — ASCII only, so the URL stays short (QPay stores it with the invoice).
  */
 
@@ -61,7 +62,7 @@ function displayIdFor(asciiId) {
  * then created exactly as before, with no callback.
  *
  * @param {string} baseUrl  e.g. https://www.matrixecosalon.org
- * @param {{ stylistId, date, time, customerGender, customerPhone, services, agreedAt, amount }} b
+ * @param {{ stylistId, date, time, customerGender, customerPhone, services, agreedAt, amount, test }} b
  */
 function callbackUrlFor(baseUrl, b) {
   const key = signingKey();
@@ -84,7 +85,7 @@ function callbackUrlFor(baseUrl, b) {
   const amount = Math.max(0, Math.floor(Number(b.amount) || 0));
 
   const token = [VERSION, ascii, b.date.replace(/-/g, ''), b.time.replace(':', ''), g, phone,
-    mask.toString(16), minutes, agreed, amount].join('.');
+    mask.toString(16), minutes, agreed, amount, b.test ? 't' : 'r'].join('.');
   return `${baseUrl.replace(/\/+$/, '')}/api/qpay/late-payment?b=${token}&h=${sign(token, key)}`;
 }
 
@@ -100,8 +101,8 @@ function decodeCallback(b, h) {
   if (expected.length !== given.length || !crypto.timingSafeEqual(expected, given)) return null;
 
   const p = b.split('.');
-  if (p.length !== 10 || p[0] !== VERSION) return null;
-  const [, ascii, ymd, hm, g, phone, maskHex, minutes, agreed, amount] = p;
+  if (p.length !== 11 || p[0] !== VERSION) return null;
+  const [, ascii, ymd, hm, g, phone, maskHex, minutes, agreed, amount, kind] = p;
   const stylistId = displayIdFor(ascii);
   if (!stylistId || !/^\d{8}$/.test(ymd) || !/^\d{4}$/.test(hm)) return null;
 
@@ -121,6 +122,7 @@ function decodeCallback(b, h) {
     durationMinutes: Math.max(15, Math.min(12 * 60, Number(minutes) || 60)),
     depositTermsAcceptedAt: Number(agreed) > 0 ? new Date(Number(agreed) * 1000) : null,
     amount: Number(amount) || null,
+    test: kind === 't',
   };
 }
 
@@ -138,7 +140,7 @@ function parseBookingDescription(description) {
  * Callback URL for a create-payment request, built from what the page sent.
  * `baseUrl` is this deployment's public origin.
  */
-function callbackUrlForPayment(baseUrl, body, { agreedAt, amount }) {
+function callbackUrlForPayment(baseUrl, body, { agreedAt, amount, test = false }) {
   const parsed = parseBookingDescription(body && body.description);
   if (!parsed) return null;
   return callbackUrlFor(baseUrl, {
@@ -150,6 +152,7 @@ function callbackUrlForPayment(baseUrl, body, { agreedAt, amount }) {
     services: body.selectedServices,
     agreedAt,
     amount,
+    test,
   });
 }
 
