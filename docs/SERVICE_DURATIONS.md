@@ -52,7 +52,7 @@ customer ticks services
 GET /api/calendar/available-slots?date=…&stylistId=…&services=A,B,C
         │
         ├─ resolve total minutes from data/serviceDurations.json
-        ├─ candidate starts: stylist's usual grid (60min hair / 30min manicure)
+        ├─ candidate starts: on the hour
         │                    up to  close − totalDuration
         └─ drop any start whose whole appointment overlaps a busy period
         │
@@ -73,7 +73,8 @@ Key decisions, and why:
   failure is to reserve too much. Unknown names are logged so the catalogue and
   the UI can be brought back into line.
 - **The slot grid did not change.** Hairdressers are still offered starts on the
-  hour, the manicurist every 30 minutes. Only the *last* start moved, and the
+  hour. (The manicurist's 30-minute grid went with manicure itself in
+  September 2026.) Only the *last* start moved, and the
   overlap window widened. Changing the grid would have been a UX change nobody
   asked for.
 - **Name matching is forgiving.** The booking checkboxes, the price list and the
@@ -95,8 +96,8 @@ Key decisions, and why:
 ## The figures need salon sign-off
 
 Two durations came from the salon directly: **Оффис колор ≈ 4h** and
-**хими ≈ 2h**. The manicure figures were already in the codebase and are
-unchanged. **Everything else is an engineering estimate** and is flagged
+**хими ≈ 2h**. (Manicure figures were removed with the service in September
+2026.) **Everything else is an engineering estimate** and is flagged
 `"confirm": true` in `data/serviceDurations.json`.
 
 This matters commercially: too long and the salon loses bookable slots; too

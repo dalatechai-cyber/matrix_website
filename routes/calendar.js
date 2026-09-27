@@ -5,6 +5,14 @@ const { getCalendarClient } = require('../services/googleCalendar');
 const { STYLIST_CONFIG } = require('../config/stylists');
 const { getClosures, findClosure, salonDateOf } = require('../config/closures');
 const { totalDurationFor } = require('../config/serviceDurations');
+const {
+  CUSTOMER_GENDER_LABELS,
+  DEPOSIT_TERMS_TEXT,
+  normalizeCustomerGender,
+  checkGenderMatch,
+  consentTime,
+  formatSalonTime,
+} = require('../services/bookingRules');
 
 const router = express.Router();
 
@@ -46,10 +54,7 @@ function getWorkHours(dateStr) {
  * a short one would re-open a slot the salon cannot actually honour. A service
  * missing from the catalogue is charged the default and reported, never zero.
  *
- * `fallbackMinutes` is used only when no services are named at all — the caller
- * chooses it, because the two callers mean different things by "unknown":
- * availability wants the stylist's usual slot length, a booking wants a whole
- * hour rather than the manicurist's 30-minute slot spacing.
+ * `fallbackMinutes` is used only when no services are named at all.
  *
  * @param {{ services?: string|string[], fallbackMinutes: number }} args
  * @returns {{ minutes: number, unknown: string[], source: 'services'|'fallback' }}
@@ -89,8 +94,7 @@ router.get('/closures', (_req, res) => {
  *      collides with an existing 17:00 booking.
  * Omitting `services` keeps the previous behaviour (the stylist's slot length).
  *
- * Start times are still offered on the stylist's usual grid: on the hour for
- * hairdressers, every 30 minutes for the manicurist (Г. Мөнхзаяа).
+ * Start times are offered on the hour.
  * Mon–Sat: 10:00–20:00; Sun: 11:00–19:00.
  * A date inside a salon closure returns no slots at all, plus the `closure`
  * that covers it, regardless of what the stylist's calendar says.
@@ -153,12 +157,11 @@ router.get('/available-slots', async (req, res) => {
     }
     const busySlots = calendarResult.busy || [];
 
-    // Candidate start times: the stylist's usual grid — every 30 minutes for the
-    // manicurist, on the hour for hairdressers — but never later than a start
-    // whose appointment would still be running at closing time. This is what
-    // stops an 18:00 start being offered for a 4-hour service on a day the salon
-    // shuts at 20:00; with a 1-hour service the last start is 19:00 as before.
-    const stepMinutes = stylist.level === 'Маникюр' ? 30 : 60;
+    // Candidate start times: on the hour, but never later than a start whose
+    // appointment would still be running at closing time. This is what stops an
+    // 18:00 start being offered for a 4-hour service on a day the salon shuts at
+    // 20:00; with a 1-hour service the last start is 19:00 as before.
+    const stepMinutes = 60;
     const openMinutes = workStartHour * 60;
     const closeMinutes = workEndHour * 60;
     const lastStartMinutes = closeMinutes - durationMinutes;
@@ -219,11 +222,25 @@ router.get('/available-slots', async (req, res) => {
  * else. Duration is resolved server-side from `selectedServices`; the client's
  * `totalDuration` is accepted only where it is longer (see resolveDurationMinutes).
  *
+ * The event also records, for the owner, the customer's gender and when they
+ * agreed that the deposit is not refunded for a cancellation or no-show — the
+ * record to show if a customer later disputes it.
+ *
+ * This runs AFTER the deposit is paid, so it refuses as little as possible: a
+ * request with no gender or no agreement (a tab still on an older script.js)
+ * is booked and marked as such rather than leaving a paid customer with no
+ * appointment. Only an explicit gender mismatch is refused — create-payment
+ * already refuses one, so no genuine payment can lead here with it.
+ *
  * Expected JSON body:
- *   { stylistId, startTime, customerName, customerPhone, customerEmail, serviceName, selectedServices, totalDuration }
+ *   { stylistId, startTime, customerName, customerPhone, customerEmail, serviceName, selectedServices, totalDuration,
+ *     customerGender, depositTermsAccepted, depositTermsAcceptedAt, invoiceId }
  */
 router.post('/book', async (req, res) => {
-  const { stylistId, startTime, customerName, customerPhone, customerEmail, serviceName, selectedServices, totalDuration } = req.body || {};
+  const {
+    stylistId, startTime, customerName, customerPhone, customerEmail, serviceName, selectedServices,
+    customerGender, depositTermsAccepted, depositTermsAcceptedAt, invoiceId,
+  } = req.body || {};
 
   if (!stylistId || !startTime) {
     return res.status(400).json({ error: 'stylistId and startTime are required' });
@@ -244,15 +261,24 @@ router.post('/book', async (req, res) => {
     });
   }
 
+  const gender = normalizeCustomerGender(customerGender);
+  if (gender) {
+    const genderCheck = checkGenderMatch({ stylistId, customerGender: gender });
+    if (!genderCheck.allowed && genderCheck.reason === 'gender-mismatch') {
+      console.error('book: refused gender mismatch', stylistId, gender);
+      return res.status(422).json({ error: 'Hairdresser does not serve this customer', reason: genderCheck.reason });
+    }
+  } else {
+    console.warn('book: no customer gender recorded for booking with', stylistId);
+  }
+
   try {
     const calendar = await getCalendarClient();
 
     const start = new Date(startTime);
     const { minutes: durationMinutes, unknown } = resolveDurationMinutes({
       services: selectedServices || serviceName,
-      // A booking with no identifiable service is given a full hour, not the
-      // manicurist's 30-minute slot spacing — that number is a grid step, not
-      // an appointment length.
+      // A booking with no identifiable service is given a full hour.
       fallbackMinutes: DEFAULT_DURATION_MINUTES,
     });
     if (unknown.length > 0) {
@@ -268,6 +294,19 @@ router.post('/book', async (req, res) => {
     // Written out so the stylist can see the length the slot was reserved for,
     // and spot a service whose configured duration does not match reality.
     descriptionParts.push(`Duration: ${durationMinutes} min`);
+    descriptionParts.push(`Customer: ${gender ? `${CUSTOMER_GENDER_LABELS[gender]} (${gender})` : 'not recorded'}`);
+    if (depositTermsAccepted === true) {
+      const consent = consentTime(depositTermsAcceptedAt);
+      const note = consent.source === 'server' ? ' (time recorded at booking)' : '';
+      descriptionParts.push(`Deposit terms accepted: ${formatSalonTime(consent.at)}${note}`);
+      descriptionParts.push(`Agreed: «${DEPOSIT_TERMS_TEXT}»`);
+    } else {
+      console.warn('book: deposit terms agreement not recorded for booking with', stylistId);
+      descriptionParts.push('Deposit terms accepted: NOT RECORDED');
+    }
+    if (typeof invoiceId === 'string' && invoiceId) {
+      descriptionParts.push(`QPay invoice: ${invoiceId.slice(0, 100)}`);
+    }
 
     const services = selectedServices || serviceName || '';
     const summary = customerPhone

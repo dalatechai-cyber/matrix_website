@@ -60,9 +60,8 @@ Design decisions worth knowing before changing this:
 
 ### The duration figures themselves
 
-Only two came from the salon: **Оффис колор ≈ 4h** and **хими ≈ 2h**. Manicure
-figures were already in the codebase and are unchanged. **Everything else is an
-engineering estimate.**
+Only two came from the salon: **Оффис колор ≈ 4h** and **хими ≈ 2h**.
+**Everything else is an engineering estimate.**
 
 ```bash
 grep '"confirm": true' data/serviceDurations.json

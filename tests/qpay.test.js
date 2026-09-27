@@ -154,6 +154,11 @@ test('createInvoice: throws when QPAY_MERCHANT_ID env var is missing', async () 
 // ---------------------------------------------------------------------------
 // POST /api/qpay/create-payment
 // ---------------------------------------------------------------------------
+// What the booking page sends for a valid booking: a hairdresser who serves
+// this customer, and the non-refundable-deposit box ticked. Without these no
+// invoice is created (services/bookingRules.js).
+const RULES = { staffName: 'Ананд', customerGender: 'male', depositTermsAccepted: true };
+
 test('create-payment: 400 when name is missing', async () => {
   const app = buildApp();
   const { status, body } = await request(app, 'POST', '/api/qpay/create-payment', { phone: '99001122', amount: '20000', description: 'Matrix Eco: Ana - 2026-03-05 10:00 - Test - 99001122' });
@@ -196,6 +201,7 @@ test('create-payment: 200 with qr_image, urls, and invoice_id on success', async
     phone: '99001122',
     amount: '20000',
     description: 'Matrix Eco: Ana - 2026-03-05 10:00 - Болд - 99001122',
+    ...RULES,
   });
 
   assert.equal(status, 200);
@@ -218,6 +224,7 @@ test('create-payment: invoice stored with full calendar description', async () =
     phone: '99001122',
     amount: '20000',
     description: fullDesc,
+    ...RULES,
   });
 
   assert.equal(paymentStatuses['inv_cal_001']?.description, fullDesc);
@@ -238,6 +245,7 @@ test('create-payment: 502 when QPay API fails', async () => {
     phone: '99001122',
     amount: '20000',
     description: 'Matrix Eco: Ana - 2026-03-05 10:00 - Болд - 99001122',
+    ...RULES,
   });
 
   assert.equal(status, 502);
@@ -289,6 +297,7 @@ test('create-payment: cleans amount with commas and currency symbol (e.g. "20,00
     phone: '99001122',
     amount: '20,000 ₮',
     description: 'Matrix Eco: Ana - 2026-03-05 10:00 - Болд - 99001122',
+    ...RULES,
   });
 
   // Find the invoice call (second axios.post call)
@@ -311,6 +320,7 @@ test('create-payment: payload uses hardcoded QPay v2 fields (merchant_id, curren
     phone: '99001122',
     amount: '20000',
     description: 'Matrix Eco: Ana - 2026-03-05 10:00 - Болд - 99001122',
+    ...RULES,
   });
 
   const invoiceCall = axiosStub._calls[1];
@@ -322,56 +332,6 @@ test('create-payment: payload uses hardcoded QPay v2 fields (merchant_id, curren
   assert.equal(invoiceCall.body.description, 'Болд - 99001122', 'description should be the customer name and phone');
   assert.ok(invoiceCall.body.callback_url, 'callback_url should be present in the payload');
   delete paymentStatuses['inv_desc_001'];
-});
-
-test('create-payment: routes payment to Мөнхзаяа personal account when staffName includes Мөнхзаяа', async () => {
-  qpayService._resetTokenCache();
-  axiosStub.reset([
-    { result: { access_token: 'tok_mnk' } },
-    { result: { invoice_id: 'inv_mnk_001', qr_image: 'data:image/png;base64,abc', urls: [] } },
-  ]);
-
-  const app = buildApp();
-  await request(app, 'POST', '/api/qpay/create-payment', {
-    name: 'Болд',
-    phone: '99001122',
-    amount: '20000',
-    description: 'Matrix Eco: Г. Мөнхзаяа - 2026-03-05 10:00 - Болд - 99001122',
-    staffName: 'Г. Мөнхзаяа',
-  });
-
-  const invoiceCall = axiosStub._calls[1];
-  assert.ok(invoiceCall, 'expected invoice axios.post call');
-  assert.ok(Array.isArray(invoiceCall.body.bank_accounts), 'bank_accounts should be an array');
-  assert.equal(invoiceCall.body.bank_accounts[0].account_bank_code, '050000', 'should use Мөнхзаяа bank code 050000');
-  assert.equal(invoiceCall.body.bank_accounts[0].account_number, '5042384162', 'should use Мөнхзаяа account number');
-  assert.equal(invoiceCall.body.bank_accounts[0].account_name, 'Ганбат Мөнхзаяа', 'should use Мөнхзаяа account name');
-  assert.equal(invoiceCall.body.bank_accounts[0].is_default, true);
-  delete paymentStatuses['inv_mnk_001'];
-});
-
-test('create-payment: routes payment to Мөнхзаяа personal account when staffName includes Маникюр', async () => {
-  qpayService._resetTokenCache();
-  axiosStub.reset([
-    { result: { access_token: 'tok_man' } },
-    { result: { invoice_id: 'inv_man_001', qr_image: 'data:image/png;base64,abc', urls: [] } },
-  ]);
-
-  const app = buildApp();
-  await request(app, 'POST', '/api/qpay/create-payment', {
-    name: 'Болд',
-    phone: '99001122',
-    amount: '20000',
-    description: 'Matrix Eco: Маникюр - 2026-03-05 10:00 - Болд - 99001122',
-    staffName: 'Маникюр',
-  });
-
-  const invoiceCall = axiosStub._calls[1];
-  assert.ok(invoiceCall, 'expected invoice axios.post call');
-  assert.ok(Array.isArray(invoiceCall.body.bank_accounts), 'bank_accounts should be an array');
-  assert.equal(invoiceCall.body.bank_accounts[0].account_bank_code, '050000', 'should use Маникюр bank code 050000');
-  assert.equal(invoiceCall.body.bank_accounts[0].account_number, '5042384162', 'should use Маникюр account number');
-  delete paymentStatuses['inv_man_001'];
 });
 
 test('create-payment: routes payment to default salon account when staffName is a regular stylist', async () => {
@@ -387,7 +347,7 @@ test('create-payment: routes payment to default salon account when staffName is 
     phone: '99001122',
     amount: '20000',
     description: 'Matrix Eco: Ананд - 2026-03-05 10:00 - Болд - 99001122',
-    staffName: 'Ананд',
+    ...RULES,
   });
 
   const invoiceCall = axiosStub._calls[1];
@@ -400,29 +360,75 @@ test('create-payment: routes payment to default salon account when staffName is 
   delete paymentStatuses['inv_salon_001'];
 });
 
-test('create-payment: routes payment to default salon account when staffName is absent', async () => {
+// ---------------------------------------------------------------------------
+// Booking rules: no invoice (so no QR) without a matching hairdresser and the
+// customer's agreement that the deposit is non-refundable
+// ---------------------------------------------------------------------------
+async function expectRefused(body, reason) {
   qpayService._resetTokenCache();
   axiosStub.reset([
-    { result: { access_token: 'tok_nostaff' } },
-    { result: { invoice_id: 'inv_nostaff_001', qr_image: 'data:image/png;base64,abc', urls: [] } },
+    { result: { access_token: 'tok_rule' } },
+    { result: { invoice_id: 'inv_rule_001', qr_image: 'data:image/png;base64,abc', urls: [] } },
   ]);
-
   const app = buildApp();
-  await request(app, 'POST', '/api/qpay/create-payment', {
+  const { status, body: res } = await request(app, 'POST', '/api/qpay/create-payment', {
     name: 'Болд',
     phone: '99001122',
     amount: '20000',
-    description: 'Matrix Eco: Ana - 2026-03-05 10:00 - Болд - 99001122',
+    description: 'Matrix Eco: Ананд - 2026-03-05 10:00 - Болд - 99001122',
+    ...body,
   });
+  assert.equal(status, 422);
+  assert.equal(res.reason, reason);
+  assert.equal(res.error, 'Хуудсаа шинэчлээд дахин оролдоно уу.');
+  assert.equal(axiosStub._calls.length, 0, 'QPay must not be called');
+  assert.equal(paymentStatuses['inv_rule_001'], undefined);
+}
 
-  const invoiceCall = axiosStub._calls[1];
-  assert.ok(invoiceCall, 'expected invoice axios.post call');
-  assert.ok(Array.isArray(invoiceCall.body.bank_accounts), 'bank_accounts should be an array');
-  assert.equal(invoiceCall.body.bank_accounts[0].account_bank_code, '040000', 'should default to salon bank code 040000');
-  assert.equal(invoiceCall.body.bank_accounts[0].account_number, '416055415', 'should default to salon account number');
-  delete paymentStatuses['inv_nostaff_001'];
+test('create-payment: refused when the customer gender is missing', async () => {
+  await expectRefused({ staffName: 'Ананд', depositTermsAccepted: true }, 'missing-customer-gender');
 });
 
+test('create-payment: refused for a female customer with a male hairdresser', async () => {
+  await expectRefused({ staffName: 'Ананд', customerGender: 'female', depositTermsAccepted: true }, 'gender-mismatch');
+});
+
+test('create-payment: refused for a male customer with a female hairdresser', async () => {
+  await expectRefused({ staffName: 'Оюунсүрэн', customerGender: 'male', depositTermsAccepted: true }, 'gender-mismatch');
+});
+
+test('create-payment: refused when the deposit terms box was not ticked', async () => {
+  await expectRefused({ staffName: 'Оюунсүрэн', customerGender: 'female' }, 'deposit-terms-not-accepted');
+  await expectRefused({ staffName: 'Оюунсүрэн', customerGender: 'female', depositTermsAccepted: 'true' }, 'deposit-terms-not-accepted');
+});
+
+test('create-payment: refused with no stylist, or for the former manicurist', async () => {
+  await expectRefused({ customerGender: 'female', depositTermsAccepted: true }, 'unknown-stylist');
+  await expectRefused({ staffName: 'Г. Мөнхзаяа', customerGender: 'female', depositTermsAccepted: true }, 'unknown-stylist');
+  await expectRefused({ staffName: 'Маникюр', customerGender: 'female', depositTermsAccepted: true }, 'unknown-stylist');
+});
+
+test('create-payment: a female customer with a female hairdresser gets an invoice', async () => {
+  qpayService._resetTokenCache();
+  axiosStub.reset([
+    { result: { access_token: 'tok_ok' } },
+    { result: { invoice_id: 'inv_ok_001', qr_image: 'data:image/png;base64,abc', urls: [] } },
+  ]);
+  const app = buildApp();
+  const { status, body } = await request(app, 'POST', '/api/qpay/create-payment', {
+    name: 'Сараа',
+    phone: '99001122',
+    amount: '20000',
+    description: 'Matrix Eco: Оюунсүрэн - 2026-03-05 10:00 - Сараа - 99001122',
+    staffName: 'Оюунсүрэн',
+    customerGender: 'female',
+    depositTermsAccepted: true,
+    depositTermsAcceptedAt: new Date().toISOString(),
+  });
+  assert.equal(status, 200);
+  assert.equal(body.invoice_id, 'inv_ok_001');
+  delete paymentStatuses['inv_ok_001'];
+});
 
 test('create-payment: 400 when amount is not a valid number (e.g. letters only)', async () => {
   const app = buildApp();
@@ -431,6 +437,7 @@ test('create-payment: 400 when amount is not a valid number (e.g. letters only)'
     phone: '99001122',
     amount: 'invalid',
     description: 'Matrix Eco: Ana - 2026-03-05 10:00 - Болд - 99001122',
+    ...RULES,
   });
   assert.equal(status, 400);
   assert.ok(body.error.includes('valid positive number'));
@@ -532,6 +539,31 @@ test('POST check-payment: marks invoice as PAID in memory when QPay returns PAID
   assert.equal(body.invoice_status, 'PAID');
   assert.equal(paymentStatuses['inv_qpay_paid'].status, 'PAID');
   delete paymentStatuses['inv_qpay_paid'];
+});
+
+test('POST check-payment: reports PAID from QPay v2 rows[].payment_status', async () => {
+  // QPay v2 /payment/check answers { count, paid_amount, rows: [...] } with no
+  // top-level invoice_status; a paid customer must not be left at the QR.
+  qpayService._resetTokenCache();
+  axiosStub.reset([
+    { result: { access_token: 'tok_rows' } },
+    { result: { count: 1, paid_amount: 20000, rows: [{ payment_id: 'p1', payment_status: 'PAID' }] } },
+  ]);
+  const app = buildApp();
+  const { body } = await request(app, 'POST', '/api/qpay/check-payment', { invoice_id: 'inv_rows_paid' });
+  assert.equal(body.invoice_status, 'PAID');
+  delete paymentStatuses['inv_rows_paid'];
+});
+
+test('POST check-payment: an empty rows list is not PAID', async () => {
+  qpayService._resetTokenCache();
+  axiosStub.reset([
+    { result: { access_token: 'tok_rows_empty' } },
+    { result: { count: 0, rows: [] } },
+  ]);
+  const app = buildApp();
+  const { body } = await request(app, 'POST', '/api/qpay/check-payment', { invoice_id: 'inv_rows_open' });
+  assert.equal(body.invoice_status, 'UNKNOWN');
 });
 
 test('POST check-payment: falls back to in-memory UNKNOWN when QPay API fails and invoice is not tracked', async () => {

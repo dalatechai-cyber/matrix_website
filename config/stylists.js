@@ -10,11 +10,17 @@
  * Pricing tiers:
  *   Мастер үсчин       – 20 000 MNT
  *   1-р зэргийн үсчин  – 10 000 MNT
- *   Маникюр            – 20 000 MNT
+ *
+ * `gender` is the hairdresser's own, as the team page groups them
+ * («Эмэгтэй үсчид» / «Эрэгтэй үсчид»). The salon's rule is that a female
+ * customer is served by a female hairdresser and a male customer by a male one;
+ * services/bookingRules.js enforces it from this field. A new hairdresser
+ * without a gender cannot be paid for at all, so add it with the entry.
+ *
+ * The salon no longer offers manicure. The manicurist's calendar still holds
+ * her past appointments; it is simply no longer referenced here, so nothing
+ * can be booked or paid for on it.
  */
-
-// Dedicated calendar ID for manicurist Г. Мөнхзаяа
-const MUNKHZAYA_CALENDAR_ID = 'c_943dac8f8417fcc6c7bf84a6c8f0f84529b9800f5ade551573b2f637830d14b5@group.calendar.google.com';
 
 // Dedicated calendar ID for hairdresser Отгонжаргал
 const OTGONZARGAL_CALENDAR_ID = 'c_1f0f02975a17088e3a939396200de8fb1b624fc4633c66f4e9a330576e24b27e@group.calendar.google.com';
@@ -24,85 +30,86 @@ const STYLIST_CONFIG = {
     calendarId: 'c_2af068656b60e27cd9063a78b04dffbe24f1aab4543e50c2875f132dc4b12e17@group.calendar.google.com',
     price: 20000,
     level: 'Мастер үсчин',
+    gender: 'male',
   },
   'anand': {
     calendarId: 'c_2af068656b60e27cd9063a78b04dffbe24f1aab4543e50c2875f132dc4b12e17@group.calendar.google.com',
     price: 20000,
     level: 'Мастер үсчин',
+    gender: 'male',
   },
   'Бадамцэцэг': {
     calendarId: 'c_7d47cf135b4ef24b9b4e920f8e981096087b236eb4f7d92a7ad8ce7a1d407529@group.calendar.google.com',
     price: 20000,
     level: 'Мастер үсчин',
+    gender: 'female',
   },
   'badamtsetseg': {
     calendarId: 'c_7d47cf135b4ef24b9b4e920f8e981096087b236eb4f7d92a7ad8ce7a1d407529@group.calendar.google.com',
     price: 20000,
     level: 'Мастер үсчин',
+    gender: 'female',
   },
   'Батзаяа': {
     calendarId: 'c_2979833247c0886af6789e6fbf205b66477105ceac615a07597ba4f6af975f63@group.calendar.google.com',
     price: 10000,
     level: '1-р зэргийн үсчин',
+    gender: 'female',
   },
   'batzaya': {
     calendarId: 'c_2979833247c0886af6789e6fbf205b66477105ceac615a07597ba4f6af975f63@group.calendar.google.com',
     price: 10000,
     level: '1-р зэргийн үсчин',
+    gender: 'female',
   },
   'Уранчимэг': {
     calendarId: 'c_6efae8dadb0660afc266a939e8bfbd85af95bfc5ed498055ccd11175d181bbaf@group.calendar.google.com',
     price: 10000,
     level: '1-р зэргийн үсчин',
+    gender: 'female',
   },
   'uranchimeg': {
     calendarId: 'c_6efae8dadb0660afc266a939e8bfbd85af95bfc5ed498055ccd11175d181bbaf@group.calendar.google.com',
     price: 10000,
     level: '1-р зэргийн үсчин',
+    gender: 'female',
   },
   'Оюунсүрэн': {
     calendarId: 'c_46dc5625ec21ce8c17b61ed2f1c28b4328279cec168b982c49f218cd4452a4b3@group.calendar.google.com',
     price: 20000,
     level: 'Мастер үсчин',
+    gender: 'female',
   },
   'oyunsuren': {
     calendarId: 'c_46dc5625ec21ce8c17b61ed2f1c28b4328279cec168b982c49f218cd4452a4b3@group.calendar.google.com',
     price: 20000,
     level: 'Мастер үсчин',
+    gender: 'female',
   },
   'Уянга': {
     calendarId: 'c_27de9527ce91e22bc5255af2dd51bc1db5c700d167d5aaad77062990bfe4875f@group.calendar.google.com',
     price: 10000,
     level: '1-р зэргийн үсчин',
+    gender: 'female',
   },
   'uyanga': {
     calendarId: 'c_27de9527ce91e22bc5255af2dd51bc1db5c700d167d5aaad77062990bfe4875f@group.calendar.google.com',
     price: 10000,
     level: '1-р зэргийн үсчин',
-  },
-  'Г. Мөнхзаяа': {
-    calendarId: MUNKHZAYA_CALENDAR_ID,
-    price: 20000,
-    level: 'Маникюр',
-    durationMinutes: 30,
-  },
-  'g.munkhzaya': {
-    // Latin transliteration alias — mirrors the Mongolian entry above (see file-level comment)
-    calendarId: MUNKHZAYA_CALENDAR_ID,
-    price: 20000,
-    level: 'Маникюр',
-    durationMinutes: 30,
+    gender: 'female',
   },
   'Отгонжаргал': {
     calendarId: OTGONZARGAL_CALENDAR_ID,
     price: 10000,
     level: '1-р зэргийн үсчин',
+    gender: 'female',
   },
   'otgonzargal': {
     // Latin transliteration alias — mirrors the Mongolian entry above (see file-level comment)
     calendarId: OTGONZARGAL_CALENDAR_ID,
     price: 10000,
     level: '1-р зэргийн үсчин',
+    gender: 'female',
   },
 };
 
@@ -114,4 +121,4 @@ const STYLIST_CALENDAR_MAP = Object.fromEntries(
   Object.entries(STYLIST_CONFIG).map(([id, cfg]) => [id, cfg.calendarId]),
 );
 
-module.exports = { STYLIST_CONFIG, STYLIST_CALENDAR_MAP, MUNKHZAYA_CALENDAR_ID, OTGONZARGAL_CALENDAR_ID };
+module.exports = { STYLIST_CONFIG, STYLIST_CALENDAR_MAP, OTGONZARGAL_CALENDAR_ID };

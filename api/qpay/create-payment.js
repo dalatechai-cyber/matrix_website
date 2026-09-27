@@ -1,5 +1,6 @@
 const axios = require('axios');
 const { checkPaymentRequest } = require('../../services/closureGuard');
+const { checkPaymentBookingRules, consentTime, REFRESH_MESSAGE } = require('../../services/bookingRules');
 
 module.exports = async function handler(req, res) {
     if (req.method !== 'POST') {
@@ -20,6 +21,16 @@ module.exports = async function handler(req, res) {
         });
     }
 
+    // --- 0б. ҮСЧНИЙ ХҮЙС, УРЬДЧИЛГААНЫ НӨХЦӨЛ ---
+    // No invoice (and so no QR) unless the hairdresser matches the customer's
+    // gender and the customer has agreed the deposit is non-refundable.
+    // Shared with routes/qpay.js through services/bookingRules.js.
+    const rulesCheck = checkPaymentBookingRules(req.body || {});
+    if (!rulesCheck.allowed) {
+        console.warn('Blocked QPay invoice by booking rules:', rulesCheck.reason, (req.body || {}).staffName);
+        return res.status(422).json({ error: REFRESH_MESSAGE, reason: rulesCheck.reason });
+    }
+
     try {
         // --- 1. ФРОНТЕНДООС ИРСЭН МЭДЭЭЛЛИЙГ ХҮЛЭЭЖ АВАХ ---
         const { amount, name, phone, staffName } = req.body;
@@ -31,23 +42,13 @@ module.exports = async function handler(req, res) {
         // Гүйлгээний утгад Нэр, Утсыг нь оруулах
         const finalDescription = `${name || 'Үйлчлүүлэгч'} - ${phone || 'Утасгүй'}`.substring(0, 255);
 
-        // --- 1б. БАНКНЫ ДАНСЫГ АЖИЛТНЫ НЭРЭЭР ТОДОРХОЙЛОХ ---
-        let bankAccountsPayload;
-        if (staffName && (staffName.includes('Мөнхзаяа') || staffName.includes('Маникюр'))) {
-            bankAccountsPayload = [{
-                account_bank_code: "050000",
-                account_number: "5042384162",
-                account_name: "Ганбат Мөнхзаяа",
-                is_default: true
-            }];
-        } else {
-            bankAccountsPayload = [{
-                account_bank_code: "040000",
-                account_number: "416055415",
-                account_name: "Эрхэмбаатар Оюунсүрэн",
-                is_default: true
-            }];
-        }
+        // --- 1б. БАНКНЫ ДАНС (салоны нэг данс) ---
+        const bankAccountsPayload = [{
+            account_bank_code: "040000",
+            account_number: "416055415",
+            account_name: "Эрхэмбаатар Оюунсүрэн",
+            is_default: true
+        }];
 
         // --- 2. TOKEN АВАХ ---
         const auth = Buffer.from(`${process.env.QPAY_USERNAME}:${process.env.QPAY_PASSWORD}`).toString('base64');
@@ -72,6 +73,18 @@ module.exports = async function handler(req, res) {
             payload,
             { headers: { 'Authorization': `Bearer ${token}` } }
         );
+
+        // Evidence for a later dispute, alongside the line written on the
+        // calendar event: which invoice was created after the customer agreed.
+        const consent = consentTime(req.body.depositTermsAcceptedAt);
+        console.log('Deposit terms accepted:', JSON.stringify({
+            invoice_id: invoiceRes.data && invoiceRes.data.invoice_id,
+            staffName,
+            customerGender: rulesCheck.customerGender,
+            bookingDate: req.body.bookingDate,
+            acceptedAt: consent.at.toISOString(),
+            acceptedAtSource: consent.source,
+        }));
 
         return res.status(200).json(invoiceRes.data);
 

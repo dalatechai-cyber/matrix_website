@@ -26,18 +26,6 @@
     { "name": "Тэжээл", "minutes": 45, "confirm": true },
     { "name": "Хими арчилгаа", "minutes": 90, "confirm": true, "aliases": ["Хими арчилт"] },
     { "name": "CICA нөхөн сэргээх эмчилгээ", "minutes": 90, "confirm": true },
-    { "name": "CMC тэжээл", "minutes": 60, "confirm": true },
-
-    { "name": "Гелэн будалт", "minutes": 90 },
-    { "name": "Гелэн будалт (гоёл)", "minutes": 120 },
-    { "name": "Гелэн будалт (хумс нөхөлт)", "minutes": 120 },
-    { "name": "Будаггүй маникюр", "minutes": 60 },
-    { "name": "Дип будаг", "minutes": 90 },
-    { "name": "Хумс салгалт", "minutes": 60 },
-    { "name": "Будаг арилгалт", "minutes": 30 },
-    { "name": "Смарт хумс", "minutes": 180 },
-    { "name": "Гель педикюр", "minutes": 90 },
-    { "name": "Будаггүй педикюр", "minutes": 60 },
-    { "name": "Гарын спа", "minutes": 60 }
+    { "name": "CMC тэжээл", "minutes": 60, "confirm": true }
   ]
 }
