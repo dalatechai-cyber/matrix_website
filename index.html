@@ -148,18 +148,26 @@
               <div class="calendar-header">
                 <h3>Цагийн хуваарь</h3>
               </div>
+              <fieldset class="customer-gender">
+                <legend>Үйлчлүүлэгч:</legend>
+                <div class="gender-options">
+                  <label class="gender-option">
+                    <input type="radio" name="customer-gender" value="female" autocomplete="off" />
+                    <span>Эмэгтэй</span>
+                  </label>
+                  <label class="gender-option">
+                    <input type="radio" name="customer-gender" value="male" autocomplete="off" />
+                    <span>Эрэгтэй</span>
+                  </label>
+                </div>
+                <p class="gender-note">Эмэгтэй үйлчлүүлэгчид эмэгтэй үсчин, эрэгтэй үйлчлүүлэгчид эрэгтэй үсчин үйлчилнэ.</p>
+              </fieldset>
               <label class="stylist-picker-label">
                 Үсчин сонгох
-                <select id="stylist-select" class="stylist-select">
+                <!-- Filled by script.js with only the hairdressers who serve the
+                     customer chosen above; disabled until then. -->
+                <select id="stylist-select" class="stylist-select" disabled autocomplete="off">
                   <option value="">Үсчин сонгох...</option>
-                  <option value="Оюунсүрэн">Оюунсүрэн (Мастер үсчин)</option>
-                  <option value="Бадамцэцэг">Бадамцэцэг (Мастер үсчин)</option>
-                  <option value="Ананд">Ананд (Мастер үсчин)</option>
-                  <option value="Уранчимэг">Уранчимэг (1-р зэргийн үсчин)</option>
-                  <option value="Батзаяа">Батзаяа (1-р зэргийн үсчин)</option>
-                  <option value="Уянга">Уянга (1-р зэргийн үсчин)</option>
-                  <option value="Отгонжаргал">Отгонжаргал (1-р зэргийн үсчин)</option>
-                  <option value="Г. Мөнхзаяа">Г. Мөнхзаяа (Маникюр)</option>
                 </select>
               </label>
               <div id="service-checkboxes" class="service-checkboxes-container"></div>
@@ -260,6 +268,92 @@
           font-size: 0.82rem;
           line-height: 1.5;
           text-align: center;
+        }
+        .customer-gender {
+          border: none;
+          margin: 0;
+          padding: 0.75rem 0 0.25rem;
+          min-width: 0;
+        }
+        .customer-gender legend {
+          padding: 0;
+          font-size: 0.9rem;
+          font-weight: 600;
+          color: #1a1a1a;
+          margin-bottom: 0.4rem;
+        }
+        .gender-options {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 0.5rem;
+        }
+        /* Whole label is the tap target, at least 44px tall for thumbs. The
+           visible box is the span, styled from the radio beside it (no :has(),
+           which older phone browsers lack). */
+        .gender-option {
+          position: relative;
+          display: block;
+          cursor: pointer;
+        }
+        .gender-option input {
+          position: absolute;
+          opacity: 0;
+          width: 1px;
+          height: 1px;
+        }
+        .gender-option span {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 44px;
+          border: 1.5px solid #d1d5db;
+          border-radius: 8px;
+          background: #f9fafb;
+          color: #1a1a1a;
+          font-size: 0.95rem;
+          font-weight: 600;
+          transition: border-color 0.2s, background 0.2s;
+        }
+        .gender-option input:checked + span {
+          border-color: var(--accent-dark, #2f8d66);
+          background: rgba(100,211,154,0.18);
+          color: #14432f;
+        }
+        .gender-option input:focus-visible + span {
+          outline: 3px solid rgba(47,141,102,0.45);
+          outline-offset: 2px;
+        }
+        .gender-note {
+          margin: 0.5rem 0 0;
+          font-size: 0.8rem;
+          line-height: 1.45;
+          color: #4b5563;
+        }
+        .stylist-select:disabled {
+          cursor: not-allowed;
+          opacity: 0.6;
+        }
+        .deposit-terms {
+          display: flex;
+          align-items: flex-start;
+          gap: 0.6rem;
+          margin-top: 0.75rem;
+          padding: 0.7rem 0.8rem;
+          border: 1.5px solid rgba(245, 158, 11, 0.55);
+          border-radius: 8px;
+          background: #fffbeb;
+          color: #1a1a1a;
+          font-size: 0.85rem;
+          line-height: 1.45;
+          cursor: pointer;
+        }
+        .deposit-terms input[type="checkbox"] {
+          accent-color: var(--accent-dark, #2f8d66);
+          width: 1.25rem;
+          height: 1.25rem;
+          margin: 0.05rem 0 0;
+          flex-shrink: 0;
+          cursor: pointer;
         }
         .stylist-picker-label {
           display: flex;
@@ -414,6 +508,6 @@
       </div>
     </footer>
 
-    <script src="script.js"></script>
+    <script src="script.js?v=2026-09-27"></script>
   </body>
 </html>

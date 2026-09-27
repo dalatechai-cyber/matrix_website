@@ -8,7 +8,7 @@ brand
 
 Beauty and hair clients in Ulaanbaatar, Mongolia — the Yaarmag district around
 the salon (near Nomin Hypermarket). Mongolian-speaking, browsing mostly on
-phones, often mid-decision: comparing where to get their hair, colour, or nail
+phones, often mid-decision: comparing where to get their hair or colour
 work done and weighing quality against price. They arrive wanting reassurance
 that the work is professional and the environment is clean and eco-conscious,
 then a frictionless way to see prices, view real results, and book a time

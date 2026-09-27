@@ -339,7 +339,7 @@ test('available-slots: a closed date offers no times and explains why', async ()
 test('available-slots: closes the day for every stylist, not just blocked calendars', async () => {
   const app = buildApp('/api/calendar', calendarRouter);
   await withEnv(FUTURE, async () => {
-    for (const stylist of ['Ананд', 'Бадамцэцэг', 'Уянга', 'Отгонжаргал', 'Г. Мөнхзаяа']) {
+    for (const stylist of ['Ананд', 'Бадамцэцэг', 'Уянга', 'Отгонжаргал']) {
       const { status, body } = await request(
         app,
         'GET',
@@ -395,6 +395,8 @@ test('create-payment: an open date still creates an invoice as before', async ()
       amount: '20000',
       description: 'Matrix Eco: Ананд - 2099-02-01 10:00 - Тест - 99000000',
       staffName: 'Ананд',
+      customerGender: 'male',
+      depositTermsAccepted: true,
     });
     assert.equal(status, 200);
     assert.equal(body.invoice_id, 'inv_test');
@@ -491,6 +493,8 @@ test('production create-payment: an open date still reaches QPay', async () => {
       staffName: 'Ананд',
       bookingDate: '2099-02-01',
       description: 'Matrix Eco: Ананд - 2099-02-01 10:00 - Тест - 99000000',
+      customerGender: 'male',
+      depositTermsAccepted: true,
     });
     assert.equal(status, 200);
     assert.ok(axiosStub._calls.length > 0, 'QPay is still called for an open date');
@@ -504,6 +508,8 @@ test('production create-payment: with no closure configured, nothing is blocked'
       amount: '20000', name: 'Тест', phone: '99000000', staffName: 'Ананд',
       bookingDate: '2026-07-15',
       description: 'Matrix Eco: Ананд - 2026-07-15 10:00 - Тест - 99000000',
+      customerGender: 'male',
+      depositTermsAccepted: true,
     });
     assert.equal(status, 200, 'the Naadam default must not apply once disabled');
   });
@@ -530,18 +536,75 @@ test('payment-success webhook: refuses to book an appointment on a closed day', 
   });
 });
 
-test('create-payment: routes the deposit to the right account on an open date', async () => {
+test('create-payment: the former manicurist cannot be invoiced on an open date', async () => {
+  // Manicure is no longer offered; no deposit may be taken for it.
   const app = buildApp('/api/qpay', qpayRouter);
   await withEnv(FUTURE, async () => {
     axiosStub.reset();
-    await request(app, 'POST', '/api/qpay/create-payment', {
+    const { status } = await request(app, 'POST', '/api/qpay/create-payment', {
       name: 'Тест',
       phone: '99000000',
       amount: '20000',
       description: 'Matrix Eco: Г. Мөнхзаяа - 2099-02-01 10:00 - Тест - 99000000',
       staffName: 'Г. Мөнхзаяа',
+      customerGender: 'female',
+      depositTermsAccepted: true,
     });
+    assert.equal(status, 422);
+    assert.equal(axiosStub._calls.length, 0, 'QPay is never called');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// api/qpay/create-payment.js — booking rules on the production handler
+//
+// Same gate as routes/qpay.js (services/bookingRules.js). Tested here because
+// this is the handler real customers reach.
+// ---------------------------------------------------------------------------
+async function productionRefuses(extra, reason) {
+  await withEnv(OFF, async () => {
+    axiosStub.reset();
+    const { status, body } = await invoke(createPaymentHandler, {
+      amount: '20000', name: 'Тест', phone: '99000000',
+      bookingDate: '2026-07-15',
+      description: 'Matrix Eco: Ананд - 2026-07-15 10:00 - Тест - 99000000',
+      ...extra,
+    });
+    assert.equal(status, 422);
+    assert.equal(body.reason, reason);
+    assert.equal(axiosStub._calls.length, 0, 'no QPay call, so no invoice and no QR');
+  });
+}
+
+test('production create-payment: refuses a request from a page without the gender step', async () => {
+  await productionRefuses({ staffName: 'Ананд', depositTermsAccepted: true }, 'missing-customer-gender');
+});
+
+test('production create-payment: refuses a mismatched hairdresser either way round', async () => {
+  await productionRefuses({ staffName: 'Ананд', customerGender: 'female', depositTermsAccepted: true }, 'gender-mismatch');
+  await productionRefuses({ staffName: 'Уянга', customerGender: 'male', depositTermsAccepted: true }, 'gender-mismatch');
+});
+
+test('production create-payment: refuses when the deposit terms were not agreed', async () => {
+  await productionRefuses({ staffName: 'Ананд', customerGender: 'male' }, 'deposit-terms-not-accepted');
+  await productionRefuses({ staffName: 'Ананд', customerGender: 'male', depositTermsAccepted: false }, 'deposit-terms-not-accepted');
+});
+
+test('production create-payment: refuses the former manicurist', async () => {
+  await productionRefuses({ staffName: 'Г. Мөнхзаяа', customerGender: 'female', depositTermsAccepted: true }, 'unknown-stylist');
+});
+
+test('production create-payment: always pays into the salon account', async () => {
+  await withEnv(OFF, async () => {
+    axiosStub.reset();
+    const { status } = await invoke(createPaymentHandler, {
+      amount: '10000', name: 'Тест', phone: '99000000', staffName: 'Уянга',
+      customerGender: 'female', depositTermsAccepted: true,
+      bookingDate: '2026-07-15',
+      description: 'Matrix Eco: Уянга - 2026-07-15 10:00 - Тест - 99000000',
+    });
+    assert.equal(status, 200);
     const invoiceCall = axiosStub._calls.find((c) => String(c.url).includes('/invoice'));
-    assert.equal(invoiceCall.body.bank_accounts[0].account_number, '5042384162');
+    assert.equal(invoiceCall.body.bank_accounts[0].account_number, '416055415');
   });
 });

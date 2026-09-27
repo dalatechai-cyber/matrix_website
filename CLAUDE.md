@@ -35,6 +35,32 @@ Both payment paths must stay gated: `vercel.json` rewrites
 catch-all serves [routes/qpay.js](routes/qpay.js). Both share
 [services/closureGuard.js](services/closureGuard.js) so they cannot drift.
 
+## Booking rules: customer gender and the non-refundable deposit
+
+Two owner rules gate every deposit, enforced in
+[services/bookingRules.js](services/bookingRules.js) and shared by both
+create-payment handlers (same reason as the closure guard):
+
+- **Gender.** Women are served by female hairdressers, men by male ones. The
+  booking asks «Үйлчлүүлэгч: Эмэгтэй / Эрэгтэй» first and lists only matching
+  hairdressers; the server refuses a mismatched invoice. Each hairdresser's
+  `gender` lives in [config/stylists.js](config/stylists.js) (from the team
+  page's «Эмэгтэй үсчид» / «Эрэгтэй үсчид»), mirrored in `script.js`'s
+  `STYLIST_CONFIG_CLIENT` — a test checks the two agree. A new hairdresser
+  needs a gender, or no deposit can be taken for them. Never guess one.
+- **Deposit terms.** The customer must tick «Урьдчилгаа төлбөр … зөвшөөрч
+  байна.» before the QR exists; without it no invoice is created. The time
+  they agreed, the exact wording and the QPay invoice id are written into the
+  Google Calendar event — the owner's record for a dispute.
+
+`POST /api/calendar/book` runs after payment, so it never refuses a missing
+gender or agreement (it marks them "not recorded" instead) — only an explicit
+mismatch.
+
+The salon no longer offers manicure (September 2026): no manicure service,
+price or stylist may appear or be bookable. The manicurist's Google Calendar
+keeps her past appointments and is simply no longer referenced.
+
 ## Service durations (booking)
 
 Services take different amounts of time — Оффис колор ~4h, хими ~2h — and

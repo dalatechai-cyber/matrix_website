@@ -161,3 +161,61 @@ test('price list: renamed services still resolve to a booking duration', () => {
     assert.equal(durationForService(retired), minutes, `retired label ${retired} stopped resolving`);
   }
 });
+
+// ---------------------------------------------------------------------------
+// Manicure is no longer offered
+// ---------------------------------------------------------------------------
+// «Г. Мөнхзаяа» is the former manicurist. A customer review on index.html is
+// signed by someone else who shares the given name, so the bare name is not banned.
+const MANICURE_WORDS = /маникюр|педикюр|хумс|гелэн|г\. мөнхзаяа|munkhzaya/i;
+
+test('manicure: no page, price or bookable service mentions it', () => {
+  for (const page of PAGES) {
+    const html = fs.readFileSync(path.join(ROOT, page), 'utf8');
+    assert.ok(!MANICURE_WORDS.test(html), `${page} still mentions manicure`);
+  }
+  for (const s of allServices()) assert.ok(!MANICURE_WORDS.test(s.name), `price list still has ${s.name}`);
+  for (const c of Object.values(pricing)) assert.ok(!MANICURE_WORDS.test(c.category), c.category);
+  const durations = require('../data/serviceDurations.json');
+  for (const s of durations.services) assert.ok(!MANICURE_WORDS.test(s.name), `durations still has ${s.name}`);
+  const script = fs.readFileSync(path.join(ROOT, 'script.js'), 'utf8');
+  assert.ok(!MANICURE_WORDS.test(script), 'script.js still mentions manicure');
+  assert.ok(!fs.existsSync(path.join(ROOT, 'hairstylist_pic/munkhzaya.jpeg')), 'manicurist photo is still served');
+});
+
+// ---------------------------------------------------------------------------
+// Customer gender and the non-refundable deposit (owner-approved wording)
+// ---------------------------------------------------------------------------
+const GENDER_NOTE = 'Эмэгтэй үйлчлүүлэгчид эмэгтэй үсчин, эрэгтэй үйлчлүүлэгчид эрэгтэй үсчин үйлчилнэ.';
+const DEPOSIT_TERMS = 'Урьдчилгаа төлбөр нь цагаа цуцалсан эсвэл ирээгүй тохиолдолд буцаан олгогдохгүй гэдгийг ойлгож, зөвшөөрч байна.';
+
+test('booking: the gender step and note use the approved wording', () => {
+  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  assert.ok(html.includes('<legend>Үйлчлүүлэгч:</legend>'));
+  assert.ok(html.includes('value="female"') && html.includes('<span>Эмэгтэй</span>'));
+  assert.ok(html.includes('value="male"') && html.includes('<span>Эрэгтэй</span>'));
+  assert.ok(html.includes(GENDER_NOTE));
+  // No hairdresser is listed in the markup: script.js adds only matching ones.
+  assert.ok(!/<option value="[^"]+">/.test(html.slice(html.indexOf('id="stylist-select"'), html.indexOf('</select>'))));
+});
+
+test('booking: the deposit box and the recorded agreement use the approved wording', () => {
+  const script = fs.readFileSync(path.join(ROOT, 'script.js'), 'utf8');
+  assert.ok(script.includes(DEPOSIT_TERMS));
+  assert.equal(require('../services/bookingRules').DEPOSIT_TERMS_TEXT, DEPOSIT_TERMS);
+});
+
+test('booking: the browser list of hairdressers matches the server, gender included', () => {
+  const { STYLIST_CONFIG } = require('../config/stylists');
+  const script = fs.readFileSync(path.join(ROOT, 'script.js'), 'utf8');
+  const block = script.slice(script.indexOf('const STYLIST_CONFIG_CLIENT = {'), script.indexOf('};', script.indexOf('const STYLIST_CONFIG_CLIENT = {')));
+  const entries = [...block.matchAll(/'([^']+)':\s*\{\s*price:\s*(\d+),\s*level:\s*'([^']+)',\s*gender:\s*'(female|male)'\s*\}/g)];
+  assert.equal(entries.length, 7, 'seven hairdressers in the booking list');
+  for (const [, id, price, level, gender] of entries) {
+    const server = STYLIST_CONFIG[id];
+    assert.ok(server, `${id} is not bookable on the server`);
+    assert.equal(server.gender, gender, `${id} gender differs between browser and server`);
+    assert.equal(server.price, Number(price), `${id} price differs`);
+    assert.equal(server.level, level, `${id} level differs`);
+  }
+});

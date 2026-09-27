@@ -34,13 +34,8 @@ const HAIR_SERVICES = [
   "Оффис колор",
 ];
 
-// Services offered by the manicurist. Durations for these — and for the hair
-// services above — live in data/serviceDurations.json (see serviceDurations below).
-const MANICURE_SERVICES = [
-  "Гелэн будалт", "Гелэн будалт (гоёл)", "Гелэн будалт (хумс нөхөлт)",
-  "Будаггүй маникюр", "Дип будаг", "Хумс салгалт", "Будаг арилгалт",
-  "Смарт хумс", "Гель педикюр", "Будаггүй педикюр", "Гарын спа",
-];
+// Durations for the services above live in data/serviceDurations.json (see
+// serviceDurations below).
 
 // ---------------------------------------------------------------------------
 // Service durations
@@ -103,18 +98,42 @@ function formatDuration(minutes) {
 // service-checkbox change events (outside the summary panel) can trigger it.
 let _validateBookingFn = null;
 
-// Client-side copy of stylist prices/levels (mirrors config/stylists.js).
-// Note: keep this in sync with the server-side config when stylist pricing changes.
+// Client-side copy of stylist prices/levels/genders (mirrors config/stylists.js),
+// in the order the booking list shows them. Keep in sync with the server-side
+// config — tests/content.test.js checks that the two agree.
 const STYLIST_CONFIG_CLIENT = {
-  'Оюунсүрэн':       { price: 20000, level: 'Мастер үсчин' },
-  'Бадамцэцэг':      { price: 20000, level: 'Мастер үсчин' },
-  'Ананд':           { price: 20000, level: 'Мастер үсчин' },
-  'Уранчимэг':       { price: 10000, level: '1-р зэргийн үсчин' },
-  'Батзаяа':         { price: 10000, level: '1-р зэргийн үсчин' },
-  'Уянга':           { price: 10000, level: '1-р зэргийн үсчин' },
-  'Отгонжаргал':     { price: 10000, level: '1-р зэргийн үсчин' },
-  'Г. Мөнхзаяа':     { price: 20000, level: 'Маникюр', durationMinutes: 90 },
+  'Оюунсүрэн':       { price: 20000, level: 'Мастер үсчин',      gender: 'female' },
+  'Бадамцэцэг':      { price: 20000, level: 'Мастер үсчин',      gender: 'female' },
+  'Ананд':           { price: 20000, level: 'Мастер үсчин',      gender: 'male' },
+  'Уранчимэг':       { price: 10000, level: '1-р зэргийн үсчин', gender: 'female' },
+  'Батзаяа':         { price: 10000, level: '1-р зэргийн үсчин', gender: 'female' },
+  'Уянга':           { price: 10000, level: '1-р зэргийн үсчин', gender: 'female' },
+  'Отгонжаргал':     { price: 10000, level: '1-р зэргийн үсчин', gender: 'female' },
 };
+
+const CUSTOMER_GENDER_LABELS = { female: "Эмэгтэй", male: "Эрэгтэй" };
+
+/**
+ * The customer's answer to «Үйлчлүүлэгч: Эмэгтэй / Эрэгтэй», or null before
+ * they answer. Read from the radio buttons every time rather than cached, so
+ * a page restored by the back button can never disagree with what is shown.
+ * @returns {"female"|"male"|null}
+ */
+function selectedCustomerGender() {
+  const checked = document.querySelector('input[name="customer-gender"]:checked');
+  const v = checked ? checked.value : "";
+  return v === "female" || v === "male" ? v : null;
+}
+
+/** Whether this hairdresser may serve this customer (the salon's rule). */
+function stylistServesGender(stylistId, gender) {
+  const cfg = STYLIST_CONFIG_CLIENT[stylistId];
+  return !!(cfg && gender && cfg.gender === gender);
+}
+
+// When the customer ticked the non-refundable-deposit box, as an ISO string;
+// null while unticked. Sent with the payment and written on the booking.
+let depositTermsAcceptedAt = null;
 
 // Photos shown behind a card's "Зураг харах" button, keyed by normalised service
 // name. Only work the salon can stand behind today belongs here: files/ also holds
@@ -721,18 +740,13 @@ function renderDayStrip(startDate = new Date()) {
 /**
  * Generate all possible booking time slot strings for the given date.
  *
- * For the manicurist (Г. Мөнхзаяа / Маникюр service), 30-minute slots are
- * generated from business hours:
- *   Mon–Sat (getDay 1–6): 10:00–19:30  (20 slots)
- *   Sun     (getDay 0):   11:00–18:30  (16 slots)
- *
- * For all other stylists, 1-hour slots are generated from business hours:
+ * 1-hour slots are generated from business hours:
  *   Mon–Sat (getDay 1–6): 10:00–19:00  (10 slots)
  *   Sun     (getDay 0):   11:00–18:00  ( 8 slots)
  *
  * @param {string} dateStr        YYYY-MM-DD
  * @param {number} durationMinutes
- * @param {string} [stylistId]    Stylist identifier (used to detect manicurist)
+ * @param {string} [stylistId]    Stylist identifier (unused; kept for callers)
  * @returns {string[]}  e.g. ["10:00", "10:30", "11:00", ..., "19:30"]
  */
 function generateTimeSlots(dateStr, durationMinutes = 60, stylistId = "") {
@@ -740,12 +754,10 @@ function generateTimeSlots(dateStr, durationMinutes = 60, stylistId = "") {
   const dayOfWeek = new Date(`${dateStr}T12:00:00`).getDay();
   const isSunday = dayOfWeek === 0;
 
-  // Start times every 30 minutes for the manicurist, on the hour for hairdressers
-  // — mirroring routes/calendar.js. The last start is the latest one whose
-  // appointment still finishes by closing time, so a long service never offers a
-  // time the salon would have to work past close to honour.
-  const isManicurist = stylistId.includes("Мөнхзаяа") || stylistId.includes("Маникюр");
-  const stepMinutes = isManicurist ? 30 : 60;
+  // Start times on the hour — mirroring routes/calendar.js. The last start is
+  // the latest one whose appointment still finishes by closing time, so a long
+  // service never offers a time the salon would have to work past close to honour.
+  const stepMinutes = 60;
   const openMinutes = (isSunday ? 11 : 10) * 60;
   const closeMinutes = (isSunday ? 19 : 20) * 60;
   const lastStartMinutes = closeMinutes - durationMinutes;
@@ -796,9 +808,7 @@ async function fetchAvailableSlots(date, stylistId) {
   if (stylistSel) stylistSel.disabled = true;
 
   const services = checkedServiceNames();
-  const durationMinutes = services.length > 0
-    ? totalDurationFor(services)
-    : ((STYLIST_CONFIG_CLIENT[stylistId] || {}).durationMinutes || 60);
+  const durationMinutes = services.length > 0 ? totalDurationFor(services) : 60;
 
   try {
     const params = new URLSearchParams({ date, stylistId });
@@ -809,6 +819,10 @@ async function fetchAvailableSlots(date, stylistId) {
       throw new Error(err.details || err.error || `HTTP ${res.status}`);
     }
     const data = await res.json();
+
+    // The customer changed hairdresser (or answered «Үйлчлүүлэгч» differently)
+    // while this was loading: these times belong to someone no longer chosen.
+    if (stylistSel && stylistSel.value !== stylistId) return;
 
     // The server has the final say on closures: honour one we had not heard of
     // yet (e.g. the closures request failed, or a closure was just configured).
@@ -841,7 +855,8 @@ async function fetchAvailableSlots(date, stylistId) {
       hasServices: services.length > 0,
     });
   } finally {
-    if (stylistSel) stylistSel.disabled = false;
+    // Never re-enable the list before the customer has said who they are.
+    if (stylistSel) stylistSel.disabled = !selectedCustomerGender();
   }
 }
 
@@ -905,13 +920,20 @@ function renderAvailableSlots(slots, stylistId, date, meta = {}) {
 function showBookingSummary(stylistId, date, time) {
   const summaryEl = document.getElementById("booking-summary");
   if (!summaryEl) return;
+  // The salon's rule, checked again at the last step: a summary (and so a
+  // payment) never exists for a hairdresser who does not serve this customer.
+  const customerGender = selectedCustomerGender();
+  if (!stylistServesGender(stylistId, customerGender)) {
+    applyCustomerGender();
+    return;
+  }
   const stylist = STYLIST_CONFIG_CLIENT[stylistId] || { price: 10000, level: "" };
   const levelText = stylist.level ? ` (${stylist.level})` : "";
 
   // Determine price based on the stylist's tier name (text-based conditional logic).
   const levelStr = stylist.level;
   let price;
-  if (levelStr.includes("Мастер") || levelStr.includes("Маникюр")) {
+  if (levelStr.includes("Мастер")) {
     price = 20000;
   } else if (levelStr.includes("1-р зэргийн")) {
     price = 10000;
@@ -922,6 +944,7 @@ function showBookingSummary(stylistId, date, time) {
 
   summaryEl.innerHTML = `
     <h4 class="summary-title">Захиалгын мэдээлэл</h4>
+    <div class="summary-item"><span>Үйлчлүүлэгч:</span> <strong>${CUSTOMER_GENDER_LABELS[customerGender]}</strong></div>
     <div class="summary-item"><span>Үсчин:</span> <strong>${stylistId}${levelText}</strong></div>
     <div class="summary-item"><span>Өдөр:</span> <strong>${date}</strong></div>
     <div class="summary-item"><span>Цаг:</span> <strong>${time}</strong></div>
@@ -934,6 +957,10 @@ function showBookingSummary(stylistId, date, time) {
       <label for="customer-phone">Утасны дугаар</label>
       <input type="tel" id="customer-phone" name="customer-phone" placeholder="Утасны дугаар" autocomplete="tel" />
     </div>
+    <label class="deposit-terms" for="deposit-terms">
+      <input type="checkbox" id="deposit-terms" autocomplete="off" />
+      <span>Урьдчилгаа төлбөр нь цагаа цуцалсан эсвэл ирээгүй тохиолдолд буцаан олгогдохгүй гэдгийг ойлгож, зөвшөөрч байна.</span>
+    </label>
     <button type="button" class="primary-btn confirm-pay-btn" disabled>Баталгаажуулж төлөх</button>
   `;
   summaryEl.style.display = "block";
@@ -941,12 +968,16 @@ function showBookingSummary(stylistId, date, time) {
   const confirmBtn = summaryEl.querySelector(".confirm-pay-btn");
   const nameInput  = document.getElementById("customer-name");
   const phoneInput = document.getElementById("customer-phone");
+  const termsInput = document.getElementById("deposit-terms");
+  // A fresh summary starts unticked: agreement is given for this booking.
+  depositTermsAcceptedAt = null;
 
   function validateBookingForm() {
     const nameVal  = (nameInput?.value  || "").trim();
     const phoneVal = (phoneInput?.value || "").trim();
     const hasService = document.querySelectorAll(".service-checkbox:checked").length > 0;
-    confirmBtn.disabled = !(nameVal.length > 0 && phoneVal.length > 0 && hasService);
+    const termsAccepted = !!termsInput?.checked;
+    confirmBtn.disabled = !(nameVal.length > 0 && phoneVal.length > 0 && hasService && termsAccepted);
   }
 
   // Register this summary's validation function so service-checkbox changes can trigger it.
@@ -954,6 +985,10 @@ function showBookingSummary(stylistId, date, time) {
 
   nameInput?.addEventListener("input",  validateBookingForm);
   phoneInput?.addEventListener("input", validateBookingForm);
+  termsInput?.addEventListener("change", () => {
+    depositTermsAcceptedAt = termsInput.checked ? new Date().toISOString() : null;
+    validateBookingForm();
+  });
 
   summaryEl.querySelector(".confirm-pay-btn").onclick = () => {
     // Last line of defence in the browser: never start a payment for a day the
@@ -963,6 +998,19 @@ function showBookingSummary(stylistId, date, time) {
       const avail = document.getElementById("available-time-slots");
       if (avail) renderClosureNotice(avail, closure);
       summaryEl.style.display = "none";
+      return;
+    }
+
+    // The rule and the agreement are re-read here, not trusted from when the
+    // summary was drawn: the customer may have changed either since.
+    const genderNow = selectedCustomerGender();
+    if (!stylistServesGender(stylistId, genderNow)) {
+      applyCustomerGender();
+      return;
+    }
+    if (!termsInput?.checked || !depositTermsAcceptedAt) {
+      validateBookingForm();
+      termsInput?.focus();
       return;
     }
 
@@ -984,8 +1032,8 @@ function showBookingSummary(stylistId, date, time) {
     }
 
     const selectedServices = checkedServices.join(", ");
-    // Every service has a duration, hair included — this used to charge any
-    // non-manicure service a flat 30 minutes. The server re-resolves it anyway
+    // Every service has a duration — this used to charge every hair service a
+    // flat 30 minutes. The server re-resolves it anyway
     // and takes the longer of the two, so this can only ever be a hint.
     const totalDuration = totalDurationFor(checkedServices);
 
@@ -998,6 +1046,9 @@ function showBookingSummary(stylistId, date, time) {
       selectedServices,
       totalDuration,
       confirmBtn,
+      termsInput,
+      customerGender: genderNow,
+      depositTermsAcceptedAt,
       bookingDetails: { stylistId, date, time },
     });
   };
@@ -1038,9 +1089,8 @@ function selectDay(dateString) {
 }
 
 /**
- * Render service checkboxes inside #service-checkboxes based on the selected stylist.
- * Uses MANICURE_SERVICES for Г. Мөнхзаяа, HAIR_SERVICES for all others.
- * Clears the container when no stylist is selected.
+ * Render the hair service checkboxes inside #service-checkboxes once a stylist
+ * is selected. Clears the container when no stylist is selected.
  */
 function renderServiceCheckboxes(stylistId) {
   const container = document.getElementById("service-checkboxes");
@@ -1051,9 +1101,7 @@ function renderServiceCheckboxes(stylistId) {
     return;
   }
 
-  const stylistCfg = STYLIST_CONFIG_CLIENT[stylistId];
-  const services =
-    stylistCfg?.level === "Маникюр" ? MANICURE_SERVICES : HAIR_SERVICES;
+  const services = HAIR_SERVICES;
 
   container.innerHTML = "";
 
@@ -1092,6 +1140,7 @@ function resetBookingForm() {
   selectedTime = null;
   selectedDate = null;
   _validateBookingFn = null;
+  depositTermsAcceptedAt = null;
   const successEl = document.getElementById("booking-success-message");
   if (successEl) successEl.style.display = "none";
   const summaryEl = document.getElementById("booking-summary");
@@ -1111,9 +1160,67 @@ todayBtn?.addEventListener("click", () => {
   renderDayStrip(new Date());
 });
 
+/**
+ * Bring the hairdresser list in line with the customer's answer to
+ * «Үйлчлүүлэгч: Эмэгтэй / Эрэгтэй» — the salon's rule is that women are served
+ * by female hairdressers and men by male ones.
+ *
+ * The list is rebuilt from scratch with only the matching hairdressers, and
+ * stays disabled until the customer answers. A hairdresser already chosen who
+ * no longer matches is dropped along with everything that depended on them
+ * (services, times, summary). Runs on load and whenever the page is shown
+ * again — including from the back/forward cache — so the list can never
+ * disagree with the answer on screen.
+ */
+function applyCustomerGender() {
+  const stylistSel = document.getElementById("stylist-select");
+  if (!stylistSel) return;
+  const gender = selectedCustomerGender();
+  const previous = stylistSel.value;
+
+  // Rebuilt rather than hidden: iOS Safari ignores `hidden` on <option>, and a
+  // non-matching hairdresser must not be pickable at all.
+  stylistSel.innerHTML = "";
+  stylistSel.add(new Option("Үсчин сонгох...", ""));
+  if (gender) {
+    Object.entries(STYLIST_CONFIG_CLIENT).forEach(([id, cfg]) => {
+      if (cfg.gender === gender) stylistSel.add(new Option(`${id} (${cfg.level})`, id));
+    });
+  }
+  stylistSel.disabled = !gender;
+
+  if (stylistServesGender(previous, gender)) {
+    stylistSel.value = previous;
+    return;
+  }
+  stylistSel.value = "";
+  selectedTime = null;
+  _validateBookingFn = null;
+  depositTermsAcceptedAt = null;
+  const summaryEl = document.getElementById("booking-summary");
+  if (summaryEl) summaryEl.style.display = "none";
+  renderServiceCheckboxes("");
+  if (selectedDate && dayStrip) {
+    selectDay(selectedDate);
+  } else {
+    const avail = document.getElementById("available-time-slots");
+    if (avail && !avail.classList.contains("has-notice")) {
+      avail.innerHTML = '<p class="slots-hint">Үсчин болон өдрийг сонгоно уу.</p>';
+    }
+  }
+}
+
+document.querySelectorAll('input[name="customer-gender"]').forEach((radio) => {
+  radio.addEventListener("change", applyCustomerGender);
+});
+
 document.getElementById("stylist-select")?.addEventListener("change", (event) => {
   const summaryEl = document.getElementById("booking-summary");
   if (summaryEl) summaryEl.style.display = "none";
+  if (event.target.value && !stylistServesGender(event.target.value, selectedCustomerGender())) {
+    applyCustomerGender();
+    return;
+  }
   renderServiceCheckboxes(event.target.value);
   if (event.target.value && selectedDate) {
     fetchAvailableSlots(selectedDate, event.target.value);
@@ -1160,6 +1267,12 @@ if (dayStrip) {
   renderDayStrip(new Date());
   const avail = document.getElementById("available-time-slots");
   if (avail) avail.innerHTML = '<p class="slots-hint">Үсчин болон өдрийг сонгоно уу.</p>';
+
+  // The browser may restore «Үйлчлүүлэгч» from an earlier visit; build the
+  // hairdresser list from whatever is actually selected, now and on every
+  // return to the page.
+  applyCustomerGender();
+  window.addEventListener("pageshow", applyCustomerGender);
 
   // Durations are needed before the first slot list is rendered, but nothing
   // blocks on them: the server enforces the real figures either way.
@@ -1522,7 +1635,7 @@ if (videoButtons.length > 0) {
  * @param {HTMLButtonElement} [params.confirmBtn] - The button that triggered the call (for loading state)
  * @param {object} [params.bookingDetails]     - { stylistId, date, time } for the success screen
  */
-async function initiateQPayPayment({ amount, name, phone, description, staffName, selectedServices, totalDuration, confirmBtn, bookingDetails }) {
+async function initiateQPayPayment({ amount, name, phone, description, staffName, selectedServices, totalDuration, confirmBtn, termsInput, customerGender, depositTermsAcceptedAt: termsAcceptedAt, bookingDetails }) {
   const panel     = document.getElementById("qpay-panel");
   const qrImg     = document.getElementById("qpay-qr-img");
   const bankBtns  = document.getElementById("qpay-bank-buttons");
@@ -1535,6 +1648,10 @@ async function initiateQPayPayment({ amount, name, phone, description, staffName
     confirmBtn.disabled = true;
     confirmBtn.textContent = "Түр хүлээнэ үү...";
   }
+
+  // The agreement cannot be withdrawn once the invoice it was given for is on
+  // its way; it unlocks again whenever the confirm button does.
+  if (termsInput) termsInput.disabled = true;
 
   // Track the active confirm button globally so the close handler can re-enable it
   // when the user dismisses the QR panel before completing payment.
@@ -1566,6 +1683,8 @@ async function initiateQPayPayment({ amount, name, phone, description, staffName
         clearInterval(qpayPollInterval);
         qpayPollInterval = null;
       }
+      const activeTerms = document.getElementById("deposit-terms");
+      if (activeTerms) activeTerms.disabled = false;
       // Re-enable the confirm button so the user can retry the payment
       if (qpayActiveConfirmBtn) {
         qpayActiveConfirmBtn.disabled = false;
@@ -1592,6 +1711,11 @@ async function initiateQPayPayment({ amount, name, phone, description, staffName
         staffName,
         // The date the deposit is for, so the server can refuse a closed day.
         bookingDate: (bookingDetails || {}).date,
+        // The server refuses an invoice without these: the hairdresser must
+        // serve this customer, and the deposit terms must have been agreed.
+        customerGender,
+        depositTermsAccepted: !!termsAcceptedAt,
+        depositTermsAcceptedAt: termsAcceptedAt,
       }),
     });
 
@@ -1607,6 +1731,7 @@ async function initiateQPayPayment({ amount, name, phone, description, staffName
           confirmBtn.disabled = false;
           confirmBtn.textContent = confirmBtnOriginalText || CONFIRM_BTN_DEFAULT_TEXT;
         }
+        if (termsInput) termsInput.disabled = false;
         qpayActiveConfirmBtn = null;
         qpayActiveConfirmBtnText = "";
         if (!closureFor(errData.closure.start)) {
@@ -1751,6 +1876,12 @@ async function initiateQPayPayment({ amount, name, phone, description, staffName
                   customerPhone: phone,
                   selectedServices,
                   totalDuration,
+                  // Written on the calendar event: the owner's record of who
+                  // the customer is and when they agreed the deposit is kept.
+                  customerGender,
+                  depositTermsAccepted: !!termsAcceptedAt,
+                  depositTermsAcceptedAt: termsAcceptedAt,
+                  invoiceId: invoice_id,
                 }),
               });
 
@@ -1800,6 +1931,7 @@ async function initiateQPayPayment({ amount, name, phone, description, staffName
       confirmBtn.disabled = false;
       confirmBtn.textContent = confirmBtnOriginalText || CONFIRM_BTN_DEFAULT_TEXT;
     }
+    if (termsInput) termsInput.disabled = false;
   }
 }
 

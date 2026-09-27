@@ -64,7 +64,7 @@ Module._load = function (request, parent, isMain) {
 // Load route and service utilities after stubs are in place
 const calendarRouter = require('../routes/calendar');
 const { normalisePrivateKey } = require('../services/googleCalendar');
-const { STYLIST_CONFIG, MUNKHZAYA_CALENDAR_ID, OTGONZARGAL_CALENDAR_ID } = require('../config/stylists');
+const { STYLIST_CONFIG, OTGONZARGAL_CALENDAR_ID } = require('../config/stylists');
 
 // ---------------------------------------------------------------------------
 // normalisePrivateKey unit tests
@@ -148,7 +148,8 @@ const VALID_CALENDAR_ID = 'c_2af068656b60e27cd9063a78b04dffbe24f1aab4543e50c2875
 const VALID_DATE = '2035-06-04';        // Monday  (UTC+8) → Mon–Sat hours: 10:00–20:00
 const VALID_DATE_SUNDAY = '2035-06-03'; // Sunday  (UTC+8) → Sun hours:     11:00–19:00
 
-// Manicurist stylist IDs and her dedicated calendar ID (MUNKHZAYA_CALENDAR_ID imported above)
+// The former manicurist. The salon no longer offers manicure, so these ids
+// must not resolve to anything bookable.
 const MUNKHZAYA_STYLIST_ID_MN = 'Г. Мөнхзаяа';
 const MUNKHZAYA_STYLIST_ID_LATIN = 'g.munkhzaya';
 
@@ -337,167 +338,64 @@ test('book: 500 when Google Calendar API throws', async () => {
 });
 
 // ---------------------------------------------------------------------------
-// Manicurist (Г. Мөнхзаяа) calendar routing
+// Manicure is no longer offered
 // ---------------------------------------------------------------------------
-test('STYLIST_CONFIG: Г. Мөнхзаяа uses her dedicated calendar ID', () => {
-  assert.equal(
-    STYLIST_CONFIG[MUNKHZAYA_STYLIST_ID_MN].calendarId,
-    MUNKHZAYA_CALENDAR_ID,
-    'Mongolian key should map to the manicurist calendar',
-  );
+test('STYLIST_CONFIG: the former manicurist is not a bookable stylist', () => {
+  assert.equal(STYLIST_CONFIG[MUNKHZAYA_STYLIST_ID_MN], undefined);
+  assert.equal(STYLIST_CONFIG[MUNKHZAYA_STYLIST_ID_LATIN], undefined);
+  for (const [id, cfg] of Object.entries(STYLIST_CONFIG)) {
+    assert.notEqual(cfg.level, 'Маникюр', `${id} must not be a manicure stylist`);
+  }
 });
 
-test('STYLIST_CONFIG: g.munkhzaya (Latin alias) uses the same dedicated calendar ID', () => {
-  assert.equal(
-    STYLIST_CONFIG[MUNKHZAYA_STYLIST_ID_LATIN].calendarId,
-    MUNKHZAYA_CALENDAR_ID,
-    'Latin alias should map to the manicurist calendar',
-  );
+test('available-slots: 400 for the former manicurist', async () => {
+  const app = buildApp();
+  for (const stylistId of [MUNKHZAYA_STYLIST_ID_MN, MUNKHZAYA_STYLIST_ID_LATIN]) {
+    const { status } = await request(app, 'GET', '/api/calendar/available-slots', { date: VALID_DATE, stylistId });
+    assert.equal(status, 400, stylistId);
+  }
 });
 
-test('book: 200 booking for Г. Мөнхзаяа routes to her calendar', async () => {
+test('book: 400 for the former manicurist, and nothing is written', async () => {
   calendarStub._insertError = null;
-  calendarStub._insertResult = { data: { id: 'munkhzaya_booking_001' } };
-  const app = buildApp();
-  const { status, body } = await request(app, 'POST', '/api/calendar/book', {
-    stylistId: MUNKHZAYA_STYLIST_ID_LATIN,
-    startTime: '2035-06-05T10:00:00+08:00',
-    customerName: 'Test Customer',
-    serviceName: 'Маникюр',
-  });
-  assert.equal(status, 200);
-  assert.equal(body.eventId, 'munkhzaya_booking_001');
-  assert.ok(body.message.includes('success'));
-});
-
-test('available-slots: 200 for Г. Мөнхзаяа routes to her calendar', async () => {
-  calendarStub._freebusyError = null;
-  calendarStub._freebusyResult = {
-    data: { calendars: { [MUNKHZAYA_CALENDAR_ID]: { busy: [] } } },
-  };
-  const app = buildApp();
-  const { status, body } = await request(app, 'GET', '/api/calendar/available-slots', {
-    date: VALID_DATE,
-    stylistId: MUNKHZAYA_STYLIST_ID_LATIN,
-  });
-  assert.equal(status, 200);
-  assert.equal(body.stylistId, MUNKHZAYA_STYLIST_ID_LATIN);
-  // VALID_DATE is Monday → 30-min manicure slots: 10:00–19:30 → 20 slots
-  assert.equal(body.availableSlots.length, 20);
-  assert.ok(body.availableSlots.includes('10:00'));
-  assert.ok(body.availableSlots.includes('10:30'));
-  assert.ok(body.availableSlots.includes('19:30'));
-  assert.ok(!body.availableSlots.includes('20:00'), '20:00 is past the last manicure slot');
-});
-
-test('available-slots: 200 Sunday hours for Г. Мөнхзаяа uses Sunday-specific slots', async () => {
-  calendarStub._freebusyError = null;
-  calendarStub._freebusyResult = {
-    data: { calendars: { [MUNKHZAYA_CALENDAR_ID]: { busy: [] } } },
-  };
-  const app = buildApp();
-  const { status, body } = await request(app, 'GET', '/api/calendar/available-slots', {
-    date: VALID_DATE_SUNDAY,
-    stylistId: MUNKHZAYA_STYLIST_ID_LATIN,
-  });
-  assert.equal(status, 200);
-  // VALID_DATE_SUNDAY is Sunday → 30-min manicure slots: 11:00–18:30 → 16 slots
-  assert.equal(body.availableSlots.length, 16);
-  assert.ok(!body.availableSlots.includes('10:00'), '10:00 is not a Sunday manicure slot');
-  assert.ok(body.availableSlots.includes('11:00'));
-  assert.ok(body.availableSlots.includes('11:30'));
-  assert.ok(body.availableSlots.includes('14:00'));
-  assert.ok(body.availableSlots.includes('18:00'));
-  assert.ok(body.availableSlots.includes('18:30'));
-  assert.ok(!body.availableSlots.includes('19:00'), '19:00 is past the last Sunday manicure slot');
-});
-
-// ---------------------------------------------------------------------------
-// Manicurist (Г. Мөнхзаяа) dynamic appointment duration via totalDuration
-// ---------------------------------------------------------------------------
-test('STYLIST_CONFIG: Г. Мөнхзаяа has durationMinutes of 30 (minimum slot interval)', () => {
-  assert.equal(
-    STYLIST_CONFIG[MUNKHZAYA_STYLIST_ID_MN].durationMinutes,
-    30,
-    'Mongolian key should have 30-minute slot duration',
-  );
-  assert.equal(
-    STYLIST_CONFIG[MUNKHZAYA_STYLIST_ID_LATIN].durationMinutes,
-    30,
-    'Latin alias should also have 30-minute slot duration',
-  );
-});
-
-test('book: a 90-minute manicure service creates a 90-minute event', async () => {
-  calendarStub._insertError = null;
-  calendarStub._insertResult = { data: { id: 'munkhzaya_duration_test' } };
   calendarStub._lastInsertArg = null;
   const app = buildApp();
   const { status } = await request(app, 'POST', '/api/calendar/book', {
-    stylistId: MUNKHZAYA_STYLIST_ID_LATIN,
-    startTime: '2035-06-05T13:00:00+08:00',
+    stylistId: MUNKHZAYA_STYLIST_ID_MN,
+    startTime: '2035-06-05T10:00:00+08:00',
     customerName: 'Test Customer',
     selectedServices: 'Гелэн будалт',
   });
-  assert.equal(status, 200);
-  const { start, end } = calendarStub._lastInsertArg.requestBody;
-  const startMs = new Date(start.dateTime).getTime();
-  const endMs = new Date(end.dateTime).getTime();
-  const diffMinutes = (endMs - startMs) / (60 * 1000);
-  assert.equal(diffMinutes, 90, 'Гелэн будалт is a 90-minute service');
+  assert.equal(status, 400);
+  assert.equal(calendarStub._lastInsertArg, null);
 });
 
-test('book: a 180-minute manicure service creates a 180-minute event', async () => {
-  calendarStub._insertError = null;
-  calendarStub._insertResult = { data: { id: 'munkhzaya_long_test' } };
-  calendarStub._lastInsertArg = null;
-  const app = buildApp();
-  const { status } = await request(app, 'POST', '/api/calendar/book', {
-    stylistId: MUNKHZAYA_STYLIST_ID_LATIN,
-    startTime: '2035-06-05T10:00:00+08:00',
-    customerName: 'Test Customer',
-    selectedServices: 'Смарт хумс',
-  });
-  assert.equal(status, 200);
-  const { start, end } = calendarStub._lastInsertArg.requestBody;
-  const diffMinutes = (new Date(end.dateTime) - new Date(start.dateTime)) / (60 * 1000);
-  assert.equal(diffMinutes, 180, 'Смарт хумс is a 180-minute service');
+test('STYLIST_CONFIG: every hairdresser has a recorded gender', () => {
+  for (const [id, cfg] of Object.entries(STYLIST_CONFIG)) {
+    assert.ok(cfg.gender === 'female' || cfg.gender === 'male', `${id} has no gender`);
+  }
+  assert.equal(STYLIST_CONFIG['Ананд'].gender, 'male');
+  assert.equal(STYLIST_CONFIG['Оюунсүрэн'].gender, 'female');
 });
 
 test('book: a client-supplied totalDuration cannot inflate the booking', async () => {
   // The browser's number is never trusted on its own: it decides how much of a
   // stylist's day is blocked, so anyone could otherwise squat a whole day.
   calendarStub._insertError = null;
-  calendarStub._insertResult = { data: { id: 'munkhzaya_inflate_test' } };
+  calendarStub._insertResult = { data: { id: 'inflate_test' } };
   calendarStub._lastInsertArg = null;
   const app = buildApp();
   const { status } = await request(app, 'POST', '/api/calendar/book', {
-    stylistId: MUNKHZAYA_STYLIST_ID_LATIN,
+    stylistId: VALID_STYLIST_ID,
     startTime: '2035-06-05T10:00:00+08:00',
     customerName: 'Test Customer',
-    selectedServices: 'Будаг арилгалт',
+    selectedServices: 'Энгийн засалт',
     totalDuration: 600,
   });
   assert.equal(status, 200);
   const { start, end } = calendarStub._lastInsertArg.requestBody;
   const diffMinutes = (new Date(end.dateTime) - new Date(start.dateTime)) / (60 * 1000);
-  assert.equal(diffMinutes, 30, 'the configured 30 minutes wins over the claimed 600');
-});
-
-test('book: a booking naming no known service falls back to 60 minutes', async () => {
-  calendarStub._insertError = null;
-  calendarStub._insertResult = { data: { id: 'munkhzaya_fallback_test' } };
-  calendarStub._lastInsertArg = null;
-  const app = buildApp();
-  const { status } = await request(app, 'POST', '/api/calendar/book', {
-    stylistId: MUNKHZAYA_STYLIST_ID_LATIN,
-    startTime: '2035-06-05T13:00:00+08:00',
-    customerName: 'Test Customer',
-  });
-  assert.equal(status, 200);
-  const { start, end } = calendarStub._lastInsertArg.requestBody;
-  const diffMinutes = (new Date(end.dateTime) - new Date(start.dateTime)) / (60 * 1000);
-  assert.equal(diffMinutes, 60, 'Munkhzaya booking without totalDuration should fall back to 60 minutes');
+  assert.equal(diffMinutes, 60, 'the configured 60 minutes wins over the claimed 600');
 });
 
 test('book: a hairdresser booking ignores a bare totalDuration', async () => {
@@ -536,37 +434,85 @@ test('book: regular hairdresser booking creates a 60-minute event (end = start +
   assert.equal(diffMinutes, 60, 'Regular hairdresser booking should last exactly 60 minutes');
 });
 
-test('available-slots: busy booking at 13:00–14:30 blocks the overlapping 30-min manicure slots', async () => {
-  calendarStub._freebusyError = null;
-  // Simulate a 90-minute busy block: 13:00–14:30 Ulaanbaatar (UTC+8) = 05:00–06:30 UTC
-  calendarStub._freebusyResult = {
-    data: {
-      calendars: {
-        [MUNKHZAYA_CALENDAR_ID]: {
-          busy: [
-            { start: `${VALID_DATE}T05:00:00Z`, end: `${VALID_DATE}T06:30:00Z` },
-          ],
-        },
-      },
-    },
-  };
+// ---------------------------------------------------------------------------
+// Customer gender and the non-refundable deposit, recorded on the booking
+// ---------------------------------------------------------------------------
+test('book: refuses a female customer with a male hairdresser, writing nothing', async () => {
+  calendarStub._insertError = null;
+  calendarStub._lastInsertArg = null;
   const app = buildApp();
-  const { status, body } = await request(app, 'GET', '/api/calendar/available-slots', {
-    date: VALID_DATE,
-    stylistId: MUNKHZAYA_STYLIST_ID_LATIN,
+  const { status, body } = await request(app, 'POST', '/api/calendar/book', {
+    stylistId: 'Ананд',
+    startTime: '2035-06-04T13:00:00+08:00',
+    customerName: 'Test',
+    customerGender: 'female',
+    depositTermsAccepted: true,
+  });
+  assert.equal(status, 422);
+  assert.equal(body.reason, 'gender-mismatch');
+  assert.equal(calendarStub._lastInsertArg, null);
+});
+
+test('book: records the customer and when they agreed the deposit terms', async () => {
+  calendarStub._insertError = null;
+  calendarStub._insertResult = { data: { id: 'consent_test' } };
+  calendarStub._lastInsertArg = null;
+  const app = buildApp();
+  const acceptedAt = new Date(Date.now() - 2 * 60 * 1000);
+  const { status } = await request(app, 'POST', '/api/calendar/book', {
+    stylistId: 'Оюунсүрэн',
+    startTime: '2035-06-04T13:00:00+08:00',
+    customerName: 'Test',
+    customerPhone: '99001122',
+    selectedServices: 'Энгийн засалт',
+    customerGender: 'female',
+    depositTermsAccepted: true,
+    depositTermsAcceptedAt: acceptedAt.toISOString(),
+    invoiceId: 'inv_123',
   });
   assert.equal(status, 200);
-  // 13:00 slot is busy (directly booked)
-  assert.ok(!body.availableSlots.includes('13:00'), '13:00 should be busy (booked)');
-  // 13:30 and 14:00 overlap with the busy period 13:00–14:30
-  assert.ok(!body.availableSlots.includes('13:30'), '13:30 should be busy (overlaps with 13:00–14:30)');
-  assert.ok(!body.availableSlots.includes('14:00'), '14:00 should be busy (overlaps with 13:00–14:30)');
-  // 12:30 ends at 13:00 — no strict overlap (slotEnd > busyStart requires 13:00 > 13:00 which is false)
-  assert.ok(body.availableSlots.includes('12:30'), '12:30 should be free (ends exactly at busy start)');
-  // 14:30 starts at 14:30 — no strict overlap (slotStart < busyEnd requires 14:30 < 14:30 which is false)
-  assert.ok(body.availableSlots.includes('14:30'), '14:30 should be free (starts exactly at busy end)');
-  // 12:00 is also free (ends at 12:30, no overlap)
-  assert.ok(body.availableSlots.includes('12:00'), '12:00 should be free (ends at 12:30, no overlap)');
+  const { description } = calendarStub._lastInsertArg.requestBody;
+  const local = new Date(acceptedAt.getTime() + 8 * 3600 * 1000).toISOString().slice(0, 19).replace('T', ' ');
+  assert.ok(description.includes('Customer: Эмэгтэй (female)'), description);
+  assert.ok(description.includes(`Deposit terms accepted: ${local} (UTC+8)`), description);
+  assert.ok(description.includes('буцаан олгогдохгүй гэдгийг ойлгож, зөвшөөрч байна.'), description);
+  assert.ok(description.includes('QPay invoice: inv_123'), description);
+});
+
+test('book: an implausible agreement time is replaced by the server time, and says so', async () => {
+  calendarStub._insertError = null;
+  calendarStub._insertResult = { data: { id: 'consent_time_test' } };
+  calendarStub._lastInsertArg = null;
+  const app = buildApp();
+  const { status } = await request(app, 'POST', '/api/calendar/book', {
+    stylistId: 'Ананд',
+    startTime: '2035-06-04T13:00:00+08:00',
+    customerGender: 'male',
+    depositTermsAccepted: true,
+    depositTermsAcceptedAt: '2001-01-01T00:00:00Z',
+  });
+  assert.equal(status, 200);
+  const { description } = calendarStub._lastInsertArg.requestBody;
+  assert.ok(description.includes('(time recorded at booking)'), description);
+  assert.ok(!description.includes('2001-01-01'), description);
+});
+
+test('book: a paid booking from an older page is still created, marked as unrecorded', async () => {
+  // Refusing here would leave a customer who has already paid with no
+  // appointment; create-payment is where the rules are enforced.
+  calendarStub._insertError = null;
+  calendarStub._insertResult = { data: { id: 'legacy_test' } };
+  calendarStub._lastInsertArg = null;
+  const app = buildApp();
+  const { status } = await request(app, 'POST', '/api/calendar/book', {
+    stylistId: 'Ананд',
+    startTime: '2035-06-04T13:00:00+08:00',
+    customerName: 'Test',
+  });
+  assert.equal(status, 200);
+  const { description } = calendarStub._lastInsertArg.requestBody;
+  assert.ok(description.includes('Customer: not recorded'), description);
+  assert.ok(description.includes('Deposit terms accepted: NOT RECORDED'), description);
 });
 
 // ---------------------------------------------------------------------------
@@ -868,26 +814,6 @@ test('available-slots: a service too long for the day offers nothing at all', as
     date: VALID_DATE, stylistId: VALID_STYLIST_ID, services: 'Омбре / Колор,Цайруулалт,Угаалт',
   });
   assert.deepEqual(tooLong.availableSlots, [], 'no start can honour an 10h30 appointment');
-});
-
-test('available-slots: the manicurist keeps 30-minute starts but respects length', async () => {
-  calendarStub._freebusyError = null;
-  calendarStub._freebusyResult = {
-    data: { calendars: { [MUNKHZAYA_CALENDAR_ID]: { busy: [] } } },
-  };
-  const app = buildApp();
-  // Смарт хумс is 180 minutes: last start on a Monday is 17:00, and starts are
-  // still offered on the half hour.
-  const { status, body } = await request(app, 'GET', '/api/calendar/available-slots', {
-    date: VALID_DATE,
-    stylistId: MUNKHZAYA_STYLIST_ID_LATIN,
-    services: 'Смарт хумс',
-  });
-  assert.equal(status, 200);
-  assert.equal(body.durationMinutes, 180);
-  assert.ok(body.availableSlots.includes('10:30'), '30-minute grid is preserved');
-  assert.ok(body.availableSlots.includes('17:00'), '17:00 + 3h ends at closing');
-  assert.ok(!body.availableSlots.includes('17:30'), '17:30 would run past closing');
 });
 
 test('book: a 4-hour service is written to the calendar as 4 hours', async () => {

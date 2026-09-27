@@ -5,6 +5,7 @@ const { createInvoice, checkPayment } = require('../services/qpay');
 const { getCalendarClient } = require('../services/googleCalendar');
 const { STYLIST_CONFIG } = require('../config/stylists');
 const { checkPaymentRequest } = require('../services/closureGuard');
+const { checkPaymentBookingRules, consentTime, REFRESH_MESSAGE } = require('../services/bookingRules');
 const { findClosure } = require('../config/closures');
 const { totalDurationFor } = require('../config/serviceDurations');
 
@@ -110,6 +111,8 @@ async function createCalendarEventForInvoice(invoiceId) {
  *   - amount: payment amount in MNT (20000 or 10000 depending on hairdresser degree)
  *   - description: full booking description used internally for calendar event creation
  *     (e.g. "Matrix Eco: {stylistId} - {date} {time} - {name} - {phone}")
+ *   - staffName, customerGender, depositTermsAccepted: required by
+ *     services/bookingRules.js — refused with 422 otherwise, before QPay is called
  * Returns: { invoice_id: string, qr_image: <Base64 string>, urls: [ { name, link }, ... ] }
  */
 router.post('/create-payment', async (req, res) => {
@@ -134,6 +137,15 @@ router.post('/create-payment', async (req, res) => {
     });
   }
 
+  // Same rules as the standalone handler (services/bookingRules.js): the
+  // hairdresser must match the customer's gender, and the customer must have
+  // agreed the deposit is non-refundable, before any invoice exists.
+  const rulesCheck = checkPaymentBookingRules(req.body || {});
+  if (!rulesCheck.allowed) {
+    console.warn('Blocked QPay invoice by booking rules:', rulesCheck.reason, staffName);
+    return res.status(422).json({ error: REFRESH_MESSAGE, reason: rulesCheck.reason });
+  }
+
   try {
     const callbackUrl = `${process.env.BASE_URL || 'https://mydomain.com'}/api/qpay/webhook`;
     // Sanitize amount: strip any non-numeric characters (e.g. "20,000 ₮" → 20000).
@@ -148,29 +160,26 @@ router.post('/create-payment', async (req, res) => {
     // QPay enforces a 255-character limit on the description field.
     const cleanDescription = `${name || 'Үйлчлүүлэгч'} - ${phone || 'Утасгүй'}`.substring(0, 255);
 
-    // Determine bank account based on selected staff member.
-    // Payments for Г. Мөнхзаяа (manicurist) are routed to her personal account.
-    let bankAccountsPayload;
-    if (staffName && (staffName.includes('Мөнхзаяа') || staffName.includes('Маникюр'))) {
-      bankAccountsPayload = [{
-        account_bank_code: '050000',
-        account_number: '5042384162',
-        account_name: 'Ганбат Мөнхзаяа',
-        is_default: true,
-      }];
-    } else {
-      bankAccountsPayload = [{
-        account_bank_code: '040000',
-        account_number: '416055415',
-        account_name: 'Эрхэмбаатар Оюунсүрэн',
-        is_default: true,
-      }];
-    }
+    const bankAccountsPayload = [{
+      account_bank_code: '040000',
+      account_number: '416055415',
+      account_name: 'Эрхэмбаатар Оюунсүрэн',
+      is_default: true,
+    }];
 
     const result = await createInvoice({ amount: cleanAmount, description: cleanDescription, callbackUrl, bankAccounts: bankAccountsPayload });
 
     // Track this invoice as PENDING so the polling endpoint can report its status.
     // Store the full booking description for calendar event creation on payment.
+    const consent = consentTime(req.body.depositTermsAcceptedAt);
+    console.log('Deposit terms accepted:', JSON.stringify({
+      invoice_id: result.invoice_id,
+      staffName,
+      customerGender: rulesCheck.customerGender,
+      bookingDate: req.body.bookingDate,
+      acceptedAt: consent.at.toISOString(),
+      acceptedAtSource: consent.source,
+    }));
     if (result.invoice_id) {
       paymentStatuses[result.invoice_id] = {
         status: 'PENDING',
@@ -276,7 +285,14 @@ router.post('/check-payment', async (req, res) => {
   // Call QPay API directly to get real-time payment status
   try {
     const qpayData = await checkPayment(invoice_id);
-    const invoiceStatus = qpayData.invoice_status;
+    // QPay v2 /payment/check reports payment in `rows[].payment_status` (the
+    // shape script.js has always checked for) and may carry no top-level
+    // `invoice_status` at all. Reading only the latter would answer UNKNOWN
+    // for an invoice the customer has paid, leaving them at the QR with no
+    // booking made.
+    const paidRow = Array.isArray(qpayData && qpayData.rows)
+      && qpayData.rows.some((row) => row && row.payment_status === 'PAID');
+    const invoiceStatus = (qpayData && qpayData.invoice_status) || (paidRow ? 'PAID' : undefined);
 
     if (invoiceStatus === 'PAID') {
       // Mark as PAID in the in-memory store
