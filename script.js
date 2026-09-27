@@ -10,6 +10,51 @@ const todayBtn = document.getElementById("today-btn");
 // Default text for the confirm payment button — single source of truth.
 const CONFIRM_BTN_DEFAULT_TEXT = "Баталгаажуулж төлөх";
 let qpayPollInterval = null;
+// Ticks the «QR код m:ss хүчинтэй» countdown under the QR (see showQrCountdown).
+let qpayCountdownTimer = null;
+// QPay invoices expire after 5 minutes; a payment attempted later fails at the
+// bank («Нэхэмжлэхийн хугацаа дууссан байна»).
+const QPAY_QR_VALID_MS = 5 * 60 * 1000;
+const QR_EXPIRED_MSG = "QR кодын хугацаа дууслаа. Шинэ QR код авах бол доорх товчийг дарна уу.";
+const SLOT_TAKEN_RENEW_MSG = "Уучлаарай, энэ цаг өөр хүнд захиалагдсан байна. Өөр цаг сонгоно уу.";
+
+function stopQrCountdown() {
+  if (qpayCountdownTimer) {
+    clearInterval(qpayCountdownTimer);
+    qpayCountdownTimer = null;
+  }
+}
+
+/**
+ * Show the QR (or hide it and offer a new one once it has expired). The
+ * expired view keeps the payment poll running: a payment made in the last
+ * seconds is still picked up and booked.
+ */
+function setQrExpired(expired) {
+  const wrapper = document.getElementById("qpay-qr-wrapper");
+  const bankBtns = document.getElementById("qpay-bank-buttons");
+  const countdown = document.getElementById("qpay-countdown");
+  const expiredEl = document.getElementById("qpay-expired");
+  if (wrapper) wrapper.style.display = expired ? "none" : "";
+  if (bankBtns) bankBtns.style.display = expired ? "none" : "";
+  if (countdown) countdown.style.display = expired ? "none" : "";
+  if (expiredEl) expiredEl.style.display = expired ? "block" : "none";
+}
+
+function showQrCountdown(expiresAt) {
+  stopQrCountdown();
+  const el = document.getElementById("qpay-countdown");
+  const tick = () => {
+    const left = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+    if (el) el.textContent = `QR код ${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")} хүчинтэй`;
+    if (left <= 0) {
+      stopQrCountdown();
+      setQrExpired(true);
+    }
+  };
+  tick();
+  qpayCountdownTimer = setInterval(tick, 1000);
+}
 // Track the active confirm button and its original text so the close handler
 // can re-enable it if the user dismisses the QR panel before paying.
 let qpayActiveConfirmBtn = null;
@@ -1658,7 +1703,8 @@ if (videoButtons.length > 0) {
  * @param {HTMLButtonElement} [params.confirmBtn] - The button that triggered the call (for loading state)
  * @param {object} [params.bookingDetails]     - { stylistId, date, time } for the success screen
  */
-async function initiateQPayPayment({ amount, name, phone, description, staffName, selectedServices, totalDuration, confirmBtn, termsInput, customerGender, depositTermsAcceptedAt: termsAcceptedAt, bookingDetails }) {
+async function initiateQPayPayment(paymentRequest) {
+  const { amount, name, phone, description, staffName, selectedServices, totalDuration, confirmBtn, termsInput, customerGender, depositTermsAcceptedAt: termsAcceptedAt, bookingDetails } = paymentRequest;
   const panel     = document.getElementById("qpay-panel");
   const qrImg     = document.getElementById("qpay-qr-img");
   const bankBtns  = document.getElementById("qpay-bank-buttons");
@@ -1688,6 +1734,10 @@ async function initiateQPayPayment({ amount, name, phone, description, staffName
   }
 
   // Reset previous state
+  stopQrCountdown();
+  setQrExpired(false);
+  const countdownEl = document.getElementById("qpay-countdown");
+  if (countdownEl) countdownEl.textContent = "";
   errorEl.style.display = "none";
   errorEl.textContent   = "";
   bankBtns.innerHTML    = "";
@@ -1706,6 +1756,8 @@ async function initiateQPayPayment({ amount, name, phone, description, staffName
         clearInterval(qpayPollInterval);
         qpayPollInterval = null;
       }
+      stopQrCountdown();
+      setQrExpired(false);
       const activeTerms = document.getElementById("deposit-terms");
       if (activeTerms) activeTerms.disabled = false;
       // Re-enable the confirm button so the user can retry the payment
@@ -1801,6 +1853,17 @@ async function initiateQPayPayment({ amount, name, phone, description, staffName
     // Normalise across the different field names the API may return.
     const invoice_id = data.invoice_id || data.qpay_invoice_id || data.id || null;
 
+    // The customer always sees how long this QR can still be paid, and is
+    // offered a fresh one — never left with a dead QR — once it expires.
+    // QPay's clock started when it created the invoice, a moment before this
+    // response arrived: count down from one second less, never longer.
+    if (data.qr_image) showQrCountdown(Date.now() + QPAY_QR_VALID_MS - 1000);
+    const renewBtn = document.getElementById("qpay-renew-btn");
+    if (renewBtn) {
+      renewBtn.disabled = false;
+      renewBtn.onclick = () => renewQr(paymentRequest, invoice_id);
+    }
+
     // Start polling for payment confirmation if we have an invoice_id
     try {
       if (invoice_id) {
@@ -1856,6 +1919,7 @@ async function initiateQPayPayment({ amount, name, phone, description, staffName
             paidHandled = true;
             clearInterval(qpayPollInterval);
             qpayPollInterval = null;
+            stopQrCountdown();
 
             // Payment confirmed — clear the tracked confirm button reference so
             // the close handler no longer attempts to re-enable it.
@@ -1969,6 +2033,7 @@ async function initiateQPayPayment({ amount, name, phone, description, staffName
     }
   } catch (err) {
     console.error("QPay payment error:", err);
+    stopQrCountdown();
     errorEl.textContent  = `Төлбөр үүсгэхэд алдаа гарлаа: ${err.message}`;
     errorEl.style.display = "block";
     // Revert loading state on error so the user can try again
@@ -1978,6 +2043,85 @@ async function initiateQPayPayment({ amount, name, phone, description, staffName
     }
     if (termsInput) termsInput.disabled = false;
   }
+}
+
+/**
+ * «Шинэ QR код авах»: replace an expired QR with a fresh invoice for the same
+ * booking — but only if the expired one was not paid after all, and only if
+ * the time is still free. Otherwise the customer goes back to choosing a time.
+ *
+ * Paying the old and the new invoice can never book twice: the server keys the
+ * calendar event by the booking, not the invoice (services/bookingWriter.js).
+ */
+async function renewQr(paymentRequest, oldInvoiceId) {
+  const renewBtn = document.getElementById("qpay-renew-btn");
+  if (renewBtn) renewBtn.disabled = true;
+  const { stylistId, date, time } = paymentRequest.bookingDetails || {};
+
+  // 1. A payment made just before expiry may still be arriving. The poll for
+  //    the old invoice is still running and will book it; do not issue another.
+  if (oldInvoiceId) {
+    try {
+      const r = await fetch("/api/qpay/check-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invoice_id: oldInvoiceId }),
+      });
+      const d = r.ok ? await r.json() : {};
+      const paid = d.invoice_status === "PAID" || d.payment_status === "PAID"
+        || (Array.isArray(d.rows) && d.rows.some((row) => row && row.payment_status === "PAID"));
+      if (paid) return;
+    } catch (_) { /* could not tell — carry on; the server still books once */ }
+  }
+
+  // 2. Is the time still free? (If this cannot be checked, carry on: the
+  //    server will not double-book, and alerts the salon if it must.)
+  let stillFree = true;
+  try {
+    const params = new URLSearchParams({ date, stylistId });
+    if (paymentRequest.selectedServices) params.set("services", paymentRequest.selectedServices);
+    const r = await fetch(`/api/calendar/available-slots?${params.toString()}`);
+    if (r.ok) {
+      const d = await r.json();
+      stillFree = !d.closure && Array.isArray(d.availableSlots) && d.availableSlots.includes(time);
+    }
+  } catch (_) { /* network trouble: treat as free */ }
+
+  if (!stillFree) {
+    if (qpayPollInterval) {
+      clearInterval(qpayPollInterval);
+      qpayPollInterval = null;
+    }
+    stopQrCountdown();
+    setQrExpired(false);
+    const panel = document.getElementById("qpay-panel");
+    if (panel) panel.style.display = "none";
+    const summaryEl = document.getElementById("booking-summary");
+    if (summaryEl) summaryEl.style.display = "none";
+    if (paymentRequest.confirmBtn) {
+      paymentRequest.confirmBtn.disabled = false;
+      paymentRequest.confirmBtn.textContent = CONFIRM_BTN_DEFAULT_TEXT;
+    }
+    if (paymentRequest.termsInput) paymentRequest.termsInput.disabled = false;
+    qpayActiveConfirmBtn = null;
+    qpayActiveConfirmBtnText = "";
+    selectedTime = null;
+    await fetchAvailableSlots(date, stylistId);
+    const avail = document.getElementById("available-time-slots");
+    if (avail) {
+      const note = document.createElement("p");
+      note.className = "slot-taken-notice";
+      note.setAttribute("role", "alert");
+      note.textContent = SLOT_TAKEN_RENEW_MSG;
+      avail.insertBefore(note, avail.firstChild);
+      try { avail.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (_) { avail.scrollIntoView(); }
+    }
+    return;
+  }
+
+  // 3. Same booking, fresh invoice, fresh 5 minutes.
+  if (paymentRequest.confirmBtn) paymentRequest.confirmBtn.textContent = CONFIRM_BTN_DEFAULT_TEXT;
+  await initiateQPayPayment(paymentRequest);
 }
 
 // ── Mobile Navigation Toggle ──────────────────────────────────────────────────

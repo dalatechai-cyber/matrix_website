@@ -31,9 +31,23 @@ const DEFAULT_DURATION_MINUTES = 60;
 const formatter = new Intl.NumberFormat('en-US');
 
 /**
- * Google Calendar event id for a QPay invoice. Both paths use it, so whichever
- * writes second gets a 409 from Google instead of a duplicate appointment.
+ * Google Calendar event id for one booking — the same stylist, start and
+ * customer phone — however many invoices it took to pay. A QR that expired
+ * and was replaced gives the same booking a second invoice; both map here, so
+ * paying either (or, by mistake, both) can never put two appointments on the
+ * calendar. Whichever path writes second gets a 409 from Google instead.
  * Event ids must be base32hex (a–v, 0–9); lowercase hex qualifies.
+ * null when there is no phone to tell customers apart.
+ */
+function eventIdForBooking(calendarId, start, phone) {
+  const digits = String(phone || '').replace(/\D/g, '');
+  if (!digits || !(start instanceof Date) || Number.isNaN(start.getTime())) return null;
+  return 'qb' + crypto.createHash('sha256').update(`${calendarId}|${start.toISOString()}|${digits}`).digest('hex').slice(0, 40);
+}
+
+/**
+ * The per-invoice event id used before bookings were keyed as above. Still
+ * looked up, so a booking written that way is recognised, never duplicated.
  * @param {string} invoiceId
  */
 function eventIdForInvoice(invoiceId) {
@@ -138,11 +152,49 @@ async function findEvent(calendar, calendarId, eventId) {
 
 const CONFLICT_FLAG = 'matrixPaidConflict';
 
-/** What an event already written for this payment means for the caller. */
-function outcomeFor(event, eventId, built) {
+/**
+ * What an event already written for this booking means for the caller.
+ *
+ * If it was paid through a different invoice (an expired QR replaced by a new
+ * one, and the customer somehow paid both), the booking stands once, and staff
+ * are told once to refund the second payment: the event records every
+ * invoice it has seen, so a retried callback does not alert again.
+ */
+async function outcomeFor(calendar, calendarId, event, built, booking, { amount }) {
   const isNote = !!(event.extendedProperties && event.extendedProperties.private
     && event.extendedProperties.private[CONFLICT_FLAG] === '1');
-  return { status: isNote ? 'conflict' : 'already-booked', eventId, durationMinutes: built.durationMinutes };
+  const invoiceId = typeof booking.invoiceId === 'string' && booking.invoiceId ? booking.invoiceId : null;
+  const description = String(event.description || '');
+  if (invoiceId && !isNote && /QPay invoice: /.test(description) && !description.includes(invoiceId)) {
+    try {
+      await calendar.events.patch({
+        calendarId,
+        eventId: event.id,
+        requestBody: { description: `${description}\nALSO PAID: QPay invoice ${invoiceId} — paid twice for this booking; refund one.` },
+      });
+    } catch (err) {
+      console.error('Could not note the second payment on the booking:', err.message || err);
+    }
+    console.error('Booking paid twice:', event.id, invoiceId);
+    await sendSalonAlert([
+      `${booking.test ? '[ТЕСТ] ' : ''}⚠️ Нэг захиалгад давхар төлбөр орсон`,
+      `Үйлчлүүлэгч: ${booking.customerName || '—'}, утас ${booking.customerPhone || '—'}`,
+      `Үсчин: ${booking.stylistId}`,
+      `Цаг: ${formatSalonTime(booking.start).replace(':00 (UTC+8)', '')}`,
+      `Давхар төлсөн: ${amount ? `${formatter.format(amount)}₮ ` : ''}(QPay ${invoiceId})`,
+      'Цаг нэг л удаа бүртгэгдсэн. Нэг төлбөрийг буцаан олгоно уу.',
+    ].join('\n'));
+  }
+  return { status: isNote ? 'conflict' : 'already-booked', eventId: event.id, durationMinutes: built.durationMinutes };
+}
+
+/** The first existing event among the ids this booking may have been written under. */
+async function findExisting(calendar, calendarId, ids) {
+  for (const id of ids) {
+    const ev = await findEvent(calendar, calendarId, id);
+    if (ev) return ev;
+  }
+  return null;
 }
 
 function isConflictError(err) {
@@ -166,7 +218,8 @@ function conflictAlertText({ stylistId, start, customerName, customerPhone, serv
 }
 
 /**
- * Put a paid booking on the calendar, exactly once per invoice.
+ * Put a paid booking on the calendar, exactly once per booking — however
+ * many invoices (expired QRs replaced by new ones) it took to pay.
  *
  * @returns {Promise<{ status: 'booked'|'already-booked'|'conflict', eventId: string|null, durationMinutes: number }>}
  *   Throws only when Google Calendar itself fails; the caller alerts on that.
@@ -176,19 +229,28 @@ async function ensurePaidBooking(calendar, booking, { late = false, amount = nul
   if (!stylist) throw new Error(`Unknown stylistId "${booking.stylistId}"`);
   const calendarId = stylist.calendarId;
   const invoiceId = typeof booking.invoiceId === 'string' && booking.invoiceId ? booking.invoiceId : null;
-  const eventId = invoiceId ? eventIdForInvoice(invoiceId) : null;
+  // Written under the booking's id; the invoice's id is only looked up (older bookings).
+  const eventId = eventIdForBooking(calendarId, booking.start, booking.customerPhone)
+    || (invoiceId ? eventIdForInvoice(invoiceId) : null);
+  const lookupIds = [eventId, invoiceId ? eventIdForInvoice(invoiceId) : null]
+    .filter((id, i, all) => id && all.indexOf(id) === i);
   const built = buildBookingEvent(booking);
   const end = new Date(booking.start.getTime() + built.durationMinutes * 60 * 1000);
+  const settle = async () => {
+    const ev = await findExisting(calendar, calendarId, lookupIds);
+    return ev ? outcomeFor(calendar, calendarId, ev, built, booking, { amount }) : null;
+  };
 
-  // Already written for this payment (by the other path, or a retried call).
-  const existing = eventId ? await findEvent(calendar, calendarId, eventId) : null;
-  if (existing) return outcomeFor(existing, eventId, built);
+  // Already written for this booking (by the other path, a retried call, or
+  // an earlier invoice for the same booking).
+  const existing = await settle();
+  if (existing) return existing;
 
   if (await slotIsBusy(calendar, calendarId, booking.start, end)) {
-    // Busy may be this very payment, booked by the other path a moment ago
+    // Busy may be this very booking, written by the other path a moment ago
     // (the browser and QPay's callback usually arrive together).
-    const raced = eventId ? await findEvent(calendar, calendarId, eventId) : null;
-    if (raced) return outcomeFor(raced, eventId, built);
+    const raced = await settle();
+    if (raced) return raced;
 
     // The slot went to someone else. Record the paid customer on the calendar
     // as a note that does not block time (so staff see it next to the slot
@@ -209,8 +271,8 @@ async function ensurePaidBooking(calendar, booking, { late = false, amount = nul
       if (eventId && isConflictError(err)) {
         // The other path wrote first; whatever it wrote is the outcome, and
         // if that was a conflict note it has already alerted.
-        const other = await findEvent(calendar, calendarId, eventId);
-        if (other) return outcomeFor(other, eventId, built);
+        const other = await settle();
+        if (other) return other;
       }
       console.error('Could not write the paid-but-conflicting note to the calendar:', err.message || err);
     }
@@ -227,8 +289,8 @@ async function ensurePaidBooking(calendar, booking, { late = false, amount = nul
     return { status: 'booked', eventId: response.data.id, durationMinutes: built.durationMinutes };
   } catch (err) {
     if (eventId && isConflictError(err)) {
-      const other = await findEvent(calendar, calendarId, eventId);
-      if (other) return outcomeFor(other, eventId, built);
+      const other = await settle();
+      if (other) return other;
       return { status: 'already-booked', eventId, durationMinutes: built.durationMinutes };
     }
     throw err;
@@ -274,6 +336,7 @@ async function alertBookingFailure({ stylistId, start, customerName, customerPho
 module.exports = {
   DEFAULT_DURATION_MINUTES,
   eventIdForInvoice,
+  eventIdForBooking,
   buildBookingEvent,
   ensurePaidBooking,
   alertBookingFailure,
