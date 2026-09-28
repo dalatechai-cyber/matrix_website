@@ -87,9 +87,14 @@ today until the owner approves the switch.
 
 - 31 of the salon's own photos chosen from ~1,000 Facebook images (after
   removing duplicates and anything under 600 px); list and reasons in
-  `docs/PHOTOS.md`. Hero, «Бидний тухай» (salon interior), a new
+  `docs/PHOTOS.md`. Hero, «Бидний тухай» (a stylist cutting — owner preferred it to the interior), a new
   «Уралдаан ба сургалт» strip, and a rebuilt «Бүтээл» with
   Будаг / Долгио / Гоёл / Салон filters. Old 414 px gallery removed.
+
+- Favicon: the logo's teal «T» with its orange star, reshaped into a square
+  mark (`brand/favicon.svg`, switches to a white «T» on dark browser tabs),
+  plus `favicon.ico` 16/32/48, `icon-16/32/192/512.png` (transparent) and
+  `icon-180.png` for iPhone (white, since iOS fills transparency with black).
 
 ## Open items for the owner
 

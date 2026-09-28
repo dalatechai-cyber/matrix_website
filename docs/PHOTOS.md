@@ -5,7 +5,7 @@ Chosen from the salon's Facebook export (branch `tara-photos`, `photos-inbox/` �
 | File | Source (Facebook id) | Crop (px) | Where |
 | --- | --- | --- | --- |
 | `img/photos/hero-mauve-*.webp` | 5117975424958955.jpg | 1152×1440 | Home hero |
-| `img/photos/salon-interior-*.webp` | 2542889762467547.jpg | 1072×1340 | «Бүтээл» → Салон ба уралдаан, home «Бидний тухай» |
+| `img/photos/salon-interior-*.webp` | 2542889762467547.jpg | 1072×1340 | «Бүтээл» → Салон ба уралдаан |
 | `img/photos/competition-asia-*.webp` | 1240752744863805.jpg | 1536×1920 | «Бүтээл» → Салон ба уралдаан, home «Уралдаан ба сургалт» |
 | `img/photos/competition-piece-*.webp` | 1240752791530467.jpg | 1536×1920 | «Бүтээл» → Салон ба уралдаан, home «Уралдаан ба сургалт» |
 | `img/photos/training-certificates-*.webp` | 880459580893125.jpg | 1536×1920 | «Бүтээл» → Салон ба уралдаан, home «Уралдаан ба сургалт» |
@@ -34,7 +34,7 @@ Chosen from the salon's Facebook export (branch `tara-photos`, `photos-inbox/` �
 | `img/photos/high-ponytail-*.webp` | 3863869353702908.jpg | 720×900 | «Бүтээл» → Гоёл ба засалт |
 | `img/photos/editorial-lake-*.webp` | 4837073436382490.jpg | 1152×1440 | «Бүтээл» → Гоёл ба засалт |
 | `img/photos/foil-work-*.webp` | 736448885294196.jpg | 1536×1920 | «Бүтээл» → Салон ба уралдаан |
-| `img/photos/cutting-*.webp` | 832063335732750.jpg | 1057×1322 | «Бүтээл» → Салон ба уралдаан |
+| `img/photos/cutting-*.webp` | 832063335732750.jpg | 1057×1322 | «Бүтээл» → Салон ба уралдаан, home «Бидний тухай» (a stylist at work shows the craft better than an empty room) |
 | `img/photos/tools-*.webp` | 817831837155900.jpg | 1388×1736 | «Бүтээл» → Салон ба уралдаан |
 
 Not found in the export without the Matrix name or a watermark: a photo of the building, and a group photo of today's team — both still wanted. Men's cuts: only low-resolution or watermarked shots exist, so none are shown.
