@@ -151,6 +151,8 @@ test('test link: sets a signed cookie, strips the token from the address bar, by
   const r = await request('GET', `/booking.html?test=${TOKEN}`);
   assert.equal(r.status, 302);
   assert.equal(r.headers.location, '/booking.html');
+  const withBranch = await request('GET', `/booking.html?branch=yaarmag&test=${TOKEN}`);
+  assert.equal(withBranch.headers.location, '/booking.html?branch=yaarmag', 'only the token is dropped');
   const cookie = [].concat(r.headers['set-cookie'])[0];
   assert.ok(cookie.startsWith(`${TEST_COOKIE}=`) && /HttpOnly/.test(cookie) && /Secure/.test(cookie));
   assert.ok(!cookie.includes(TOKEN), 'the token itself is never stored in the cookie');

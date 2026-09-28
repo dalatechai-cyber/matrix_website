@@ -366,7 +366,18 @@ router.all('/late-payment', async (req, res) => {
 
   // The signed booking names the hairdresser, and so the branch whose QPay
   // account the invoice is on.
-  const branch = branchOfStylist(booking.stylistId) || DEFAULT_BRANCH;
+  const branch = branchOfStylist(booking.stylistId);
+  if (!branch) {
+    // A hairdresser with no branch cannot be checked against any account;
+    // never guess one. A person has to look.
+    console.error('late-payment: hairdresser has no branch', booking.stylistId);
+    await sendSalonAlert([
+      '⚠️ QPay-с төлбөрийн мэдэгдэл ирсэн боловч үсчний салбар тодорхойгүй',
+      `Утас: ${booking.customerPhone || '—'}, үсчин ${booking.stylistId}, ${booking.date} ${booking.time}`,
+      'QPay дээр төлбөрийг шалгаад, төлөгдсөн бол цагийг гараар бүртгэнэ үү.',
+    ].join('\n'));
+    return res.status(200).json({ received: true, handled: 'alerted-no-branch' });
+  }
   const account = qpayAccountFor(branch);
   const alertOpts = { branch };
 

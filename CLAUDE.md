@@ -20,7 +20,9 @@ branch not yet connected, before QPay is called. Яармаг keeps exactly its
 original QPay settings. Парк Од uses only `PARKOD_QPAY_*` variables (listed in
 config/branches.js) and has no fallback to Яармаг's. A branch takes online
 bookings only when it has opening hours in `data/branches.json`, at least one
-hairdresser, and a complete QPay account; until then the site shows
+hairdresser, a complete QPay account and (Парк Од) its own alert chat
+`PARKOD_TELEGRAM_CHAT_ID` — alerts never go to the other owner's chat; until
+then the site shows
 «Онлайн захиалга удахгүй нээгдэнэ». The booking page gets hairdressers from
 `GET /api/branches` — there is no copy in the browser.
 

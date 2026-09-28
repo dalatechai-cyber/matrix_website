@@ -14,7 +14,8 @@
  *   - it has opening hours (workHours) in data/branches.json,
  *   - at least one hairdresser in config/stylists.js with `branch` set to it
  *     and a calendar id,
- *   - its QPay account is complete.
+ *   - its QPay account is complete,
+ *   - it has its own Telegram alert chat (Парк Од: PARKOD_TELEGRAM_CHAT_ID).
  * Until then the booking page shows it as «Онлайн захиалга удахгүй нээгдэнэ»
  * and every API refuses it, before Google or QPay is ever called.
  *
@@ -26,7 +27,7 @@
  *   PARKOD_QPAY_MERCHANT_ID                       its merchant_id
  *   PARKOD_QPAY_BANK_CODE, PARKOD_QPAY_ACCOUNT_NUMBER, PARKOD_QPAY_ACCOUNT_NAME
  *                                                 optional payout account (all three or none)
- *   PARKOD_TELEGRAM_CHAT_ID                       optional: Парк Од's own alert chat
+ *   PARKOD_TELEGRAM_CHAT_ID                       Парк Од's own alert chat (required)
  */
 
 const data = require('../data/branches.json');
@@ -136,6 +137,9 @@ function branchReadiness(branchId) {
   if (stylistsOf(branchId).length === 0) return { ready: false, reason: 'no-stylists' };
   const account = qpayAccountFor(branchId);
   if (!account || !account.complete) return { ready: false, reason: 'no-qpay' };
+  // Staff alerts carry customers' names and phones: a branch needs its own
+  // chat before it takes bookings (Яармаг's is TELEGRAM_CHAT_ID).
+  if (branchId !== 'yaarmag' && !alertChatFor(branchId)) return { ready: false, reason: 'no-alert-chat' };
   return { ready: true, reason: 'ok' };
 }
 
@@ -171,9 +175,12 @@ function resolveBookingBranch({ stylistId, branch }) {
   return { ok: true, branch: stylistBranch, reason: 'ok' };
 }
 
-/** The Telegram chat a branch's alerts go to. */
+/**
+ * The Telegram chat a branch's alerts go to. No fallback between branches:
+ * separate owners, and alerts name customers.
+ */
 function alertChatFor(branchId) {
-  if (branchId === 'parkod') return env('PARKOD_TELEGRAM_CHAT_ID') || env('TELEGRAM_CHAT_ID');
+  if (branchId === 'parkod') return env('PARKOD_TELEGRAM_CHAT_ID');
   return env('TELEGRAM_CHAT_ID');
 }
 

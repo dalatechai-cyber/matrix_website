@@ -63,7 +63,25 @@ today until the owner approves the switch.
   paid → booked, QR expired → new invoice, slot taken → back to times.
 - Old `script.js`, `styles.css`, `logo.png`, `favicon.jpg` removed.
 
-## Part 4 — domain-move plan, review, PR — pending
+## Part 4 — domain-move plan, review, PR ✅
+
+- `docs/DOMAIN_MOVE.md`: every place the address matters and the switch as a
+  10-line checklist (QPay callbacks must not be redirected for 30 days).
+- Full review of every changed file; fixed: a payment confirmed while the
+  customer had stepped back now still shows the booking (no second payment)
+  and books the time paid for; a hung request can no longer freeze the
+  payment poll (15 s timeout); «Шинэ QR код авах» books an old invoice that
+  turns out paid after polling stopped; `/api/calendar/book` refuses a branch
+  not taking bookings; Парк Од alerts never fall back to Яармаг's chat (its
+  own chat is now required to open it); a callback for a hairdresser with no
+  branch alerts instead of guessing; https-only links and function
+  replacements in `lib/pages.js`; the test link keeps `?branch=`.
+- Preview (Vercel, same commit) checked: every page 200, `team.html` 301,
+  `/api/branches` = Яармаг 7 hairdressers / Парк Од closed, real availability
+  identical to production for the same hairdressers and dates, a wrong-branch
+  payment refused 409 before QPay. Full suite 188/188.
+- `lib/` was ignored by a Python `.gitignore` rule and missing from the first
+  preview (500s); fixed.
 
 ## Open items for the owner
 

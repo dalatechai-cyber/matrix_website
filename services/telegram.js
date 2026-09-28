@@ -20,11 +20,10 @@ const { alertChatFor } = require('../config/branches');
  */
 async function sendSalonAlert(text, { branch } = {}) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
-  // Each branch's alerts go to its own chat when one is set
-  // (config/branches.js); otherwise to the salon's chat, as before.
+  // Each branch's alerts go only to its own chat (config/branches.js).
   const chatId = alertChatFor(branch || 'yaarmag');
   if (!token || !chatId) {
-    console.error('SALON ALERT NOT SENT — TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID not configured:\n' + text);
+    console.error(`SALON ALERT NOT SENT — TELEGRAM_BOT_TOKEN / chat for branch "${branch || 'yaarmag'}" not configured:\n` + text);
     return false;
   }
   try {

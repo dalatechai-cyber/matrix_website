@@ -90,8 +90,17 @@
   const deposit = () => (state.testDeposit || (state.stylist ? state.stylist.deposit : 0));
   const phoneDigits = () => ($("customer-phone").value || "").replace(/\D/g, "");
 
-  async function getJSON(url, opts) {
-    const r = await fetch(url, opts);
+  // A request that hangs must not freeze the page (the payment poll waits on
+  // each check before sending the next), so every call gives up after 15 s.
+  async function getJSON(url, opts = {}) {
+    const ctrl = typeof AbortController === "function" ? new AbortController() : null;
+    const timer = ctrl ? setTimeout(() => ctrl.abort(), 15000) : null;
+    let r;
+    try {
+      r = await fetch(url, ctrl ? { ...opts, signal: ctrl.signal } : opts);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
     const data = await r.json().catch(() => ({}));
     return { ok: r.ok, status: r.status, data };
   }
@@ -107,8 +116,8 @@
     return false;
   }
 
-  function showStep(step, { push = true, focus = true } = {}) {
-    while (step > 1 && !canEnter(step)) step -= 1;
+  function showStep(step, { push = true, focus = true, force = false } = {}) {
+    while (!force && step > 1 && !canEnter(step)) step -= 1;
     if (state.step === 6 && step !== 6) {
       // Leaving the QR drops it; «Баталгаажуулж төлөх» makes a new one.
       stopPayment();
@@ -517,6 +526,7 @@
       staffName: stylist.id,
       branch: branch.id,
       bookingDate: date,
+      bookingTime: time, // kept with the invoice; the server reads the time from `description`
       selectedServices: state.services.join(", "),
       customerGender: state.gender,
       depositTermsAccepted: !!state.termsAcceptedAt,
@@ -636,8 +646,6 @@
       try {
         if (await isInvoicePaid(invoiceId, req.branch)) {
           if (pay.done) return;
-          pay.done = true;
-          stopTimers();
           await confirmBooking(invoiceId, req);
         }
       } catch (err) {
@@ -664,7 +672,14 @@
     updateActions();
   }
 
+  /** Paid: book it and show the outcome — even if the customer had stepped
+   *  back from the QR meanwhile, so they never pay a second time for it. */
   async function confirmBooking(invoiceId, req) {
+    if (pay.done) return;
+    pay.done = true;
+    stopTimers();
+    pay.request = req;
+    if (state.step !== 6) showStep(6, { force: true, push: false });
     showResult("wait", "Төлбөр баталгаажиж байна. Түр хүлээнэ үү...", []);
     let r;
     try {
@@ -674,7 +689,7 @@
         body: JSON.stringify({
           stylistId: req.staffName,
           branch: req.branch,
-          startTime: `${state.date}T${state.time}:00+08:00`,
+          startTime: `${req.bookingDate}T${req.bookingTime}:00+08:00`,
           customerName: req.name,
           customerPhone: req.phone,
           selectedServices: req.selectedServices,
@@ -689,7 +704,7 @@
     }
     if (r.ok) {
       const dl = el("dl", "result-list");
-      [["Салбар", state.branch.name], ["Үсчин", req.staffName], ["Өдөр", longDate(state.date)], ["Цаг", state.time],
+      [["Салбар", state.branch.name], ["Үсчин", req.staffName], ["Өдөр", longDate(req.bookingDate)], ["Цаг", req.bookingTime],
         ["Үйлчилгээ", req.selectedServices]].forEach(([k, v]) => dl.append(el("dt", "", k), el("dd", "", v)));
       showResult("ok", "Амжилттай! Таны цаг захиалга баталгаажлаа.", [dl, "Захиалсан цагтаа ирэхийг хүсье. Цагаа өөрчлөх шаардлагатай бол салбарын утсаар холбогдоно уу."]);
     } else if (r.status === 409 && r.data.conflict) {
@@ -707,16 +722,20 @@
     $("qpay-renew-btn").disabled = true;
     if (oldInvoiceId) {
       try {
-        // The poll for the old invoice is still running and will book it.
-        if (await isInvoicePaid(oldInvoiceId, req.branch)) return;
+        if (await isInvoicePaid(oldInvoiceId, req.branch)) {
+          // Paid after all: the poll books it; if the poll has already
+          // stopped (30 minutes), book it from here.
+          if (!pay.poll) await confirmBooking(oldInvoiceId, req);
+          return;
+        }
       } catch (_) { /* cannot tell: carry on; the server still books once */ }
     }
     let stillFree = true;
     try {
-      const params = new URLSearchParams({ date: state.date, stylistId: req.staffName, branch: req.branch });
-      if (req.selectedServices) params.set("services", state.services.join(","));
+      const params = new URLSearchParams({ date: req.bookingDate, stylistId: req.staffName, branch: req.branch });
+      if (req.selectedServices) params.set("services", req.selectedServices.split(", ").join(","));
       const r = await getJSON(`/api/calendar/available-slots?${params}`);
-      if (r.ok) stillFree = !r.data.closure && Array.isArray(r.data.availableSlots) && r.data.availableSlots.includes(state.time);
+      if (r.ok) stillFree = !r.data.closure && Array.isArray(r.data.availableSlots) && r.data.availableSlots.includes(req.bookingTime);
     } catch (_) { /* network trouble: treat as free; the server will not double-book */ }
     if (pay.request !== req) return;
     if (!stillFree) {

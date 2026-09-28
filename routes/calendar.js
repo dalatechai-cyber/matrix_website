@@ -283,6 +283,14 @@ router.post('/book', async (req, res) => {
   if (req.body.branch && normalizeBranchId(req.body.branch) !== stylistBranch) {
     console.error('book: page named branch', req.body.branch, 'but', stylistId, 'works at', stylistBranch);
   }
+  // A branch not taking online bookings has issued no invoice from this site,
+  // so no browser can legitimately arrive here for it. (A payment QPay
+  // confirms is still booked by /api/qpay/late-payment.)
+  const readiness = branchReadiness(stylistBranch);
+  if (!readiness.ready) {
+    console.error('book: refused, branch not taking online bookings', stylistBranch, readiness.reason, stylistId);
+    return res.status(409).json({ error: 'Branch is not taking online bookings yet', reason: readiness.reason });
+  }
 
   const gender = normalizeCustomerGender(customerGender);
   if (gender) {

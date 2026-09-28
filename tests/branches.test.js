@@ -88,6 +88,7 @@ const PARKOD_ENV = {
   PARKOD_QPAY_BANK_CODE: '050000',
   PARKOD_QPAY_ACCOUNT_NUMBER: '5000123456',
   PARKOD_QPAY_ACCOUNT_NAME: 'Парк Од эзэмшигч',
+  PARKOD_TELEGRAM_CHAT_ID: '-100parkod',
 };
 function connectParkOd() {
   Object.assign(process.env, PARKOD_ENV);
@@ -95,7 +96,6 @@ function connectParkOd() {
 }
 function disconnectParkOd() {
   for (const k of Object.keys(PARKOD_ENV)) delete process.env[k];
-  delete process.env.PARKOD_TELEGRAM_CHAT_ID;
   branchData.branches.parkod.workHours = null;
 }
 
@@ -265,7 +265,6 @@ test('Парк Од connected: invoices, payment checks and times use only its o
 
 test('Парк Од: a late QPay callback is checked on Парк Од\'s account and booked on its calendar', async () => {
   connectParkOd();
-  process.env.PARKOD_TELEGRAM_CHAT_ID = '-100parkod';
   const url = callbackUrlFor('https://www.example.mn', {
     stylistId: 'Парк Тест', date: '2035-06-04', time: '14:00', customerGender: 'female',
     customerPhone: '99112233', services: ['Угаалт'], agreedAt: new Date(), amount: 20000,
@@ -282,13 +281,28 @@ test('Парк Од: a late QPay callback is checked on Парк Од\'s account
   assert.ok(cal.inserts[0].requestBody.description.includes('Branch: Парк Од салбар'));
 });
 
-test('alerts: Парк Од\'s go to its own chat when set; Яармаг\'s to the salon chat', async () => {
+test('alerts: each branch\'s go only to its own chat, never the other owner\'s', async () => {
   const { sendSalonAlert } = require('../services/telegram');
   await sendSalonAlert('a', { branch: 'yaarmag' });
-  await sendSalonAlert('b', { branch: 'parkod' });
+  await sendSalonAlert('b', { branch: 'parkod' }); // no Парк Од chat: logged, not sent to Яармаг
   process.env.PARKOD_TELEGRAM_CHAT_ID = '-100parkod';
   await sendSalonAlert('c', { branch: 'parkod' });
-  assert.deepEqual(net.telegram.map((t) => t.chat_id), ['-100yaarmag', '-100yaarmag', '-100parkod']);
+  assert.deepEqual(net.telegram.map((t) => t.chat_id), ['-100yaarmag', '-100parkod']);
+});
+
+test('readiness: Парк Од needs its own alert chat before it takes bookings', () => {
+  connectParkOd();
+  assert.equal(branchReadiness('parkod').ready, true);
+  delete process.env.PARKOD_TELEGRAM_CHAT_ID;
+  assert.deepEqual(branchReadiness('parkod'), { ready: false, reason: 'no-alert-chat' });
+});
+
+test('/book: no browser booking for a branch not taking online bookings', async () => {
+  const r = await request('POST', '/api/calendar/book', {
+    stylistId: 'Парк Тест', startTime: '2035-06-04T14:00:00+08:00', customerPhone: '99112233', customerGender: 'female', invoiceId: 'x',
+  });
+  assert.equal(r.status, 409);
+  assert.equal(cal.inserts.length, 0);
 });
 
 test('Яармаг hours: available times keep today\'s opening hours', async () => {

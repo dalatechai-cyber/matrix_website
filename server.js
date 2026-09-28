@@ -34,7 +34,11 @@ app.get(['/', '/:page.html'], (req, res, next) => {
   if (typeof req.query.test === 'string') {
     if (isTestToken(req.query.test)) res.setHeader('Set-Cookie', testCookieHeader());
     res.setHeader('Cache-Control', 'no-store');
-    return res.redirect(302, req.path);
+    // Drop only the token; keep e.g. ?branch=yaarmag.
+    const rest = new URLSearchParams(req.originalUrl.split('?')[1] || '');
+    rest.delete('test');
+    const qs = rest.toString();
+    return res.redirect(302, qs ? `${req.path}?${qs}` : req.path);
   }
 
   if (blockedByMaintenance(req)) {
