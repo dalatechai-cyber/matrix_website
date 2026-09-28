@@ -1,62 +1,41 @@
 <!doctype html>
 <html lang="mn">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Бүтээгдэхүүн | Matrix Eco Salon</title>
-    <link rel="icon" href="favicon.jpg" type="image/jpeg" />
-    <link rel="stylesheet" href="styles.css" />
+    <!-- @head -->
+    <title>Amos бүтээгдэхүүн — Tara Salon</title>
+    <meta name="description" content="Amos Professional үс арчилгааны бүтээгдэхүүн, үнийн хамт." />
+    <meta property="og:title" content="Amos бүтээгдэхүүн — Tara Salon" />
+    <meta property="og:description" content="Amos Professional үс арчилгааны бүтээгдэхүүн, үнийн хамт." />
+    <meta property="og:url" content="{{origin}}/products.html" />
+    <link rel="canonical" href="{{origin}}/products.html" />
   </head>
   <body>
-    <header class="site-header">
-      <div class="container header-content">
-        <div class="brand">
-          <img src="logo.png" alt="Matrix Eco Salon" class="brand-mark" />
-          <div>
-            <div class="brand-name">Matrix Eco Salon</div>
-            <div class="brand-tagline">Эко орчин • Орчин үеийн хэв маяг</div>
-          </div>
-        </div>
-        <nav class="nav">
-          <a href="index.html">Бидний тухай</a>
-          <a href="team.html#team">Манай Баг</a>
-          <a href="services.html#services">Үйлчилгээ ба үнэ</a>
-          <a href="zurag.html">Зураг</a>
-          <div class="nav-dropdown">
-            <span class="nav-dropdown-label">Бүтээгдэхүүн <span class="nav-dropdown-arrow">▼</span></span>
-            <div class="nav-dropdown-menu">
-              <a href="products.html#products">Amos</a>
-              <a href="keune-products.html">Keune</a>
-            </div>
-          </div>
-          <a href="index.html#contact">Холбоо барих</a>
-          <a class="nav-book-link" href="index.html#booking">Цаг захиалах</a>
-        </nav>
-        <button class="nav-toggle" aria-label="Цэс нээх" aria-expanded="false">&#9776;</button>
-        <a class="primary-btn" href="index.html#booking">Цаг захиалах</a>
-      </div>
-    </header>
+    <!-- @header -->
 
-    <main>
-      <section id="products" class="section">
+    <main id="main">
+      <section class="page-intro on-teal">
         <div class="container">
-          <div class="section-title">
-            <h2>Бүтээгдэхүүн</h2>
-            <p>Бид Amos Professional-ийн албан ёсны дистрибьютер.</p>
-          </div>
-          <div id="products-filters" class="products-filters"></div>
-          <div id="products-grid" class="products-grid"></div>
-          <div id="products-pagination" class="products-pagination" aria-label="Product pagination"></div>
+          <h1 class="display">Бүтээгдэхүүн</h1>
+          <p class="lead">Бид Amos Professional-ийн албан ёсны дистрибьютер.</p>
+          <nav class="hero-actions" aria-label="Брэнд" style="margin-top:1.75rem">
+            <a class="btn btn--light" href="/products.html" aria-current="page">Amos</a>
+            <a class="btn btn--outline" href="/keune-products.html">Keune</a>
+          </nav>
+        </div>
+      </section>
+
+      <section class="section" id="products" style="padding-top:2.5rem">
+        <div class="container">
+          <div id="products-filters" class="products-filters" role="group" aria-label="Ангилал"></div>
+          <div id="products-grid" class="products-grid" aria-live="polite"></div>
+          <nav id="products-pagination" class="products-pagination" aria-label="Хуудас"></nav>
         </div>
       </section>
     </main>
 
-    <footer class="footer">
-      <div class="container">
-        <p>© 2026 Matrix Eco Salon. Бүх эрх хуулиар хамгаалагдсан. Гүйцэтгэсэн <a href="https://dalatech.online" target="_blank" style="color: var(--accent); text-decoration: none;">DalaTech</a></p>
-      </div>
-    </footer>
-
-    <script src="script.js"></script>
+    <!-- @footer -->
+    <div class="book-bar" aria-hidden="true"><a class="btn btn--primary btn--block" href="/booking.html" tabindex="-1">Цаг захиалах</a></div>
+    <script src="/assets/site.js?v={{v}}" defer></script>
+    <script src="/assets/products.js?v={{v}}" defer></script>
   </body>
 </html>

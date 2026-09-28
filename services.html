@@ -1,59 +1,48 @@
 <!doctype html>
 <html lang="mn">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Үйлчилгээ | Matrix Eco Salon</title>
-    <link rel="icon" href="favicon.jpg" type="image/jpeg" />
-    <link rel="stylesheet" href="styles.css" />
+    <!-- @head -->
+    <title>Үйлчилгээ ба үнэ — Tara Salon</title>
+    <meta name="description" content="Tara Salon-ы үйлчилгээ ба үнийн жагсаалт: засалт, будаг, хими, арчилгаа, гоёл. Үнэ Яармаг, Парк Од салбарт ижил." />
+    <meta property="og:title" content="Үйлчилгээ ба үнэ — Tara Salon" />
+    <meta property="og:description" content="Засалт, будаг, хими, арчилгаа, гоёл. Үнэ хоёр салбарт ижил." />
+    <meta property="og:url" content="{{origin}}/services.html" />
+    <link rel="canonical" href="{{origin}}/services.html" />
   </head>
   <body>
-    <header class="site-header">
-      <div class="container header-content">
-        <div class="brand">
-          <img src="logo.png" alt="Matrix Eco Salon" class="brand-mark" />
-          <div>
-            <div class="brand-name">Matrix Eco Salon</div>
-            <div class="brand-tagline">Эко орчин • Орчин үеийн хэв маяг</div>
-          </div>
-        </div>
-        <nav class="nav">
-          <a href="index.html">Бидний тухай</a>
-          <a href="team.html#team">Манай Баг</a>
-          <a href="services.html#services">Үйлчилгээ ба үнэ</a>
-          <a href="zurag.html">Зураг</a>
-          <div class="nav-dropdown">
-            <span class="nav-dropdown-label">Бүтээгдэхүүн <span class="nav-dropdown-arrow">▼</span></span>
-            <div class="nav-dropdown-menu">
-              <a href="products.html#products">Amos</a>
-              <a href="keune-products.html">Keune</a>
-            </div>
-          </div>
-          <a href="index.html#contact">Холбоо барих</a>
-          <a class="nav-book-link" href="index.html#booking">Цаг захиалах</a>
-        </nav>
-        <button class="nav-toggle" aria-label="Цэс нээх" aria-expanded="false">&#9776;</button>
-        <a class="primary-btn" href="index.html#booking">Цаг захиалах</a>
-      </div>
-    </header>
+    <!-- @header -->
 
-    <main>
-      <section id="services" class="section">
+    <main id="main">
+      <section class="page-intro on-teal">
         <div class="container">
-          <div class="section-title">
-            <h2>Үнийн жагсаалт</h2>
-          </div>
-          <div id="pricing-grid" class="pricing-grid"></div>
+          <h1 class="display">Үйлчилгээ ба үнэ</h1>
+          <p class="lead">Үнэ Яармаг болон Парк Од салбарт ижил.</p>
+        </div>
+      </section>
+
+      <div class="container">
+        <nav class="price-nav" aria-label="Ангилал" style="padding-top:2rem">
+          <a class="chip" href="#cut">Засалт ба хэлбэр</a>
+          <a class="chip" href="#color">Будаг ба өнгө</a>
+          <a class="chip" href="#perm">Хими</a>
+          <a class="chip" href="#care">Арчилгаа ба эмчилгээ</a>
+          <a class="chip" href="#event">Гоёл ба хурим</a>
+        </nav>
+        <p class="notice" style="margin-top:1.5rem">Шинэ үнийн жагсаалт удахгүй нийтлэгдэнэ. Үнийн талаар салбарын утсаар лавлана уу.</p>
+        <!-- @price-list -->
+      </div>
+
+      <section class="section section--mist">
+        <div class="container narrow">
+          <h2 class="h2">Урьдчилгаа төлбөр</h2>
+          <p class="lead" style="margin-top:1rem">Онлайн захиалгад үсчний зэрэглэлээс хамаарах урьдчилгаа төлнө: мастер үсчин 20,000₮, 1-р зэргийн үсчин 10,000₮. Цагаа цуцалсан эсвэл ирээгүй тохиолдолд урьдчилгаа буцаан олгогдохгүй.</p>
+          <p style="margin-top:2rem"><a class="btn btn--primary" href="/booking.html">Цаг захиалах</a></p>
         </div>
       </section>
     </main>
 
-    <footer class="footer">
-      <div class="container">
-        <p>© 2026 Matrix Eco Salon. Бүх эрх хуулиар хамгаалагдсан. Гүйцэтгэсэн <a href="https://dalatech.online" target="_blank" style="color: var(--accent); text-decoration: none;">DalaTech</a></p>
-      </div>
-    </footer>
-
-    <script src="script.js"></script>
+    <!-- @footer -->
+    <div class="book-bar" aria-hidden="true"><a class="btn btn--primary btn--block" href="/booking.html" tabindex="-1">Цаг захиалах</a></div>
+    <script src="/assets/site.js?v={{v}}" defer></script>
   </body>
 </html>

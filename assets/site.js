@@ -62,6 +62,19 @@
     });
   });
 
+  // ── Gallery filter (Бүгд / Эмэгтэй / Эрэгтэй) ─────────────────────────
+  const filterRow = document.querySelector(".filter-row [data-filter]") && document.querySelector(".filter-row");
+  const filterGrid = document.querySelector(".gallery-grid[data-gallery]");
+  if (filterRow && filterGrid) {
+    filterRow.addEventListener("click", (e) => {
+      const chip = e.target.closest("[data-filter]");
+      if (!chip) return;
+      const cat = chip.dataset.filter;
+      filterRow.querySelectorAll("[data-filter]").forEach((c) => c.setAttribute("aria-pressed", c === chip ? "true" : "false"));
+      filterGrid.querySelectorAll("button[data-cat]").forEach((b) => { b.hidden = cat !== "all" && b.dataset.cat !== cat; });
+    });
+  }
+
   // ── Gallery lightbox ─────────────────────────────────────────────────
   const galleries = document.querySelectorAll("[data-gallery]");
   if (galleries.length) {

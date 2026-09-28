@@ -516,7 +516,7 @@ p { margin: 0; }
 .product-image img { width: 100%; height: 100%; object-fit: contain; padding: 0.75rem; }
 .product-info { padding: 1rem; display: grid; gap: 0.35rem; align-content: start; }
 .product-category { font-size: 0.8rem; color: var(--muted); }
-.product-info h4 { font-size: 0.98rem; font-weight: 500; line-height: 1.35; }
+.product-info h3 { font-size: 0.98rem; font-weight: 500; line-height: 1.35; }
 .product-price { font-weight: 550; color: var(--teal); font-variant-numeric: tabular-nums; margin-top: 0.3rem; }
 .products-pagination { display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: center; margin-top: 2.5rem; }
 .page-btn { min-width: 44px; min-height: 44px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); cursor: pointer; }
@@ -527,12 +527,12 @@ p { margin: 0; }
 @media (max-width: 640px) { .keune-brand-strip { grid-template-columns: 1fr; } }
 .keune-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1.25rem; }
 .keune-card { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--paper); display: grid; grid-template-rows: auto 1fr; }
-.keune-card[role="button"] { cursor: pointer; }
-.keune-card[role="button"]:hover { border-color: var(--teal); }
+button.keune-card { cursor: pointer; padding: 0; text-align: left; width: 100%; font: inherit; color: inherit; }
+button.keune-card:hover { border-color: var(--teal); }
 .keune-card-img { width: 100%; aspect-ratio: 1; object-fit: contain; background: #f7f9f9; padding: 0.75rem; }
 .keune-card-body { padding: 1rem 1.1rem 1.25rem; display: grid; gap: 0.4rem; align-content: start; }
 .keune-card-cat { font-size: 0.8rem; color: var(--muted); }
-.keune-card-body h4 { font-size: 1.02rem; font-weight: 550; }
+.keune-card-body h3 { font-size: 1.02rem; font-weight: 550; }
 .keune-card-desc { font-size: 0.92rem; color: var(--muted); }
 .keune-card-badge { font-size: 0.9rem; color: var(--teal); font-weight: 500; margin-top: 0.3rem; }
 .keune-poster img { width: 100%; max-width: 900px; margin: 1.5rem auto 0; border-radius: var(--radius); }
@@ -557,3 +557,6 @@ p { margin: 0; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
+.gallery-grid button[hidden] { display: none; }
+a.chip { display: inline-flex; align-items: center; text-decoration: none; }
+@media (min-width: 761px) { .price-cat > div:first-child { position: sticky; top: calc(var(--header-h) + 1.5rem); align-self: start; } }

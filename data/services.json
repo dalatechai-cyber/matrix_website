@@ -1,0 +1,66 @@
+{
+  "_comment": "Tara Salon's service menu and price list — the same for both branches. Read by the price page (services.html) and the booking page. Every `name` must exist in data/serviceDurations.json (a test checks), so whatever a customer can see they can also book, with a known length. `price` is in MNT: a number, or {\"from\": n} for a starting price, or null while the salon's new prices are not yet in — the page then shows «Үнэ удахгүй», never an invented figure.",
+  "pricesPending": true,
+  "categories": [
+    {
+      "id": "cut",
+      "name": "Засалт ба хэлбэр",
+      "note": "Эмэгтэй, эрэгтэй засалт болон өдөр тутмын хэлбэржүүлэлт.",
+      "services": [
+        { "name": "Энгийн засалт", "price": null },
+        { "name": "Хэлбэрт", "price": null },
+        { "name": "Чолк тайралт", "price": null },
+        { "name": "Угаалт", "price": null },
+        { "name": "Хусалт", "price": null },
+        { "name": "Сахал", "price": null }
+      ]
+    },
+    {
+      "id": "color",
+      "name": "Будаг ба өнгө",
+      "note": "Будгийн үнэ үсний уртаас хамаарна.",
+      "services": [
+        { "name": "Үндэс", "price": null, "note": "Зөвхөн үндэс" },
+        { "name": "Будаг", "price": null, "note": "Үсний уртаар" },
+        { "name": "Омбре / Колор", "price": null },
+        { "name": "Сор", "price": null },
+        { "name": "Оффис колор", "price": null, "note": "Гурван будаг хосолсон" },
+        { "name": "Цайруулалт", "price": null }
+      ]
+    },
+    {
+      "id": "perm",
+      "name": "Хими",
+      "note": "Химийн үйлчилгээ ойролцоогоор хоёр цаг ба түүнээс дээш үргэлжилнэ.",
+      "services": [
+        { "name": "Эмчилгээний хими", "price": null },
+        { "name": "Эмэгтэй хими", "price": null },
+        { "name": "Эрэгтэй хими", "price": null },
+        { "name": "Афро хими", "price": null },
+        { "name": "Шулуун хими", "price": null },
+        { "name": "Хими арчилгаа", "price": null }
+      ]
+    },
+    {
+      "id": "care",
+      "name": "Арчилгаа ба эмчилгээ",
+      "note": "Хуйх болон үсний эрүүл мэндэд чиглэсэн арчилгаа.",
+      "services": [
+        { "name": "Хуйхны цэвэрлэгээ", "price": null },
+        { "name": "Толгойн тос", "price": null },
+        { "name": "Тэжээл", "price": null },
+        { "name": "CMC тэжээл", "price": null },
+        { "name": "CICA нөхөн сэргээх эмчилгээ", "price": null, "note": "Нэг удаа эсвэл курсээр" }
+      ]
+    },
+    {
+      "id": "event",
+      "name": "Гоёл ба хурим",
+      "note": "Онцгой өдрийн үс засалт.",
+      "services": [
+        { "name": "Гоёл / Засалт", "price": null },
+        { "name": "Хурим", "price": null }
+      ]
+    }
+  ]
+}

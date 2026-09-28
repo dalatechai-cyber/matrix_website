@@ -25,7 +25,20 @@ today until the owner approves the switch.
 - `index.html` rebuilt. `/#booking` (old links, the chatbot) forwards to
   `/booking.html`.
 
-## Part 2 — price list, gallery, branches, products — in progress
+## Part 2 — price list, gallery, branches, products ✅
+
+- `services.html` «Үйлчилгээ ба үнэ»: rendered from `data/services.json`
+  (same for both branches). Every price is `null` → «Үнэ удахгүй» until the
+  new prices arrive; the names are the bookable services, so the menu and
+  the booking list can never disagree.
+- `zurag.html` «Бүтээл»: 17 photos of the salon's own work (two weak ones
+  dropped), Бүгд / Эмэгтэй / Эрэгтэй filter, keyboard-friendly lightbox.
+- `contact.html` «Салбарууд»: both branches from `data/branches.json`; Google
+  map loads only on tap (fast pages, no Google request on load). Парк Од shows
+  «Удахгүй нэмэгдэнэ» placeholders and no booking button until it is ready.
+- `products.html` (Amos) and `keune-products.html`: same content, data files
+  and behaviour, new skin; script moved to `assets/products.js`.
+- `team.html` deleted (301 → `/`).
 
 ## Part 3 — branch-aware booking — pending
 
@@ -36,3 +49,5 @@ today until the owner approves the switch.
 - All new Mongolian copy is a **draft** for approval.
 - New prices: every price shows «Үнэ удахгүй» until supplied.
 - Парк Од: address, phones, hours, map, stylists, calendars and QPay account.
+- Products page keeps the old claim «Бид Amos Professional-ийн албан ёсны
+  дистрибьютер.» — confirm it is still true for Tara Salon.
