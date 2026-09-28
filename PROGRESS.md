@@ -85,6 +85,8 @@ today until the owner approves the switch.
 
 ## Open items for the owner
 
+- New copy, all in one place: `docs/COPY_DRAFT.md`.
+
 - All new Mongolian copy is a **draft** for approval.
 - New prices: every price shows «Үнэ удахгүй» until supplied.
 - Парк Од: address, phones, hours, map, stylists, calendars and QPay account.
