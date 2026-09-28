@@ -173,22 +173,23 @@
       keuneGrid.replaceChildren(...list.map((product) => {
         const subs = product.subProducts || [];
         const hasMore = !!product.detailImage || subs.length > 0;
-        const card = el(hasMore ? "button" : "article", "keune-card");
-        if (hasMore) {
-          card.type = "button";
-          card.setAttribute("role", "button");
-          card.addEventListener("click", () => open({
-            title: product.name, desc: product.description, subs,
-            image: product.detailImage || "", alt: `${product.name} дэлгэрэнгүй`,
-          }, card));
-        }
+        const card = el("article", "keune-card");
         const img = el("img", "keune-card-img");
         img.src = product.image;
         img.alt = product.name;
         img.loading = "lazy";
         const body = el("div", "keune-card-body");
         body.append(el("span", "keune-card-cat", product.category), el("h3", "keune-card-name", product.name), el("p", "keune-card-desc", product.description));
-        if (hasMore) body.append(el("span", "keune-card-badge", "Дэлгэрэнгүй харах"));
+        if (hasMore) {
+          const more = el("button", "keune-card-badge", "Дэлгэрэнгүй харах");
+          more.type = "button";
+          more.setAttribute("aria-label", `${product.name} — дэлгэрэнгүй харах`);
+          more.addEventListener("click", () => open({
+            title: product.name, desc: product.description, subs,
+            image: product.detailImage || "", alt: `${product.name} дэлгэрэнгүй`,
+          }, more));
+          body.append(more);
+        }
         card.append(img, body);
         return card;
       }));

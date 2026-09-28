@@ -272,6 +272,10 @@ p { margin: 0; }
   .nav a { padding: 1rem 0; font-size: 1.35rem; font-family: var(--font-display); border-bottom: 1px solid var(--line); border-radius: 0; }
   .nav a::after { display: none; }
   .nav .nav-book { margin-top: 1.5rem; }
+  .nav .nav-book a {
+    display: flex; padding: 0.7rem 1.5rem; font-family: var(--font-body); font-size: 1rem;
+    color: var(--on-teal); border-bottom: 0; border-radius: 999px;
+  }
   body.nav-locked { overflow: hidden; }
 }
 @media (min-width: 961px) { .nav .nav-book { display: none; } }
@@ -528,14 +532,16 @@ p { margin: 0; }
 @media (max-width: 640px) { .keune-brand-strip { grid-template-columns: 1fr; } }
 .keune-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1.25rem; }
 .keune-card { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--paper); display: grid; grid-template-rows: auto 1fr; }
-button.keune-card { cursor: pointer; padding: 0; text-align: left; width: 100%; font: inherit; color: inherit; }
-button.keune-card:hover { border-color: var(--teal); }
+
 .keune-card-img { width: 100%; aspect-ratio: 1; object-fit: contain; background: #f7f9f9; padding: 0.75rem; }
 .keune-card-body { padding: 1rem 1.1rem 1.25rem; display: grid; gap: 0.4rem; align-content: start; }
 .keune-card-cat { font-size: 0.8rem; color: var(--muted); }
 .keune-card-body h3 { font-size: 1.02rem; font-weight: 550; }
 .keune-card-desc { font-size: 0.92rem; color: var(--muted); }
-.keune-card-badge { font-size: 0.9rem; color: var(--teal); font-weight: 500; margin-top: 0.3rem; }
+.keune-card-badge {
+  justify-self: start; min-height: 44px; padding: 0; border: 0; background: none; cursor: pointer;
+  font-size: 0.95rem; color: var(--teal); font-weight: 500; text-decoration: underline; text-underline-offset: 0.3em;
+}
 .keune-poster img { width: 100%; max-width: 900px; margin: 1.5rem auto 0; border-radius: var(--radius); }
 .keune-modal { position: fixed; inset: 0; z-index: 90; display: none; }
 .keune-modal.is-open { display: block; }
