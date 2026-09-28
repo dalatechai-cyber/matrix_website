@@ -284,3 +284,19 @@ test('branches: Парк Од shows placeholders, never another branch\'s detail
   assert.ok(!park.includes('7600') && !park.includes('8090') && !park.includes('Номин'), 'Яармаг details on Парк Од');
   assert.ok(!park.includes('/booking.html?branch=parkod'), 'no booking button before Парк Од is connected');
 });
+
+test('photos: every gallery photo exists at every listed width, and nothing from the Facebook inbox ships', () => {
+  const g = require('../data/gallery.json');
+  for (const item of g.items) {
+    assert.ok(item.alt && item.alt.length > 5, `${item.slug} needs a description`);
+    assert.ok(g.categories.some((c) => c.id === item.cat), `${item.slug} has an unknown category`);
+    for (const w of item.widths) {
+      assert.ok(fs.existsSync(path.join(ROOT, `img/photos/${item.slug}-${w}.webp`)), `${item.slug}-${w}.webp missing`);
+      assert.ok(w <= 1200, 'no file wider than 1200 px');
+    }
+  }
+  for (const slug of g.home) assert.ok(g.items.some((i) => i.slug === slug), `home photo ${slug} is not in the gallery`);
+  assert.ok(!fs.existsSync(path.join(ROOT, 'photos-inbox')), 'photos-inbox must not be in the site');
+  const html = rendered('index.html') + rendered('zurag.html');
+  assert.ok(!/Pictures_Page|img\/gallery\//.test(html), 'old low-resolution gallery still referenced');
+});

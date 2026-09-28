@@ -83,6 +83,14 @@ today until the owner approves the switch.
 - `lib/` was ignored by a Python `.gitignore` rule and missing from the first
   preview (500s); fixed.
 
+## Part 5 — real photos ✅
+
+- 31 of the salon's own photos chosen from ~1,000 Facebook images (after
+  removing duplicates and anything under 600 px); list and reasons in
+  `docs/PHOTOS.md`. Hero, «Бидний тухай» (salon interior), a new
+  «Уралдаан ба сургалт» strip, and a rebuilt «Бүтээл» with
+  Будаг / Долгио / Гоёл / Салон filters. Old 414 px gallery removed.
+
 ## Open items for the owner
 
 - New copy, all in one place: `docs/COPY_DRAFT.md`.

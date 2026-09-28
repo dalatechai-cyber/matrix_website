@@ -97,7 +97,7 @@
     const show = (i) => {
       index = (i + items.length) % items.length;
       const source = items[index].querySelector("img");
-      img.src = source.currentSrc || source.src;
+      img.src = source.dataset.full || source.currentSrc || source.src;
       img.alt = source.alt;
     };
     const close = () => {

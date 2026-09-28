@@ -402,7 +402,7 @@ p { margin: 0; }
 .gallery-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.5rem; }
 .gallery-grid--home { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 .gallery-grid button { padding: 0; border: 0; background: var(--mist); cursor: zoom-in; border-radius: 3px; overflow: hidden; }
-.gallery-grid img { width: 100%; aspect-ratio: 1; object-fit: cover; transition: transform 0.5s var(--ease); }
+.gallery-grid img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; transition: transform 0.5s var(--ease); }
 .gallery-grid button:hover img { transform: scale(1.03); }
 @media (max-width: 960px) { .gallery-grid--home { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 720px) { .gallery-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
@@ -567,3 +567,13 @@ p { margin: 0; }
 .gallery-grid button[hidden] { display: none; }
 a.chip { display: inline-flex; align-items: center; text-decoration: none; }
 @media (min-width: 761px) { .price-cat > div:first-child { position: sticky; top: calc(var(--header-h) + 1.5rem); align-self: start; } }
+
+/* Competitions and training (home) */
+.craft-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(0.75rem, 0.5rem + 1vw, 1.5rem); }
+.craft-grid figure { margin: 0; display: grid; gap: 0.6rem; }
+.craft-grid img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: var(--radius); background: var(--mist); }
+.craft-grid figcaption { font-size: var(--step--1); color: var(--muted); }
+@media (max-width: 760px) {
+  .craft-grid { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 78%; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 0.5rem; }
+  .craft-grid figure { scroll-snap-align: start; }
+}

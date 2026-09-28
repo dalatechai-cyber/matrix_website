@@ -8,7 +8,10 @@ separate owners. Seven pages — `index`, `services` (price list), `zurag`
 branch details from `data/branches.json`). Styles and scripts live in
 `assets/`, logos in `brand/`, fonts in `fonts/`. An Express API (`routes/`)
 handles QPay payments and Google Calendar booking. Content is Mongolian
-(Cyrillic). `PROGRESS.md` tracks the rebuild.
+(Cyrillic). `PROGRESS.md` tracks the rebuild. Photos: `data/gallery.json` lists
+the salon's own photos (4:5 WebP crops in `img/photos/`, never upscaled);
+`docs/PHOTOS.md` says where each came from and why it was chosen. The Facebook
+export lives only on branch `tara-photos` — never merge it or ship it.
 
 ## Branches: calendars and QPay never cross
 
