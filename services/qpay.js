@@ -5,38 +5,70 @@ const axios = require('axios');
 const QPAY_BASE_URL = 'https://quickqr.qpay.mn/v2';
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
-// In-memory token cache: { access_token: string, fetchedAt: number }
-let _tokenCache = null;
+// In-memory token caches, one per QPay account:
+// key -> { access_token: string, fetchedAt: number }
+const _tokenCaches = new Map();
+
+/**
+ * Every function here takes an optional `account` (config/branches.js
+ * qpayAccountFor). Omitted, or Яармаг's, it is the site's original account —
+ * QPAY_USERNAME / QPAY_PASSWORD / QPAY_MERCHANT_ID, terminal DALATECH_AI —
+ * exactly as before branches existed. Any other branch uses only its own
+ * credentials and never falls back to Яармаг's.
+ */
+function credentialsFor(account) {
+  if (!account || account.branch === 'yaarmag') {
+    return {
+      key: 'yaarmag',
+      username: process.env.QPAY_USERNAME,
+      password: process.env.QPAY_PASSWORD,
+      terminalId: 'DALATECH_AI',
+      merchantId: process.env.QPAY_MERCHANT_ID,
+      missing: 'QPAY_USERNAME and QPAY_PASSWORD environment variables must be set',
+      missingMerchant: 'QPAY_MERCHANT_ID environment variable must be set',
+    };
+  }
+  return {
+    key: `${account.branch}:${account.username || ''}:${account.terminalId || ''}`,
+    username: account.username,
+    password: account.password,
+    terminalId: account.terminalId,
+    merchantId: account.merchantId,
+    missing: `QPay credentials for branch "${account.branch}" are not configured`,
+    missingMerchant: `QPay merchant id for branch "${account.branch}" is not configured`,
+  };
+}
 
 /**
  * Return a valid QPay access token.
  */
-async function getQPayToken() {
+async function getQPayToken(account) {
+  const creds = credentialsFor(account);
   const now = Date.now();
-  if (_tokenCache && now - _tokenCache.fetchedAt < TOKEN_TTL_MS) {
-    return _tokenCache.access_token;
+  const cached = _tokenCaches.get(creds.key);
+  if (cached && now - cached.fetchedAt < TOKEN_TTL_MS) {
+    return cached.access_token;
   }
 
-  const username = process.env.QPAY_USERNAME;
-  const password = process.env.QPAY_PASSWORD;
-  if (!username || !password) {
-    throw new Error('QPAY_USERNAME and QPAY_PASSWORD environment variables must be set');
+  const { username, password } = creds;
+  if (!username || !password || !creds.terminalId) {
+    throw new Error(creds.missing);
   }
 
   const credentials = Buffer.from(username + ':' + password).toString('base64');
   try {
     const response = await axios.post(
       `${QPAY_BASE_URL}/auth/token`,
-      { terminal_id: 'DALATECH_AI' },
+      { terminal_id: creds.terminalId },
       { headers: { Authorization: `Basic ${credentials}` } },
     );
 
-    _tokenCache = {
+    _tokenCaches.set(creds.key, {
       access_token: response.data.access_token,
       fetchedAt: now,
-    };
+    });
 
-    return _tokenCache.access_token;
+    return response.data.access_token;
   } catch (error) {
     console.error('QPay Token Error Details:', error.response?.data || error.message);
     throw error;
@@ -46,10 +78,11 @@ async function getQPayToken() {
 /**
  * Create a QPay invoice and return the QR image and mobile deep-link URLs.
  */
-async function createInvoice({ amount, description, callbackUrl, bankAccounts } = {}) {
-  const merchantId = process.env.QPAY_MERCHANT_ID;
+async function createInvoice({ amount, description, callbackUrl, bankAccounts, account } = {}) {
+  const creds = credentialsFor(account);
+  const merchantId = creds.merchantId;
   if (!merchantId) {
-    throw new Error('QPAY_MERCHANT_ID environment variable must be set');
+    throw new Error(creds.missingMerchant);
   }
 
   // --- ЭНД АЛДААГ ЗАСЛАА (DATA SANITIZATION) ---
@@ -59,7 +92,7 @@ async function createInvoice({ amount, description, callbackUrl, bankAccounts } 
   // 2. Хэрэв нэр, утас хоосон ирвэл алдаа заалгахгүйн тулд утга онооно
   const cleanDescription = description ? String(description).substring(0, 255) : "Matrix Salon - Үйлчилгээ";
 
-  const accessToken = await getQPayToken();
+  const accessToken = await getQPayToken(account);
   try {
     const payload = {
       merchant_id: merchantId,
@@ -104,8 +137,8 @@ async function createInvoice({ amount, description, callbackUrl, bankAccounts } 
  * @param {string} invoiceId - The QPay invoice ID to check
  * @returns {Promise<object>} - QPay payment check response (contains invoice_status)
  */
-async function checkPayment(invoiceId) {
-  const accessToken = await getQPayToken();
+async function checkPayment(invoiceId, account) {
+  const accessToken = await getQPayToken(account);
   try {
     const response = await axios.post(
       `${QPAY_BASE_URL}/payment/check`,
@@ -125,8 +158,8 @@ async function checkPayment(invoiceId) {
  * @param {string} invoiceId
  * @returns {Promise<object>}
  */
-async function getInvoice(invoiceId) {
-  const accessToken = await getQPayToken();
+async function getInvoice(invoiceId, account) {
+  const accessToken = await getQPayToken(account);
   const response = await axios.get(
     `${QPAY_BASE_URL}/invoice/${encodeURIComponent(invoiceId)}`,
     { headers: { Authorization: `Bearer ${accessToken}` }, timeout: 8000 },
@@ -140,8 +173,8 @@ async function getInvoice(invoiceId) {
  * @param {string} paymentId
  * @returns {Promise<object>}
  */
-async function getPayment(paymentId) {
-  const accessToken = await getQPayToken();
+async function getPayment(paymentId, account) {
+  const accessToken = await getQPayToken(account);
   const response = await axios.get(
     `${QPAY_BASE_URL}/payment/${encodeURIComponent(paymentId)}`,
     { headers: { Authorization: `Bearer ${accessToken}` }, timeout: 8000 },
@@ -157,7 +190,7 @@ function isPaidCheck(data) {
 }
 
 function _resetTokenCache() {
-  _tokenCache = null;
+  _tokenCaches.clear();
 }
 
 module.exports = { getQPayToken, createInvoice, checkPayment, getInvoice, getPayment, isPaidCheck, _resetTokenCache };

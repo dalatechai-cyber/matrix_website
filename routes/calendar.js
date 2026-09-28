@@ -9,6 +9,7 @@ const { normalizeCustomerGender, checkGenderMatch } = require('../services/booki
 const { ensurePaidBooking, alertBookingFailure } = require('../services/bookingWriter');
 
 const { blockedByMaintenance, MAINTENANCE_MESSAGE, isTestRequest } = require('../config/siteMode');
+const { branchOfStylist, branchReadiness, workHoursFor, normalizeBranchId } = require('../config/branches');
 
 const router = express.Router();
 
@@ -118,6 +119,17 @@ router.get('/available-slots', async (req, res) => {
     return res.status(400).json({ error: `Unknown stylistId "${stylistId}"` });
   }
 
+  // Times are offered only at the hairdresser's own branch, and only once
+  // that branch takes online bookings (config/branches.js).
+  const branch = branchOfStylist(stylistId);
+  if (req.query.branch != null && req.query.branch !== '' && normalizeBranchId(req.query.branch) !== branch) {
+    return res.status(400).json({ error: 'Hairdresser does not work at this branch' });
+  }
+  const readiness = branchReadiness(branch);
+  if (!readiness.ready) {
+    return res.status(409).json({ error: 'Branch is not taking online bookings yet', reason: readiness.reason });
+  }
+
   // The salon is shut salon-wide on this date: offer nothing, whatever the
   // stylist's calendar happens to say. This is deliberately a 200 with an empty
   // list rather than an error — the booking UI falls back to showing full
@@ -127,7 +139,9 @@ router.get('/available-slots', async (req, res) => {
     return res.status(200).json({ date, stylistId, availableSlots: [], closure });
   }
 
-  const { workStartHour, workEndHour } = getWorkHours(date);
+  // The branch's own opening hours; Яармаг's are the ones getWorkHours has
+  // always used.
+  const { workStartHour, workEndHour } = workHoursFor(branch, date) || getWorkHours(date);
   const { minutes: durationMinutes, unknown } = resolveDurationMinutes({
     services,
     // No services named: keep the stylist's usual slot length, so an older
@@ -261,6 +275,13 @@ router.post('/book', async (req, res) => {
       error: 'Salon is closed on the requested date',
       closure,
     });
+  }
+
+  // The calendar is the hairdresser's, so the booking lands at their branch
+  // whatever the page said; a disagreement is logged for a person to look at.
+  const stylistBranch = branchOfStylist(stylistId);
+  if (req.body.branch && normalizeBranchId(req.body.branch) !== stylistBranch) {
+    console.error('book: page named branch', req.body.branch, 'but', stylistId, 'works at', stylistBranch);
   }
 
   const gender = normalizeCustomerGender(customerGender);

@@ -40,7 +40,28 @@ today until the owner approves the switch.
   and behaviour, new skin; script moved to `assets/products.js`.
 - `team.html` deleted (301 → `/`).
 
-## Part 3 — branch-aware booking — pending
+## Part 3 — branch-aware booking ✅
+
+- `booking.html` + `assets/booking.js`: six steps — салбар → үйлчилгээ →
+  үсчин («Үйлчлүүлэгч: Эмэгтэй / Эрэгтэй», only matching hairdressers of that
+  branch) → өдөр, цаг → мэдээлэл + non-refundable-deposit tick box → QPay QR
+  with «QR код m:ss хүчинтэй» and «Шинэ QR код авах». Phone back button
+  moves between steps. On a phone the bank-app buttons come first.
+- Same booking engine and protections: server-decided deposit and duration,
+  closures, gender rule on both payment paths, recorded agreement time and
+  invoice id on the calendar event, 3 s / 12 s polling to 30 min, late
+  payments via the signed QPay callback, one calendar event per booking,
+  Telegram alerts. Old pages still mid-booking keep working (the new `branch`
+  field is optional and defaults to Яармаг).
+- `config/branches.js`: branch → calendars and QPay account. Яармаг keeps its
+  exact QPay settings; Парк Од only its own `PARKOD_*` variables, no
+  fallback. Парк Од is shown but not bookable until connected. Alerts carry
+  the branch and can go to Парк Од's own chat (`PARKOD_TELEGRAM_CHAT_ID`).
+- `tests/branches.test.js` (10 tests) proves the separation; full suite
+  186/186.
+- Verified in a browser at 390 px and 1440 px with the payment APIs mocked:
+  paid → booked, QR expired → new invoice, slot taken → back to times.
+- Old `script.js`, `styles.css`, `logo.png`, `favicon.jpg` removed.
 
 ## Part 4 — domain-move plan, review, PR — pending
 

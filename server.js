@@ -12,6 +12,7 @@ const qpayRouter = require('./routes/qpay');
 const calendarRouter = require('./routes/calendar');
 const { getCalendarClient } = require('./services/googleCalendar');
 const { PAGES, renderPage } = require('./lib/pages');
+const { publicBranches } = require('./lib/publicBranches');
 
 const app = express();
 
@@ -68,6 +69,17 @@ app.get('/api/site-mode', (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   const test = isTestRequest(req);
   return res.json({ test, testDeposit: test ? TEST_DEPOSIT_MNT : null });
+});
+
+/**
+ * GET /api/branches — what the booking page needs to start: each branch's
+ * public details, whether it takes online bookings, and its hairdressers
+ * (name, tier, deposit, gender, photo). Calendar ids and QPay settings never
+ * leave the server. The one list, so the page cannot drift from the server.
+ */
+app.get('/api/branches', (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  return res.json({ branches: publicBranches() });
 });
 
 app.use('/api/webhooks', webhookRouter);

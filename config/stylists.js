@@ -138,6 +138,20 @@ const STYLIST_CONFIG = {
     gender: 'female',
     branch: 'yaarmag',
   },
+
+  // ── Парк Од салбар ──────────────────────────────────────────────────────
+  // No hairdressers yet. Add each one like this (Mongolian name + Latin alias,
+  // same calendar), with the calendar shared with the service account:
+  //
+  // 'Нэр': {
+  //   calendarId: '…@group.calendar.google.com',
+  //   price: 20000,              // deposit: 20000 Мастер үсчин, 10000 1-р зэргийн үсчин
+  //   level: 'Мастер үсчин',
+  //   gender: 'female',          // never guessed — ask the branch
+  //   branch: 'parkod',
+  //   photo: '/img/stylists/<latin>.webp',
+  // },
+  // '<latin>': { …the same, without photo… },
 };
 
 /**

@@ -36,6 +36,8 @@ function serviceNamed(name) {
 // Contact numbers
 // ---------------------------------------------------------------------------
 
+const LOGO_SHA = 'e6763af6eff74382';
+const LOGO_LIGHT_SHA = 'e69cb34cc4e5c69d';
 const PAGES = ['index.html', 'services.html', 'zurag.html', 'products.html', 'keune-products.html', 'booking.html', 'contact.html'];
 const { renderPage } = require('../lib/pages');
 /** A page as visitors get it: shared header, footer and branch details included. */
@@ -182,8 +184,10 @@ test('manicure: no page, price or bookable service mentions it', () => {
   for (const c of Object.values(pricing)) assert.ok(!MANICURE_WORDS.test(c.category), c.category);
   const durations = require('../data/serviceDurations.json');
   for (const s of durations.services) assert.ok(!MANICURE_WORDS.test(s.name), `durations still has ${s.name}`);
-  const script = fs.readFileSync(path.join(ROOT, 'script.js'), 'utf8');
-  assert.ok(!MANICURE_WORDS.test(script), 'script.js still mentions manicure');
+  for (const file of ['assets/booking.js', 'assets/site.js', 'data/services.json']) {
+    const text = fs.readFileSync(path.join(ROOT, file), 'utf8');
+    assert.ok(!MANICURE_WORDS.test(text), `${file} still mentions manicure`);
+  }
   assert.ok(!fs.existsSync(path.join(ROOT, 'hairstylist_pic/munkhzaya.jpeg')), 'manicurist photo is still served');
 });
 
@@ -194,41 +198,89 @@ const GENDER_NOTE = 'Эмэгтэй үйлчлүүлэгчид эмэгтэй ү
 const DEPOSIT_TERMS = 'Урьдчилгаа төлбөр нь цагаа цуцалсан эсвэл ирээгүй тохиолдолд буцаан олгогдохгүй гэдгийг ойлгож, зөвшөөрч байна.';
 
 test('booking: the gender step and note use the approved wording', () => {
-  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const html = rendered('booking.html');
   assert.ok(html.includes('<legend>Үйлчлүүлэгч:</legend>'));
   assert.ok(html.includes('value="female"') && html.includes('<span>Эмэгтэй</span>'));
   assert.ok(html.includes('value="male"') && html.includes('<span>Эрэгтэй</span>'));
   assert.ok(html.includes(GENDER_NOTE));
-  // No hairdresser is listed in the markup: script.js adds only matching ones.
-  assert.ok(!/<option value="[^"]+">/.test(html.slice(html.indexOf('id="stylist-select"'), html.indexOf('</select>'))));
+  // No hairdresser is in the markup: the page lists only matching ones, from
+  // the server's own list (/api/branches), so there is no copy to drift.
+  assert.ok(!/name="stylist"/.test(html));
+  const script = fs.readFileSync(path.join(ROOT, 'assets/booking.js'), 'utf8');
+  assert.ok(!/Оюунсүрэн|Бадамцэцэг|Ананд/.test(script), 'booking.js must not carry its own list of hairdressers');
+  assert.ok(script.includes('.filter((s) => s.gender === state.gender)'), 'only hairdressers matching the customer are listed');
 });
 
 test('booking: the deposit box and the recorded agreement use the approved wording', () => {
-  const script = fs.readFileSync(path.join(ROOT, 'script.js'), 'utf8');
-  assert.ok(script.includes(DEPOSIT_TERMS));
+  assert.ok(rendered('booking.html').includes(DEPOSIT_TERMS));
   assert.equal(require('../services/bookingRules').DEPOSIT_TERMS_TEXT, DEPOSIT_TERMS);
 });
 
-test('booking: the browser list of hairdressers matches the server, gender included', () => {
-  const { STYLIST_CONFIG } = require('../config/stylists');
-  const script = fs.readFileSync(path.join(ROOT, 'script.js'), 'utf8');
-  const block = script.slice(script.indexOf('const STYLIST_CONFIG_CLIENT = {'), script.indexOf('};', script.indexOf('const STYLIST_CONFIG_CLIENT = {')));
-  const entries = [...block.matchAll(/'([^']+)':\s*\{\s*price:\s*(\d+),\s*level:\s*'([^']+)',\s*gender:\s*'(female|male)'\s*\}/g)];
-  assert.equal(entries.length, 7, 'seven hairdressers in the booking list');
-  for (const [, id, price, level, gender] of entries) {
-    const server = STYLIST_CONFIG[id];
-    assert.ok(server, `${id} is not bookable on the server`);
-    assert.equal(server.gender, gender, `${id} gender differs between browser and server`);
-    assert.equal(server.price, Number(price), `${id} price differs`);
-    assert.equal(server.level, level, `${id} level differs`);
-  }
-});
-
 test('booking: the QR expiry wording is the approved text', () => {
-  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
-  const script = fs.readFileSync(path.join(ROOT, 'script.js'), 'utf8');
+  const html = rendered('booking.html');
+  const script = fs.readFileSync(path.join(ROOT, 'assets/booking.js'), 'utf8');
   assert.ok(html.includes('QR кодын хугацаа дууслаа. Шинэ QR код авах бол доорх товчийг дарна уу.'));
   assert.ok(html.includes('>Шинэ QR код авах</button>'));
   assert.ok(script.includes('`QR код ${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")} хүчинтэй`'));
   assert.ok(script.includes('Уучлаарай, энэ цаг өөр хүнд захиалагдсан байна. Өөр цаг сонгоно уу.'));
+});
+
+// ---------------------------------------------------------------------------
+// Tara Salon rebuild
+// ---------------------------------------------------------------------------
+
+test('menu: every service on the price list can be booked, with a known length', () => {
+  const { durationForService } = require('../config/serviceDurations');
+  const catalogue = require('../data/serviceDurations.json');
+  const menu = require('../data/services.json');
+  const names = menu.categories.flatMap((c) => c.services.map((s) => s.name));
+  for (const n of names) {
+    assert.ok(catalogue.services.some((s) => s.name === n), `${n} is not in data/serviceDurations.json`);
+    assert.ok(durationForService(n) > 0, n);
+  }
+  for (const s of catalogue.services) assert.ok(names.includes(s.name), `bookable ${s.name} is missing from the menu`);
+  assert.equal(new Set(names).size, names.length, 'a service is listed twice');
+});
+
+test('menu: a price not yet set is shown as pending, never invented', () => {
+  const menu = require('../data/services.json');
+  const html = rendered('services.html');
+  for (const c of menu.categories) {
+    for (const s of c.services) {
+      assert.ok(s.price === null || typeof s.price === 'number' || typeof (s.price || {}).from === 'number', s.name);
+    }
+  }
+  if (menu.categories.every((c) => c.services.every((s) => s.price === null))) {
+    const list = html.slice(html.indexOf('class="price-cat"'), html.indexOf('Урьдчилгаа төлбөр</h2>'));
+    assert.ok(list.length > 1000, 'price list rendered');
+    assert.ok(!/\d[\d,]*₮/.test(list), 'no amount on a pending list');
+    assert.ok(html.includes('Үнэ удахгүй'));
+  }
+});
+
+test('brand: every page shows the Tara Salon logo and no old Matrix branding', () => {
+  for (const page of PAGES) {
+    const html = rendered(page);
+    assert.ok(html.includes('/brand/tara-salon-logo.svg'), `${page} header logo`);
+    assert.ok(html.includes('/brand/tara-salon-logo-light.svg'), `${page} footer logo`);
+    assert.ok(!/matrix/i.test(html.replace(/Matrix Eco:/g, '')), `${page} still says Matrix`);
+    assert.ok(!html.includes('logo.png') && !html.includes('favicon.jpg'), `${page} uses an old logo file`);
+    assert.ok(html.includes('og:image') && html.includes('/brand/og-image.jpg'), `${page} social preview`);
+  }
+});
+
+test('brand: the logo files are the ones supplied, untouched', () => {
+  const crypto = require('node:crypto');
+  const sha = (f) => crypto.createHash('sha256').update(fs.readFileSync(path.join(ROOT, f))).digest('hex').slice(0, 16);
+  // From the tara-logo branch (Tara_Salon_logo.svg, Tara_Salon_logo_light.svg).
+  assert.equal(sha('brand/tara-salon-logo.svg'), LOGO_SHA);
+  assert.equal(sha('brand/tara-salon-logo-light.svg'), LOGO_LIGHT_SHA);
+});
+
+test('branches: Парк Од shows placeholders, never another branch\'s details', () => {
+  const html = rendered('contact.html');
+  const park = html.slice(html.indexOf('id="branch-parkod"'), html.indexOf('</article>', html.indexOf('id="branch-parkod"')));
+  assert.ok(park.includes('Удахгүй нэмэгдэнэ'));
+  assert.ok(!park.includes('7600') && !park.includes('8090') && !park.includes('Номин'), 'Яармаг details on Парк Од');
+  assert.ok(!park.includes('/booking.html?branch=parkod'), 'no booking button before Парк Од is connected');
 });

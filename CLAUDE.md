@@ -1,10 +1,28 @@
-# Matrix Eco Salon
+# Tara Salon
 
-Static, multi-page marketing site for **Matrix Eco Salon** (Ulaanbaatar,
-Mongolia). Six HTML pages — `index`, `services`, `team`, `zurag` (gallery),
-`products` (Amos), `keune-products` — sharing `styles.css` and `script.js`, plus
-an Express API (`server.js`, `routes/`) for QPay payments and Google Calendar
-booking. Content is Mongolian (Cyrillic).
+Multi-page site for **Tara Salon** (Ulaanbaatar, Mongolia; formerly Matrix Eco
+Salon) with two branches — **Яармаг** and **Парк Од** — same brand and prices,
+separate owners. Seven pages — `index`, `services` (price list), `zurag`
+(gallery), `products` (Amos), `keune-products`, `booking`, `contact` — served by
+`server.js`, which assembles them with `lib/pages.js` (shared `partials/`,
+branch details from `data/branches.json`). Styles and scripts live in
+`assets/`, logos in `brand/`, fonts in `fonts/`. An Express API (`routes/`)
+handles QPay payments and Google Calendar booking. Content is Mongolian
+(Cyrillic). `PROGRESS.md` tracks the rebuild.
+
+## Branches: calendars and QPay never cross
+
+[config/branches.js](config/branches.js) is the rule. Every hairdresser in
+[config/stylists.js](config/stylists.js) has a `branch`; the hairdresser
+decides the branch, and the branch decides the calendar and the QPay account.
+Both create-payment handlers refuse a request that names another branch, or a
+branch not yet connected, before QPay is called. Яармаг keeps exactly its
+original QPay settings. Парк Од uses only `PARKOD_QPAY_*` variables (listed in
+config/branches.js) and has no fallback to Яармаг's. A branch takes online
+bookings only when it has opening hours in `data/branches.json`, at least one
+hairdresser, and a complete QPay account; until then the site shows
+«Онлайн захиалга удахгүй нээгдэнэ». The booking page gets hairdressers from
+`GET /api/branches` — there is no copy in the browser.
 
 ## Salon closures (holidays)
 
@@ -44,10 +62,9 @@ create-payment handlers (same reason as the closure guard):
 - **Gender.** Women are served by female hairdressers, men by male ones. The
   booking asks «Үйлчлүүлэгч: Эмэгтэй / Эрэгтэй» first and lists only matching
   hairdressers; the server refuses a mismatched invoice. Each hairdresser's
-  `gender` lives in [config/stylists.js](config/stylists.js) (from the team
-  page's «Эмэгтэй үсчид» / «Эрэгтэй үсчид»), mirrored in `script.js`'s
-  `STYLIST_CONFIG_CLIENT` — a test checks the two agree. A new hairdresser
-  needs a gender, or no deposit can be taken for them. Never guess one.
+  `gender` lives in [config/stylists.js](config/stylists.js) and reaches the
+  booking page only through `/api/branches`. A new hairdresser needs a
+  gender, or no deposit can be taken for them. Never guess one.
 - **Deposit terms.** The customer must tick «Урьдчилгаа төлбөр … зөвшөөрч
   байна.» before the QR exists; without it no invoice is created. The time
   they agreed, the exact wording and the QPay invoice id are written into the
@@ -104,6 +121,10 @@ before closing, with no overlap against existing bookings. The figures live in
 through [config/serviceDurations.js](config/serviceDurations.js) and fetched by
 the booking UI, so there is one source of truth and no client copy to drift.
 
+The service menu and price list is **[data/services.json](data/services.json)**
+(same prices at both branches; `null` = «Үнэ удахгүй»); every name in it must
+be in `data/serviceDurations.json` — a test checks.
+
 The server resolves duration from the customer's selected services and ignores
 any `totalDuration` the browser sends — that number decides how much of a
 stylist's day is blocked. An unrecognised service name costs the default
@@ -122,9 +143,9 @@ UI/UX work:
 - **[PRODUCT.md](PRODUCT.md)** — strategic: register (`brand`), users, purpose,
   brand personality (eco · modern · premium), anti-references, design
   principles, accessibility target (WCAG AA).
-- **[DESIGN.md](DESIGN.md)** — visual system: palette (dark forest-green with a
-  mint accent, "The Moonlit Conservatory"), Manrope type scale, elevation,
-  components, and Do's/Don'ts. Token frontmatter is normative.
+- **[DESIGN.md](DESIGN.md)** — visual system: Tara teal #04484A (brand) and
+  orange #F58634 (accent only), Cormorant Garamond headings, Geologica body,
+  components, logo rules. Token frontmatter is normative.
 
 The impeccable skill is the design authority for this project; prefer it over
 generic UI tooling. The `.impeccable/` directory holds its sidecar

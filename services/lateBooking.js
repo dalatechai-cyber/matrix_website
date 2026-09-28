@@ -127,7 +127,7 @@ function decodeCallback(b, h) {
 }
 
 /**
- * The booking description the site sends with every payment (script.js):
+ * The booking description the site sends with every payment (assets/booking.js):
  *   "Matrix Eco: {stylistId} - {date} {time} - {name} - {phone}"
  */
 function parseBookingDescription(description) {

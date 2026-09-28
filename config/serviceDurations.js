@@ -26,7 +26,7 @@ const DEFAULT_MINUTES =
 
 /**
  * Canonicalise a service name for comparison.
- * Mirrors normalizeServiceName() in script.js: case, ё/е and whitespace are not
+ * Mirrored by normalizeName() in assets/booking.js: case, ё/е and whitespace are not
  * meaningful. Slashes and parentheses are also flattened so "Будаг/угны",
  * "Будаг (Уг)" and "Будаг / угны" all reduce to the same key.
  *

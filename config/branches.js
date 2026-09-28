@@ -65,7 +65,10 @@ function qpayAccountFor(branchId) {
       terminalId: 'DALATECH_AI',
       merchantId: null,
       bankAccounts: YAARMAG_BANK_ACCOUNTS,
-      complete: !!(username && password),
+      // Always treated as complete, as before this file existed: missing
+      // credentials surface as the QPay error they always did, rather than
+      // taking Яармаг offline.
+      complete: true,
     };
   }
   if (branchId === 'parkod') {

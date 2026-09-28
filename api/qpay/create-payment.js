@@ -3,6 +3,12 @@ const { checkPaymentRequest } = require('../../services/closureGuard');
 const { checkPaymentBookingRules, consentTime, REFRESH_MESSAGE } = require('../../services/bookingRules');
 const { callbackUrlForPayment, publicOrigin } = require('../../services/lateBooking');
 const { blockedByMaintenance, MAINTENANCE_MESSAGE, depositFor, isTestRequest } = require('../../config/siteMode');
+const { resolveBookingBranch, qpayAccountFor } = require('../../config/branches');
+
+// The merchant Яармаг has always been invoiced under. Used for Яармаг only:
+// another branch is invoiced under its own merchant (config/branches.js).
+const YAARMAG_MERCHANT_ID = "17e69f2a-d1a4-4fe6-a5a2-34a649378414";
+const BRANCH_NOT_READY_MESSAGE = 'Энэ салбарт онлайн захиалга хараахан нээгдээгүй байна. Салбарын утсаар холбогдоно уу.';
 
 module.exports = async function handler(req, res) {
     if (req.method !== 'POST') {
@@ -40,6 +46,18 @@ module.exports = async function handler(req, res) {
         return res.status(422).json({ error: REFRESH_MESSAGE, reason: rulesCheck.reason });
     }
 
+    // --- 0в. САЛБАР ---
+    // The hairdresser decides the branch, and the branch decides the QPay
+    // account. A page naming another branch, or a branch not yet connected,
+    // gets no invoice — never one on another branch's account.
+    const branchCheck = resolveBookingBranch({ stylistId: (req.body || {}).staffName, branch: (req.body || {}).branch });
+    if (!branchCheck.ok) {
+        console.warn('Blocked QPay invoice by branch:', branchCheck.reason, (req.body || {}).staffName);
+        return res.status(409).json({ error: BRANCH_NOT_READY_MESSAGE, reason: branchCheck.reason });
+    }
+    const account = qpayAccountFor(branchCheck.branch);
+    const merchantId = branchCheck.branch === 'yaarmag' ? YAARMAG_MERCHANT_ID : account.merchantId;
+
     try {
         // --- 1. ФРОНТЕНДООС ИРСЭН МЭДЭЭЛЛИЙГ ХҮЛЭЭЖ АВАХ ---
         const { amount, name, phone, staffName } = req.body;
@@ -56,18 +74,13 @@ module.exports = async function handler(req, res) {
         // Гүйлгээний утгад Нэр, Утсыг нь оруулах
         const finalDescription = `${name || 'Үйлчлүүлэгч'} - ${phone || 'Утасгүй'}`.substring(0, 255);
 
-        // --- 1б. БАНКНЫ ДАНС (салоны нэг данс) ---
-        const bankAccountsPayload = [{
-            account_bank_code: "040000",
-            account_number: "416055415",
-            account_name: "Эрхэмбаатар Оюунсүрэн",
-            is_default: true
-        }];
+        // --- 1б. БАНКНЫ ДАНС (салбарын данс) ---
+        const bankAccountsPayload = account.bankAccounts;
 
-        // --- 2. TOKEN АВАХ ---
-        const auth = Buffer.from(`${process.env.QPAY_USERNAME}:${process.env.QPAY_PASSWORD}`).toString('base64');
-        const tokenRes = await axios.post('https://quickqr.qpay.mn/v2/auth/token', 
-            { terminal_id: 'DALATECH_AI' }, 
+        // --- 2. TOKEN АВАХ (салбарын QPay эрхээр) ---
+        const auth = Buffer.from(`${account.username}:${account.password}`).toString('base64');
+        const tokenRes = await axios.post('https://quickqr.qpay.mn/v2/auth/token',
+            { terminal_id: account.terminalId },
             { headers: { 'Authorization': `Basic ${auth}` } }
         );
         const token = tokenRes.data.access_token;
@@ -80,13 +93,13 @@ module.exports = async function handler(req, res) {
         const consent = consentTime(req.body.depositTermsAcceptedAt);
         const callbackUrl = callbackUrlForPayment(publicOrigin(req), req.body, { agreedAt: consent.at, amount: finalAmount, test: isTest });
         const payload = {
-            merchant_id: "17e69f2a-d1a4-4fe6-a5a2-34a649378414", // <-- Өөрийн 87ec2243... ID-гээ буцааж хийгээрэй
+            merchant_id: merchantId,
             amount: finalAmount, // Бодит үнэ
             currency: 'MNT',
             description: finalDescription, // Бодит нэр, утас
             mcc_code: '7230',
-            bank_accounts: bankAccountsPayload
         };
+        if (bankAccountsPayload && bankAccountsPayload.length > 0) payload.bank_accounts = bankAccountsPayload;
         if (callbackUrl) payload.callback_url = callbackUrl;
         else console.warn('create-payment: no payment callback for this invoice (booking unreadable or no signing key)');
 
@@ -100,6 +113,7 @@ module.exports = async function handler(req, res) {
         // calendar event: which invoice was created after the customer agreed.
         console.log('Deposit terms accepted:', JSON.stringify({
             invoice_id: invoiceRes.data && (invoiceRes.data.invoice_id || invoiceRes.data.id),
+            branch: branchCheck.branch,
             staffName,
             customerGender: rulesCheck.customerGender,
             bookingDate: req.body.bookingDate,

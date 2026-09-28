@@ -11,6 +11,13 @@ const {
   formatSalonTime,
 } = require('./bookingRules');
 const { sendSalonAlert } = require('./telegram');
+const { branchOfStylist, branchInfo } = require('../config/branches');
+
+/** «Яармаг салбар» for a hairdresser, for alerts and the calendar record. */
+function branchNameOf(stylistId) {
+  const info = branchInfo(branchOfStylist(stylistId));
+  return info ? info.name : null;
+}
 
 /**
  * Puts a paid appointment on the stylist's calendar — the one place both
@@ -84,10 +91,12 @@ function buildBookingEvent({
   const gender = normalizeCustomerGender(customerGender);
 
   const lines = [];
+  const branchName = branchNameOf(stylistId);
   if (test) lines.push('ТЕСТ — test booking made through the test link (100₮ test deposit). Not a real customer.');
   if (customerName) lines.push(`Name: ${customerName}`);
   if (customerPhone) lines.push(`Phone: ${customerPhone}`);
   if (customerEmail) lines.push(`Email: ${customerEmail}`);
+  if (branchName) lines.push(`Branch: ${branchName}`);
   lines.push(`Price: ${stylist.price} MNT (${stylist.level})`);
   // Written out so the stylist can see the length the slot was reserved for,
   // and spot a service whose configured duration does not match reality.
@@ -179,11 +188,12 @@ async function outcomeFor(calendar, calendarId, event, built, booking, { amount 
     await sendSalonAlert([
       `${booking.test ? '[ТЕСТ] ' : ''}⚠️ Нэг захиалгад давхар төлбөр орсон`,
       `Үйлчлүүлэгч: ${booking.customerName || '—'}, утас ${booking.customerPhone || '—'}`,
+      `Салбар: ${branchNameOf(booking.stylistId) || '—'}`,
       `Үсчин: ${booking.stylistId}`,
       `Цаг: ${formatSalonTime(booking.start).replace(':00 (UTC+8)', '')}`,
       `Давхар төлсөн: ${amount ? `${formatter.format(amount)}₮ ` : ''}(QPay ${invoiceId})`,
       'Цаг нэг л удаа бүртгэгдсэн. Нэг төлбөрийг буцаан олгоно уу.',
-    ].join('\n'));
+    ].join('\n'), { branch: branchOfStylist(booking.stylistId) });
   }
   return { status: isNote ? 'conflict' : 'already-booked', eventId: event.id, durationMinutes: built.durationMinutes };
 }
@@ -208,6 +218,7 @@ function conflictAlertText({ stylistId, start, customerName, customerPhone, serv
   return [
     `${test ? '[ТЕСТ] ' : ''}⚠️ Урьдчилгаа төлсөн үйлчлүүлэгчийн цаг давхцсан`,
     `Үйлчлүүлэгч: ${customerName || '—'}, утас ${customerPhone || '—'}`,
+    `Салбар: ${branchNameOf(stylistId) || '—'}`,
     `Үсчин: ${stylistId}`,
     `Сонгосон цаг: ${local}`,
     services ? `Үйлчилгээ: ${Array.isArray(services) ? services.join(', ') : services}` : null,
@@ -277,7 +288,8 @@ async function ensurePaidBooking(calendar, booking, { late = false, amount = nul
       console.error('Could not write the paid-but-conflicting note to the calendar:', err.message || err);
     }
     console.error('PAID booking conflicts with an existing appointment:', booking.stylistId, booking.start.toISOString(), invoiceId);
-    await sendSalonAlert(conflictAlertText({ ...booking, start: booking.start, amount, invoiceId, late }));
+    await sendSalonAlert(conflictAlertText({ ...booking, start: booking.start, amount, invoiceId, late }),
+      { branch: branchOfStylist(booking.stylistId) });
     return { status: 'conflict', eventId, durationMinutes: built.durationMinutes };
   }
 
@@ -324,13 +336,14 @@ async function alertBookingFailure({ stylistId, start, customerName, customerPho
   return sendSalonAlert([
     `${test ? '[ТЕСТ] ' : ''}⚠️ Урьдчилгаа төлсөн боловч цаг бүртгэж чадсангүй`,
     `Үйлчлүүлэгч: ${customerName || '—'}, утас ${customerPhone || '—'}`,
+    `Салбар: ${branchNameOf(stylistId) || '—'}`,
     `Үсчин: ${stylistId || '—'}`,
     `Сонгосон цаг: ${local}`,
     services ? `Үйлчилгээ: ${Array.isArray(services) ? services.join(', ') : services}` : null,
     amount ? `Урьдчилгаа: ${formatter.format(amount)}₮${invoiceId ? ` (QPay ${invoiceId})` : ''}` : (invoiceId ? `QPay: ${invoiceId}` : null),
     `Шалтгаан: ${String(error || 'тодорхойгүй').slice(0, 200)}`,
     'Үйлчлүүлэгчтэй холбогдож цагийг гараар бүртгэнэ үү.',
-  ].filter(Boolean).join('\n'));
+  ].filter(Boolean).join('\n'), { branch: branchOfStylist(stylistId) });
 }
 
 module.exports = {
