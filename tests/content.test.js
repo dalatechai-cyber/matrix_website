@@ -36,13 +36,17 @@ function serviceNamed(name) {
 // Contact numbers
 // ---------------------------------------------------------------------------
 
-const PAGES = ['index.html', 'services.html', 'team.html', 'zurag.html', 'products.html', 'keune-products.html'];
+const PAGES = ['index.html', 'services.html', 'zurag.html', 'products.html', 'keune-products.html', 'booking.html', 'contact.html'];
+const { renderPage } = require('../lib/pages');
+/** A page as visitors get it: shared header, footer and branch details included. */
+const rendered = (file) => renderPage(file.replace(/\.html$/, '')) || '';
 const RETIRED_NUMBER = /7741[^0-9]{0,2}7777/;
 const CURRENT_NUMBERS = ['76001888', '80905498'];
 
 test('contact: the retired booking number appears on no page', () => {
   for (const page of PAGES) {
-    const html = fs.readFileSync(path.join(ROOT, page), 'utf8');
+    const html = rendered(page);
+    assert.ok(html.length > 0, `${page} did not render`);
     assert.ok(!RETIRED_NUMBER.test(html), `${page} still shows the retired number`);
     // Digits only, so a number split by markup or an entity cannot hide.
     assert.ok(!RETIRED_NUMBER.test(html.replace(/[^0-9]/g, '')), `${page} hides the retired number between other characters`);
@@ -50,7 +54,7 @@ test('contact: the retired booking number appears on no page', () => {
 });
 
 test('contact: both current numbers are shown, and both are dialable', () => {
-  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const html = rendered('index.html');
   for (const number of CURRENT_NUMBERS) {
     // Displayed (the site groups as "+976 7600 1888") and tappable on a phone.
     assert.ok(html.includes(`+976 ${number.slice(0, 4)} ${number.slice(4)}`), `${number} is not displayed`);
@@ -171,7 +175,7 @@ const MANICURE_WORDS = /маникюр|педикюр|хумс|гелэн|г\. �
 
 test('manicure: no page, price or bookable service mentions it', () => {
   for (const page of PAGES) {
-    const html = fs.readFileSync(path.join(ROOT, page), 'utf8');
+    const html = rendered(page);
     assert.ok(!MANICURE_WORDS.test(html), `${page} still mentions manicure`);
   }
   for (const s of allServices()) assert.ok(!MANICURE_WORDS.test(s.name), `price list still has ${s.name}`);

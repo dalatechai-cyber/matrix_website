@@ -84,7 +84,7 @@ async function testCookie() {
   return set.split(';')[0];
 }
 
-const PAGES = ['/', '/index.html', '/services.html', '/team.html', '/zurag.html', '/products.html', '/keune-products.html'];
+const PAGES = ['/', '/index.html', '/services.html', '/zurag.html', '/products.html', '/keune-products.html', '/booking.html', '/contact.html'];
 
 beforeEach(() => {
   delete process.env.SITE_MAINTENANCE;
@@ -97,11 +97,14 @@ test('maintenance off (default): every page is the real page', async () => {
   for (const p of PAGES) {
     const r = await request('GET', p);
     assert.equal(r.status, 200, p);
-    assert.ok(r.text.includes('Matrix Eco'), p);
+    assert.ok(r.text.includes('Tara Salon'), p);
     assert.ok(!r.text.includes(MAINTENANCE_MESSAGE), p);
   }
-  const booking = await request('GET', '/');
+  const booking = await request('GET', '/booking.html');
   assert.ok(booking.text.includes('id="booking"'));
+  const team = await request('GET', '/team.html');
+  assert.equal(team.status, 301, 'the retired team page sends visitors home');
+  assert.equal(team.headers.location, '/');
 });
 
 test('an unknown .html path is not served from here', async () => {
@@ -145,9 +148,9 @@ test('maintenance on: a customer who already paid still gets booked', async () =
 
 test('test link: sets a signed cookie, strips the token from the address bar, bypasses maintenance', async () => {
   process.env.SITE_MAINTENANCE = 'on';
-  const r = await request('GET', `/team.html?test=${TOKEN}`);
+  const r = await request('GET', `/booking.html?test=${TOKEN}`);
   assert.equal(r.status, 302);
-  assert.equal(r.headers.location, '/team.html');
+  assert.equal(r.headers.location, '/booking.html');
   const cookie = [].concat(r.headers['set-cookie'])[0];
   assert.ok(cookie.startsWith(`${TEST_COOKIE}=`) && /HttpOnly/.test(cookie) && /Secure/.test(cookie));
   assert.ok(!cookie.includes(TOKEN), 'the token itself is never stored in the cookie');

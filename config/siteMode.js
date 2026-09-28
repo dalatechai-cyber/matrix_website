@@ -99,28 +99,28 @@ function maintenancePage() {
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex" />
-<title>Matrix Eco Salon</title>
-<link rel="icon" href="/favicon.jpg" />
+<title>Tara Salon</title>
+<link rel="icon" href="/favicon.ico" />
 <style>
-  :root { --bg: #0f1a16; --surface: #121f1a; --accent: #64d39a; --text: #e8f5ef; --muted: #b4c8bf; }
+  :root { --teal: #04484a; --ink: #142727; --muted: #4d6362; --line: #d6e1e0; }
   * { box-sizing: border-box; }
   body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
-    background: var(--bg); color: var(--text); font-family: Manrope, system-ui, -apple-system, "Segoe UI", sans-serif; padding: 24px 16px; }
-  main { max-width: 440px; width: 100%; text-align: center; background: var(--surface);
-    border: 1px solid rgba(100, 211, 154, 0.25); border-radius: 16px; padding: 32px 24px; }
-  img { width: 88px; height: auto; border-radius: 12px; margin-bottom: 20px; }
+    background: #edf3f2; color: var(--ink); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; padding: 24px 16px; }
+  main { max-width: 440px; width: 100%; text-align: center; background: #fff;
+    border: 1px solid var(--line); border-radius: 8px; padding: 36px 24px; }
+  img { width: 140px; height: auto; margin: 0 auto 24px; display: block; }
   p { font-size: 1.05rem; line-height: 1.6; margin: 0 0 24px; }
   .actions { display: grid; gap: 12px; }
   a { display: flex; align-items: center; justify-content: center; min-height: 48px; border-radius: 999px;
-    font-weight: 700; text-decoration: none; font-size: 1rem; }
-  .primary { background: var(--accent); color: #0f1a16; }
-  .secondary { border: 1.5px solid rgba(100, 211, 154, 0.6); color: var(--text); }
-  a:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+    font-weight: 600; text-decoration: none; font-size: 1rem; }
+  .primary { background: var(--teal); color: #fff; }
+  .secondary { border: 1.5px solid var(--teal); color: var(--teal); }
+  a:focus-visible { outline: 3px solid var(--teal); outline-offset: 3px; }
 </style>
 </head>
 <body>
 <main>
-  <img src="/logo.png" alt="Matrix Eco Salon" />
+  <img src="/brand/tara-salon-logo.svg" alt="Tara Salon" width="140" height="82" />
   <p>${escapeHtml(MAINTENANCE_MESSAGE)}</p>
   <div class="actions">
     <a class="primary" href="${MESSENGER_URL}" rel="noopener noreferrer">Messenger</a>

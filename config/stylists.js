@@ -17,6 +17,13 @@
  * services/bookingRules.js enforces it from this field. A new hairdresser
  * without a gender cannot be paid for at all, so add it with the entry.
  *
+ * `branch` is the Tara Salon branch the hairdresser works at (config/branches.js);
+ * a booking only ever reaches the calendar and QPay account of that branch.
+ * Парк Од has no hairdressers yet: add them below the Яармаг ones with
+ * `branch: 'parkod'` (and a Latin alias, like the others) once the branch
+ * sends each person's calendar id, price tier and gender.
+ * `photo` is optional; the booking page shows initials without one.
+ *
  * The salon no longer offers manicure. The manicurist's calendar still holds
  * her past appointments; it is simply no longer referenced here, so nothing
  * can be booked or paid for on it.
@@ -31,78 +38,97 @@ const STYLIST_CONFIG = {
     price: 20000,
     level: 'Мастер үсчин',
     gender: 'male',
+    branch: 'yaarmag',
+    photo: '/img/stylists/anand.webp',
   },
   'anand': {
     calendarId: 'c_2af068656b60e27cd9063a78b04dffbe24f1aab4543e50c2875f132dc4b12e17@group.calendar.google.com',
     price: 20000,
     level: 'Мастер үсчин',
     gender: 'male',
+    branch: 'yaarmag',
   },
   'Бадамцэцэг': {
     calendarId: 'c_7d47cf135b4ef24b9b4e920f8e981096087b236eb4f7d92a7ad8ce7a1d407529@group.calendar.google.com',
     price: 20000,
     level: 'Мастер үсчин',
     gender: 'female',
+    branch: 'yaarmag',
+    photo: '/img/stylists/badamtsetseg.webp',
   },
   'badamtsetseg': {
     calendarId: 'c_7d47cf135b4ef24b9b4e920f8e981096087b236eb4f7d92a7ad8ce7a1d407529@group.calendar.google.com',
     price: 20000,
     level: 'Мастер үсчин',
     gender: 'female',
+    branch: 'yaarmag',
   },
   'Батзаяа': {
     calendarId: 'c_2979833247c0886af6789e6fbf205b66477105ceac615a07597ba4f6af975f63@group.calendar.google.com',
     price: 10000,
     level: '1-р зэргийн үсчин',
     gender: 'female',
+    branch: 'yaarmag',
+    photo: '/img/stylists/batzaya.webp',
   },
   'batzaya': {
     calendarId: 'c_2979833247c0886af6789e6fbf205b66477105ceac615a07597ba4f6af975f63@group.calendar.google.com',
     price: 10000,
     level: '1-р зэргийн үсчин',
     gender: 'female',
+    branch: 'yaarmag',
   },
   'Уранчимэг': {
     calendarId: 'c_6efae8dadb0660afc266a939e8bfbd85af95bfc5ed498055ccd11175d181bbaf@group.calendar.google.com',
     price: 10000,
     level: '1-р зэргийн үсчин',
     gender: 'female',
+    branch: 'yaarmag',
   },
   'uranchimeg': {
     calendarId: 'c_6efae8dadb0660afc266a939e8bfbd85af95bfc5ed498055ccd11175d181bbaf@group.calendar.google.com',
     price: 10000,
     level: '1-р зэргийн үсчин',
     gender: 'female',
+    branch: 'yaarmag',
   },
   'Оюунсүрэн': {
     calendarId: 'c_46dc5625ec21ce8c17b61ed2f1c28b4328279cec168b982c49f218cd4452a4b3@group.calendar.google.com',
     price: 20000,
     level: 'Мастер үсчин',
     gender: 'female',
+    branch: 'yaarmag',
+    photo: '/img/stylists/oyunsuren.webp',
   },
   'oyunsuren': {
     calendarId: 'c_46dc5625ec21ce8c17b61ed2f1c28b4328279cec168b982c49f218cd4452a4b3@group.calendar.google.com',
     price: 20000,
     level: 'Мастер үсчин',
     gender: 'female',
+    branch: 'yaarmag',
   },
   'Уянга': {
     calendarId: 'c_27de9527ce91e22bc5255af2dd51bc1db5c700d167d5aaad77062990bfe4875f@group.calendar.google.com',
     price: 10000,
     level: '1-р зэргийн үсчин',
     gender: 'female',
+    branch: 'yaarmag',
+    photo: '/img/stylists/uyanga.webp',
   },
   'uyanga': {
     calendarId: 'c_27de9527ce91e22bc5255af2dd51bc1db5c700d167d5aaad77062990bfe4875f@group.calendar.google.com',
     price: 10000,
     level: '1-р зэргийн үсчин',
     gender: 'female',
+    branch: 'yaarmag',
   },
   'Отгонжаргал': {
     calendarId: OTGONZARGAL_CALENDAR_ID,
     price: 10000,
     level: '1-р зэргийн үсчин',
     gender: 'female',
+    branch: 'yaarmag',
+    photo: '/img/stylists/otgonjargal.webp',
   },
   'otgonzargal': {
     // Latin transliteration alias — mirrors the Mongolian entry above (see file-level comment)
@@ -110,6 +136,7 @@ const STYLIST_CONFIG = {
     price: 10000,
     level: '1-р зэргийн үсчин',
     gender: 'female',
+    branch: 'yaarmag',
   },
 };
 
