@@ -561,6 +561,7 @@ p { margin: 0; }
 .keune-sub-price { white-space: nowrap; font-weight: 550; color: var(--teal); }
 .keune-modal-image-wrap img { width: 100%; margin-top: 1.5rem; border-radius: var(--radius); }
 
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
