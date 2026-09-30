@@ -96,6 +96,19 @@ today until the owner approves the switch.
   plus `favicon.ico` 16/32/48, `icon-16/32/192/512.png` (transparent) and
   `icon-180.png` for iPhone (white, since iOS fills transparency with black).
 
+## Part 6 — metallic rebrand («Plaster & Steel») — preview, awaiting owner's go
+
+- New logo from the owner: metallic silver «Tara», orange star, «Salon» script
+  (`brand/tara-salon-logo.png`, `brand/tara-salon-logo-2000.webp`, byte for
+  byte; `-240/-480` are scaled copies for the page). The teal SVG logos and
+  `favicon.svg` are retired.
+- Palette moves from teal/white to the salon's new interior: limewash beige,
+  basalt, brushed steel, star orange. The silver logo sits only on basalt
+  (header, footer, maintenance card), where it reads at every width.
+- Favicon, touch and app icons rebuilt from the logo's own metallic «T» and
+  star on basalt (larger star at 16/32 px); new social preview image.
+- Visual only: text, prices, links, booking flow and branch details unchanged.
+
 ## Open items for the owner
 
 - New copy, all in one place: `docs/COPY_DRAFT.md`.

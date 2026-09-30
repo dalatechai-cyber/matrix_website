@@ -36,8 +36,8 @@ function serviceNamed(name) {
 // Contact numbers
 // ---------------------------------------------------------------------------
 
-const LOGO_SHA = 'e6763af6eff74382';
-const LOGO_LIGHT_SHA = 'e69cb34cc4e5c69d';
+const LOGO_PNG_SHA = 'af7b2d3e32697b50';
+const LOGO_WEBP_SHA = '741a3955a919349f';
 const PAGES = ['index.html', 'services.html', 'zurag.html', 'products.html', 'keune-products.html', 'booking.html', 'contact.html'];
 const { renderPage } = require('../lib/pages');
 /** A page as visitors get it: shared header, footer and branch details included. */
@@ -261,8 +261,9 @@ test('menu: a price not yet set is shown as pending, never invented', () => {
 test('brand: every page shows the Tara Salon logo and no old Matrix branding', () => {
   for (const page of PAGES) {
     const html = rendered(page);
-    assert.ok(html.includes('/brand/tara-salon-logo.svg'), `${page} header logo`);
-    assert.ok(html.includes('/brand/tara-salon-logo-light.svg'), `${page} footer logo`);
+    assert.ok(html.includes('/brand/tara-salon-logo-240.png'), `${page} header logo`);
+    assert.ok(html.includes('class="footer-logo" src="/brand/tara-salon-logo-480.png"'), `${page} footer logo`);
+    assert.ok(!html.includes('tara-salon-logo.svg') && !html.includes('logo-light'), `${page} uses the retired teal logo`);
     assert.ok(!/matrix/i.test(html.replace(/Matrix Eco:/g, '')), `${page} still says Matrix`);
     assert.ok(!html.includes('logo.png') && !html.includes('favicon.jpg'), `${page} uses an old logo file`);
     assert.ok(html.includes('og:image') && html.includes('/brand/og-image.jpg'), `${page} social preview`);
@@ -272,9 +273,10 @@ test('brand: every page shows the Tara Salon logo and no old Matrix branding', (
 test('brand: the logo files are the ones supplied, untouched', () => {
   const crypto = require('node:crypto');
   const sha = (f) => crypto.createHash('sha256').update(fs.readFileSync(path.join(ROOT, f))).digest('hex').slice(0, 16);
-  // From the tara-logo branch (Tara_Salon_logo.svg, Tara_Salon_logo_light.svg).
-  assert.equal(sha('brand/tara-salon-logo.svg'), LOGO_SHA);
-  assert.equal(sha('brand/tara-salon-logo-light.svg'), LOGO_LIGHT_SHA);
+  // The metallic logo the owner supplied (September 2026), byte for byte. The
+  // -240/-480 files beside them are scaled copies for the page.
+  assert.equal(sha('brand/tara-salon-logo.png'), LOGO_PNG_SHA);
+  assert.equal(sha('brand/tara-salon-logo-2000.webp'), LOGO_WEBP_SHA);
 });
 
 test('branches: Парк Од shows placeholders, never another branch\'s details', () => {

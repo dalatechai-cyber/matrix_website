@@ -1,33 +1,43 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-28T00:00:00Z",
+  "generatedAt": "2026-09-30T00:00:00Z",
   "title": "Design System: Tara Salon",
   "extensions": {
     "colorMeta": {
-      "teal": {
+      "stone": {
         "role": "primary",
-        "displayName": "Tara Teal",
-        "canonical": "#04484a"
+        "displayName": "Basalt",
+        "canonical": "#2b2622"
       },
-      "orange": {
+      "star": {
         "role": "accent",
-        "displayName": "Tara Orange",
-        "canonical": "#f58634"
+        "displayName": "Star Orange",
+        "canonical": "#e8985c"
       },
-      "mist": {
-        "role": "neutral",
-        "displayName": "Mist",
-        "canonical": "#edf3f2"
+      "copper": {
+        "role": "accent",
+        "displayName": "Copper",
+        "canonical": "#8a4b25"
       },
-      "paper": {
+      "sand": {
         "role": "neutral",
-        "displayName": "Paper",
-        "canonical": "#ffffff"
+        "displayName": "Limewash Sand",
+        "canonical": "#ebe3d8"
+      },
+      "plaster": {
+        "role": "neutral",
+        "displayName": "Plaster",
+        "canonical": "#f5f0e8"
+      },
+      "steel": {
+        "role": "neutral",
+        "displayName": "Brushed Steel",
+        "canonical": "#b8b5af"
       },
       "ink": {
         "role": "neutral",
-        "displayName": "Ink",
-        "canonical": "#142727"
+        "displayName": "Warm Ink",
+        "canonical": "#2b2520"
       }
     },
     "typographyMeta": {

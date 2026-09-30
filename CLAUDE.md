@@ -148,9 +148,12 @@ UI/UX work:
 - **[PRODUCT.md](PRODUCT.md)** — strategic: register (`brand`), users, purpose,
   brand personality (eco · modern · premium), anti-references, design
   principles, accessibility target (WCAG AA).
-- **[DESIGN.md](DESIGN.md)** — visual system: Tara teal #04484A (brand) and
-  orange #F58634 (accent only), Cormorant Garamond headings, Geologica body,
-  components, logo rules. Token frontmatter is normative.
+- **[DESIGN.md](DESIGN.md)** — visual system "Plaster & Steel" (September
+  2026 rebrand): warm limewash beige, basalt #2B2622 for the header, footer
+  and primary buttons, the logo's star orange #E8985C as accent only, copper
+  #8A4B25 for readable accent text, Cormorant Garamond headings, Geologica
+  body, logo rules (the metallic logo sits only on basalt). Token frontmatter
+  is normative.
 
 The impeccable skill is the design authority for this project; prefer it over
 generic UI tooling. The `.impeccable/` directory holds its sidecar
