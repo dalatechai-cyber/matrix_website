@@ -135,7 +135,7 @@
   --gutter: clamp(1rem, 0.6rem + 2vw, 2rem);
   --section: clamp(4rem, 3rem + 5vw, 8rem);
   --radius: 14px;
-  --header-h: 72px;
+  --header-h: 80px;
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
@@ -273,8 +273,8 @@ p { margin: 0; }
 .header-inner { display: flex; align-items: center; gap: 1.5rem; height: var(--header-h); }
 .brand { display: block; flex: none; padding: 4px 0; }
 .brand picture { display: block; }
-/* Sized by height: the logo is ≈1.85:1, so 42px tall is ≈78px wide. */
-.brand img { height: 42px; width: auto; }
+/* Sized by height: the logo is ≈1.85:1, so 56px tall is ≈104px wide. */
+.brand img { height: 56px; width: auto; }
 .nav { margin-left: auto; }
 .nav ul { display: flex; gap: 0.25rem; list-style: none; margin: 0; padding: 0; }
 .nav a {
@@ -306,8 +306,8 @@ p { margin: 0; }
 .nav-toggle[aria-expanded="true"] span::after { transform: translateY(-7px) rotate(-45deg); }
 
 @media (max-width: 960px) {
-  :root { --header-h: 64px; }
-  .brand img { height: 38px; }
+  :root { --header-h: 68px; }
+  .brand img { height: 48px; }
   .nav-toggle { display: inline-flex; }
   .header-cta { display: none; }
   .nav {
