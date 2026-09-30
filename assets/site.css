@@ -135,7 +135,7 @@
   --gutter: clamp(1rem, 0.6rem + 2vw, 2rem);
   --section: clamp(4rem, 3rem + 5vw, 8rem);
   --radius: 14px;
-  --header-h: 80px;
+  --header-h: 72px;
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
@@ -157,6 +157,23 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 img, svg, video { display: block; max-width: 100%; height: auto; }
+
+/* Scrollbar: a slim brushed-steel thumb in a plaster channel, so it reads as
+   part of the room rather than a grey browser strip (desktop browsers; phones
+   keep their own overlay scrollbars). */
+::-webkit-scrollbar { width: 11px; height: 11px; }
+::-webkit-scrollbar-track { background: var(--sand); }
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(90deg, #bdb8b1, #a39d95 55%, #b3aea7);
+  border: 3px solid var(--sand); border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover { background: linear-gradient(90deg, #9d978f, #857e75 55%, #958f87); }
+::-webkit-scrollbar-corner { background: var(--sand); }
+/* Firefox has no ::-webkit-scrollbar. Chrome would let these standard
+   properties override the styled thumb above, so only Firefox gets them. */
+@supports not selector(::-webkit-scrollbar) {
+  html { scrollbar-width: thin; scrollbar-color: #a39d95 var(--sand); }
+}
 a { color: inherit; }
 button, input, select, textarea { font: inherit; color: inherit; }
 h1, h2, h3, h4 { margin: 0; font-weight: 500; }
@@ -250,8 +267,8 @@ p { margin: 0; }
 .header-inner { display: flex; align-items: center; gap: 1.5rem; height: var(--header-h); }
 .brand { display: block; flex: none; padding: 4px 0; }
 .brand picture { display: block; }
-/* Sized by height: the logo is ≈1.85:1, so 56px tall is ≈104px wide. */
-.brand img { height: 56px; width: auto; }
+/* Sized by height: the logo is ≈1.85:1, so 42px tall is ≈78px wide. */
+.brand img { height: 42px; width: auto; }
 .nav { margin-left: auto; }
 .nav ul { display: flex; gap: 0.25rem; list-style: none; margin: 0; padding: 0; }
 .nav a {
@@ -283,8 +300,8 @@ p { margin: 0; }
 .nav-toggle[aria-expanded="true"] span::after { transform: translateY(-7px) rotate(-45deg); }
 
 @media (max-width: 960px) {
-  :root { --header-h: 68px; }
-  .brand img { height: 48px; }
+  :root { --header-h: 64px; }
+  .brand img { height: 38px; }
   .nav-toggle { display: inline-flex; }
   .header-cta { display: none; }
   .nav {
