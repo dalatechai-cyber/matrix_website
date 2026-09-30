@@ -90,6 +90,13 @@
 }
 .seg input:checked + span { background: var(--stone); color: var(--on-stone); border-color: var(--stone); }
 .seg input:focus-visible + span { outline: 3px solid var(--stone); outline-offset: 2px; }
+@media (max-width: 640px) {
+  /* Phones: the label takes its own line and the two choices sit side by
+     side at equal width, so neither wraps under the other. */
+  .gender-field legend { flex: 0 0 100%; float: none; margin: 0 0 0.1rem; }
+  .seg { flex: 1 1 0; min-width: 0; }
+  .seg span { width: 100%; justify-content: center; padding: 0.6rem 0.75rem; }
+}
 
 /* Days and times */
 .days {
