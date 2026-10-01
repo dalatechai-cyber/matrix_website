@@ -13,7 +13,7 @@
  * comes from here.
  *
  * Matching is deliberately forgiving: the booking checkboxes, the price list
- * (data/pricing.json) and the salon's own spelling differ in punctuation and in
+ * (data/services.json) and the salon's own spelling differ in punctuation and in
  * ё/е, so names are normalised and each service may carry aliases.
  */
 

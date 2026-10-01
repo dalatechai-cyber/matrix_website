@@ -127,8 +127,12 @@ through [config/serviceDurations.js](config/serviceDurations.js) and fetched by
 the booking UI, so there is one source of truth and no client copy to drift.
 
 The service menu and price list is **[data/services.json](data/services.json)**
-(same prices at both branches; `null` = «Үнэ удахгүй»); every name in it must
-be in `data/serviceDurations.json` — a test checks.
+— the salon's list of 1 October 2026, same prices at both branches, names and
+prices exactly as on that list (a test pins every one). Each bookable choice
+has a `key` (unique, comma-free; a service priced by hair length has one per
+богино / дунд / урт); every key must be a current entry in
+`data/serviceDurations.json` — a test checks. Entries marked `retired` there
+are the old menu, kept in order so callbacks signed before the switch decode.
 
 The server resolves duration from the customer's selected services and ignores
 any `totalDuration` the browser sends — that number decides how much of a

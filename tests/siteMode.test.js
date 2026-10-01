@@ -119,7 +119,7 @@ test('maintenance on: every page shows the notice with Messenger and both number
     assert.equal(r.status, 503, p);
     assert.ok(r.text.includes(MAINTENANCE_MESSAGE), p);
     assert.ok(r.text.includes(MESSENGER_URL), p);
-    assert.ok(r.text.includes('tel:+97676001888') && r.text.includes('tel:+97680905498'), p);
+    assert.ok(r.text.includes('tel:+97676001888') && r.text.includes('tel:+97691005498'), p);
     assert.ok(!r.text.includes('<script'), 'no booking script on the maintenance page');
     assert.equal(r.headers['cache-control'], 'no-store');
   }

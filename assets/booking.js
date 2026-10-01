@@ -223,6 +223,26 @@
   }
 
   // ── Step 2: services ──────────────────────────────────────────────────
+  // Each choice posts its `key` from data/services.json — unique across the
+  // menu, unlike the names (the price list repeats some in two sections at
+  // two prices). A service priced by hair length offers one choice per
+  // length; at most one of them can be ticked.
+  function serviceChoice(key, title, price, meta) {
+    const label = el("label", "option option--check");
+    const input = el("input");
+    input.type = "checkbox";
+    input.value = key;
+    input.className = "service-checkbox";
+    input.checked = state.services.includes(key);
+    input.addEventListener("change", onServicesChanged);
+    const body = el("span", "option-body");
+    body.append(el("span", "option-title", title));
+    if (typeof price === "number") body.append(el("span", "option-price", money(price)));
+    if (meta) body.append(el("span", "option-meta", meta));
+    label.append(input, body);
+    return label;
+  }
+
   function renderServices() {
     const wrap = $("service-options");
     wrap.replaceChildren(...menu.categories.map((c) => {
@@ -230,18 +250,25 @@
       group.append(el("legend", "", c.name));
       const grid = el("div", "options options--services");
       c.services.forEach((s) => {
-        const label = el("label", "option option--check");
-        const input = el("input");
-        input.type = "checkbox";
-        input.value = s.name;
-        input.className = "service-checkbox";
-        input.checked = state.services.includes(s.name);
-        input.addEventListener("change", onServicesChanged);
-        const body = el("span", "option-body");
-        body.append(el("span", "option-title", s.name));
-        if (s.note) body.append(el("span", "option-meta", s.note));
-        label.append(input, body);
-        grid.append(label);
+        if (!Array.isArray(s.prices)) {
+          grid.append(serviceChoice(s.key, s.name, s.price, s.note));
+          return;
+        }
+        const tiers = el("fieldset", "service-tiers");
+        tiers.append(el("legend", "", s.name));
+        if (s.details && s.details.footnote) tiers.append(el("p", "option-meta", s.details.footnote));
+        const row = el("div", "tier-options");
+        s.prices.forEach((p) => {
+          const choice = serviceChoice(p.key, p.length, p.price);
+          choice.querySelector("input").addEventListener("change", (e) => {
+            if (!e.target.checked) return;
+            row.querySelectorAll(".service-checkbox").forEach((i) => { if (i !== e.target) i.checked = false; });
+            onServicesChanged();
+          });
+          row.append(choice);
+        });
+        tiers.append(row);
+        grid.append(tiers);
       });
       group.append(grid);
       return group;

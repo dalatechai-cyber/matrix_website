@@ -80,6 +80,14 @@
 .service-group { border: 0; margin: 0 0 1.5rem; padding: 0; min-width: 0; }
 .service-group legend { font-family: var(--font-display); font-size: 1.35rem; font-weight: 600; margin-bottom: 0.7rem; padding: 0; }
 
+/* A service priced by hair length: its name, then one choice per length. */
+.service-tiers { grid-column: 1 / -1; border: 1px solid var(--line); border-radius: var(--radius); margin: 0; padding: 0.8rem 0.9rem 0.9rem; min-width: 0; }
+.service-tiers legend { font-weight: 550; padding: 0 0.3rem; }
+.service-tiers > .option-meta { margin: 0 0 0.5rem; }
+.tier-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.4rem; }
+.tier-options .option--check { padding: 0.6rem 0.5rem 0.6rem 2.2rem; }
+.tier-options .option--check::before { left: 0.6rem; }
+
 .gender-field { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
 .gender-field legend { float: left; margin-right: 0.6rem; font-weight: 550; padding: 0; }
 .seg { position: relative; }

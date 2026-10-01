@@ -539,6 +539,15 @@ p { margin: 0; }
 .price-rows .svc-note { grid-column: 1; color: var(--muted); font-size: var(--step--1); }
 .price-rows .amount { font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
 .price-rows .amount.pending { color: var(--muted); font-size: var(--step--1); border: 1px dashed var(--line); padding: 0.15rem 0.6rem; border-radius: 999px; }
+/* Priced by hair length: short / medium / long, each labelled. */
+.price-rows li.is-tiered { grid-template-columns: minmax(0, 1fr); }
+.price-rows .amount-tiers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; }
+.price-rows .tier { display: grid; gap: 0.1rem; padding: 0.45rem 0.6rem; border: 1px solid var(--line); border-radius: 4px; }
+.price-rows .tier .amount { text-align: left; }
+.price-rows .tier-label { color: var(--muted); font-size: var(--step--1); }
+.price-rows .svc-details { grid-column: 1 / -1; margin-top: 0.4rem; padding: 0.9rem 1rem; background: var(--sand); border-radius: 4px; }
+.price-rows .svc-details-title { font-weight: 550; margin-bottom: 0.4rem; }
+.price-rows .svc-details ul { margin: 0 0 0.5rem; padding-left: 1.1rem; display: grid; gap: 0.2rem; }
 @media (max-width: 760px) { .price-cat { grid-template-columns: 1fr; } }
 .notice {
   padding: 1rem 1.25rem; border-radius: var(--radius); background: var(--sand); border: 1px dashed #b3a595;

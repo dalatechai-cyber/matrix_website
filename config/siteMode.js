@@ -19,7 +19,7 @@ const { STYLIST_CONFIG } = require('./stylists');
  */
 
 const MAINTENANCE_MESSAGE =
-  'Вэбсайт түр засвартай байна. Цаг захиалах бол Messenger-ээр бичих эсвэл 76001888, 80905498 дугаарт залгана уу.';
+  'Вэбсайт түр засвартай байна. Цаг захиалах бол Messenger-ээр бичих эсвэл 76001888, 91005498 дугаарт залгана уу.';
 const MESSENGER_URL = 'https://m.me/100067872726164';
 const TEST_COOKIE = 'mx_test';
 const TEST_DEPOSIT_MNT = 100;
@@ -128,7 +128,7 @@ function maintenancePage() {
   <div class="actions">
     <a class="primary" href="${MESSENGER_URL}" rel="noopener noreferrer">Messenger</a>
     <a class="secondary" href="tel:+97676001888">7600 1888</a>
-    <a class="secondary" href="tel:+97680905498">8090 5498</a>
+    <a class="secondary" href="tel:+97691005498">9100 5498</a>
   </div>
 </main>
 </body>
