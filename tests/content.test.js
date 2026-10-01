@@ -267,7 +267,10 @@ test('brand: the logo files are the ones supplied, untouched', () => {
 test('branches: Парк Од shows the shared line and placeholders, never Яармаг\'s own details', () => {
   const html = rendered('contact.html');
   const park = html.slice(html.indexOf('id="branch-parkod"'), html.indexOf('</article>', html.indexOf('id="branch-parkod"')));
-  assert.ok(park.includes('Удахгүй нэмэгдэнэ'));
+  assert.ok(park.includes('Удахгүй нэмэгдэнэ'), 'hours are still to come');
+  assert.ok(park.includes('Баянзүрх дүүрэг, 26-р хороо, Парк-Од молл, 4 давхар, 405 тоот'), 'Парк Од address');
+  const footer = html.slice(html.indexOf('<footer'));
+  assert.ok(footer.includes('Парк-Од молл, 4 давхар, 405 тоот') && !footer.includes('Хаяг удахгүй нэмэгдэнэ'), 'footer address');
   // 76001888 is the shared main line of both branches; 91005498 is Яармаг's own.
   assert.ok(park.includes('tel:+97676001888'), 'Парк Од must show the shared main line');
   assert.ok(!park.includes('9100') && !park.includes('8090') && !park.includes('Номин'), 'Яармаг details on Парк Од');
