@@ -1,0 +1,12 @@
+{
+  "_comment": "Where the site shows a feature photo, one entry per place. `photo` is a slug from data/gallery.json (the salon's own photos, 4:5 WebP in img/photos/ at the widths listed there); null shows no photo there (the section keeps its plaster texture and light). To use the owner's new interior photos: add each to data/gallery.json the same way as the others (see docs/PHOTOS.md), then put its slug here. `alt` overrides the gallery description when the place needs different wording. docs/IMAGERY.md lists every place and the photo that would suit it best.",
+  "slots": {
+    "home-services": { "photo": "rose-waves" },
+    "home-about": { "photo": "cutting", "alt": "Үсчин үсийг сам, хайчаар нарийн тайрч байгаа нь" },
+    "intro-services": { "photo": "bronde-waves" },
+    "intro-zurag": { "photo": "editorial-lake" },
+    "intro-contact": { "photo": null },
+    "intro-products": { "photo": "tools" },
+    "intro-keune": { "photo": null }
+  }
+}

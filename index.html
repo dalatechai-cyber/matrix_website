@@ -48,7 +48,7 @@
 
       <section class="section" id="contact" aria-labelledby="branches-title">
         <div class="container">
-          <div class="section-head">
+          <div class="section-head" data-reveal>
             <h2 class="h2" id="branches-title">Хоёр салбар, нэг стандарт</h2>
             <p class="lead">Яармаг болон Парк Од салбарын үйлчилгээ, үнэ ижил. Өөрт ойр салбараа сонгоод цагаа захиална уу.</p>
           </div>
@@ -58,9 +58,7 @@
 
       <section class="section section--sand" id="about" aria-labelledby="about-title">
         <div class="container about-grid">
-          <img src="/img/photos/cutting-800.webp" srcset="/img/photos/cutting-480.webp 480w, /img/photos/cutting-800.webp 800w, /img/photos/cutting-1057.webp 1057w"
-            sizes="(max-width: 860px) 92vw, 40vw" width="800" height="1000" loading="lazy" decoding="async"
-            alt="Үсчин үсийг сам, хайчаар нарийн тайрч байгаа нь" />
+          <!-- @image:home-about -->
           <div class="about-copy">
             <h2 class="h2" id="about-title">Бидний тухай</h2>
             <p>Tara Salon бол үсний засалт, будаг, химийн үйлчилгээнд төвлөрсөн мэргэжлийн салон юм. Үйлчлүүлэгч бүрийн үсний төлөв, хүсэж буй үр дүнг сонсож, түүнд тохирсон шийдлийг санал болгоно.</p>
@@ -75,21 +73,24 @@
 
       <section class="section" aria-labelledby="services-title">
         <div class="container">
-          <div class="section-head section-head--split">
+          <div class="section-head section-head--split" data-reveal>
             <div>
               <h2 class="h2" id="services-title">Үйлчилгээ</h2>
             </div>
             <a class="text-link" href="/services.html">Бүх үйлчилгээ ба үнэ</a>
           </div>
-          <ul class="service-list">
-            <!-- @service-cards -->
-          </ul>
+          <div class="services-feature">
+            <!-- @image:home-services -->
+            <ul class="service-list" data-reveal-group>
+              <!-- @service-cards -->
+            </ul>
+          </div>
         </div>
       </section>
 
       <section class="section section--sand" aria-labelledby="work-title">
         <div class="container">
-          <div class="section-head section-head--split">
+          <div class="section-head section-head--split" data-reveal>
             <div>
               <h2 class="h2" id="work-title">Бүтээл</h2>
               <p class="lead" style="margin-top:1rem">Манай үсчдийн хийсэн ажлаас.</p>
@@ -102,11 +103,11 @@
 
       <section class="section" aria-labelledby="craft-title">
         <div class="container">
-          <div class="section-head">
+          <div class="section-head" data-reveal>
             <h2 class="h2" id="craft-title">Уралдаан ба сургалт</h2>
             <p class="lead">Манай үсчид олон улсын уралдаан, мэргэжлийн сургалтад оролцож, ур чадвараа тасралтгүй дээшлүүлдэг.</p>
           </div>
-          <div class="craft-grid">
+          <div class="craft-grid" data-reveal-group>
             <figure><img src="/img/photos/competition-asia-800.webp" srcset="/img/photos/competition-asia-480.webp 480w, /img/photos/competition-asia-800.webp 800w, /img/photos/competition-asia-1200.webp 1200w" sizes="(max-width: 760px) 92vw, 30vw" width="800" height="1000" loading="lazy" decoding="async" alt="Олон улсын үсчний уралдаан дээр Монгол улсын далбаатай манай үсчин" /><figcaption>Олон улсын уралдаан</figcaption></figure>
             <figure><img src="/img/photos/competition-piece-800.webp" srcset="/img/photos/competition-piece-480.webp 480w, /img/photos/competition-piece-800.webp 800w, /img/photos/competition-piece-1200.webp 1200w" sizes="(max-width: 760px) 92vw, 30vw" width="800" height="1000" loading="lazy" decoding="async" alt="Олон улсын уралдаанд оролцсон үсний бүтээл" /><figcaption>Уралдааны бүтээл</figcaption></figure>
             <figure><img src="/img/photos/training-certificates-800.webp" srcset="/img/photos/training-certificates-480.webp 480w, /img/photos/training-certificates-800.webp 800w, /img/photos/training-certificates-1200.webp 1200w" sizes="(max-width: 760px) 92vw, 30vw" width="800" height="1000" loading="lazy" decoding="async" alt="Мэргэжлийн сургалт төгсөж гэрчилгээ авсан үсчид" /><figcaption>Мэргэжлийн сургалт</figcaption></figure>
@@ -116,11 +117,11 @@
 
       <section class="section section--stone on-stone" aria-labelledby="products-title">
         <div class="container">
-          <div class="section-head">
+          <div class="section-head" data-reveal>
             <h2 class="h2" id="products-title">Мэргэжлийн бүтээгдэхүүн</h2>
             <p class="lead">Салбартаа Amos болон Keune брэндийн үс арчилгааны бүтээгдэхүүнийг санал болгож байна.</p>
           </div>
-          <div class="duo">
+          <div class="duo" data-reveal-group>
             <a href="/products.html"><h3>Amos</h3><p>Хуйхны эрүүл мэнд, үс уналтын эсрэг, будагтай болон гэмтэлтэй үсний арчилгаа, хэлбэржүүлэлтийн бүтээгдэхүүн.</p><span class="go">Бүтээгдэхүүн үзэх</span></a>
             <a href="/keune-products.html"><h3>Keune</h3><p>Будагтай үс, хуйх, эмчилгээ, хамгаалалт, хэлбэржүүлэлтийн мэргэжлийн бүтээгдэхүүн.</p><span class="go">Бүтээгдэхүүн үзэх</span></a>
           </div>
@@ -129,11 +130,11 @@
 
       <section class="section" aria-labelledby="how-title">
         <div class="container">
-          <div class="section-head">
+          <div class="section-head" data-reveal>
             <h2 class="h2" id="how-title">Цаг захиалах дараалал</h2>
             <p class="lead">Захиалга хэдхэн минут үргэлжилнэ. Урьдчилгаа төлбөр орсны дараа цаг тань баталгаажна.</p>
           </div>
-          <ol class="steps">
+          <ol class="steps" data-reveal-group>
             <li><strong>Салбар</strong><span>Яармаг эсвэл Парк Од.</span></li>
             <li><strong>Үйлчилгээ</strong><span>Нэг эсвэл хэд хэдэн үйлчилгээ сонгоно.</span></li>
             <li><strong>Үсчин</strong><span>Эмэгтэй үйлчлүүлэгчид эмэгтэй үсчин, эрэгтэй үйлчлүүлэгчид эрэгтэй үсчин үйлчилнэ.</span></li>
@@ -141,7 +142,7 @@
             <li><strong>Мэдээлэл</strong><span>Нэр, утсаа оруулж, урьдчилгааны нөхцөлийг зөвшөөрнө.</span></li>
             <li><strong>QPay-ээр төлөх</strong><span>QR кодоор эсвэл банкны аппаар урьдчилгаагаа төлнө.</span></li>
           </ol>
-          <p class="policy">Урьдчилгаа төлбөр нь үсчний зэрэглэлээс хамаарна: мастер үсчин 20,000₮, 1-р зэргийн үсчин 10,000₮. Цагаа цуцалсан эсвэл ирээгүй тохиолдолд урьдчилгаа буцаан олгогдохгүй.</p>
+          <p class="policy" data-reveal>Урьдчилгаа төлбөр нь үсчний зэрэглэлээс хамаарна: мастер үсчин 20,000₮, 1-р зэргийн үсчин 10,000₮. Цагаа цуцалсан эсвэл ирээгүй тохиолдолд урьдчилгаа буцаан олгогдохгүй.</p>
           <p style="margin-top:2rem"><a class="btn btn--primary" href="/booking.html">Цаг захиалах</a></p>
         </div>
       </section>

@@ -75,6 +75,56 @@
     });
   }
 
+  // ── Disclosure: a service name that opens its description (TARA LUMI) ─
+  // The page arrives open, so the text is there without JavaScript; here it
+  // closes, and each toggle eases the height. Closed text is `hidden`, so
+  // screen readers and keyboard users never land inside it.
+  document.querySelectorAll("[data-disclosure]").forEach((btn) => {
+    const panel = document.getElementById(btn.getAttribute("aria-controls"));
+    if (!panel) return;
+    let timer = null;
+    const set = (open, animate) => {
+      clearTimeout(timer);
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+      if (open) {
+        panel.hidden = false;
+        if (animate) void panel.offsetHeight; // start from the closed size
+        panel.classList.remove("is-closed");
+      } else {
+        panel.classList.add("is-closed");
+        if (!animate) { panel.hidden = true; return; }
+        timer = setTimeout(() => { if (btn.getAttribute("aria-expanded") === "false") panel.hidden = true; }, 420);
+      }
+    };
+    set(false, false);
+    btn.addEventListener("click", () => set(btn.getAttribute("aria-expanded") !== "true", true));
+  });
+
+  // ── Sections ease in as they reach the screen ─────────────────────────
+  // Only below the first screen, only once, and never with reduced motion.
+  const revealables = document.querySelectorAll("[data-reveal], [data-reveal-group]");
+  const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (revealables.length && !calm && "IntersectionObserver" in window) {
+    const below = Array.from(revealables).filter((el) => el.getBoundingClientRect().top > window.innerHeight * 0.92);
+    if (below.length) {
+      below.forEach((el) => {
+        if (el.hasAttribute("data-reveal-group")) Array.from(el.children).forEach((c, i) => c.style.setProperty("--i", Math.min(i, 6)));
+      });
+      document.documentElement.classList.add("has-motion");
+      revealables.forEach((el) => { if (!below.includes(el)) el.classList.add("is-in"); });
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          entry.target.classList.add("is-in");
+          io.unobserve(entry.target);
+        });
+      }, { rootMargin: "0px 0px -8% 0px", threshold: 0.08 });
+      below.forEach((el) => io.observe(el));
+      // Printing shows everything, scrolled to or not.
+      window.addEventListener("beforeprint", () => revealables.forEach((el) => el.classList.add("is-in")));
+    }
+  }
+
   // ── Gallery lightbox ─────────────────────────────────────────────────
   const galleries = document.querySelectorAll("[data-gallery]");
   if (galleries.length) {

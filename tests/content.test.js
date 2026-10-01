@@ -302,3 +302,25 @@ test('footer: the maker\'s credit is DalaTech\'s wordmark only, labelled, with t
   }
   assert.ok(fs.existsSync(path.join(ROOT, 'brand/dalatech-wordmark.svg')));
 });
+
+test('imagery: every feature photo is one of the salon\'s own vetted photos, and is drawn', () => {
+  const g = require('../data/gallery.json');
+  const { slots } = require('../data/imagery.json');
+  const pages = PAGES.map(rendered).join('\n');
+  for (const [name, slot] of Object.entries(slots)) {
+    if (slot.photo === null) continue;
+    const item = g.items.find((i) => i.slug === slot.photo);
+    assert.ok(item, `${name}: ${slot.photo} is not in data/gallery.json`);
+    assert.ok(pages.includes(`data-slot="${name}"`), `${name} is set but no page shows it`);
+  }
+  assert.ok(!/<!-- @image:/.test(pages), 'an image marker was left unrendered');
+});
+
+test('TARA LUMI: the name toggles its description, which is in the page without JavaScript', () => {
+  const html = rendered('services.html');
+  const btn = html.match(/<button type="button" class="svc svc-toggle" aria-expanded="true" aria-controls="([^"]+)" data-disclosure>TARA LUMI/);
+  assert.ok(btn, 'TARA LUMI is not a disclosure button');
+  assert.ok(html.includes(`<div class="svc-details" id="${btn[1]}">`), 'the button does not control the description');
+  const script = fs.readFileSync(path.join(ROOT, 'assets/site.js'), 'utf8');
+  assert.ok(script.includes('[data-disclosure]') && script.includes('panel.hidden = true'));
+});

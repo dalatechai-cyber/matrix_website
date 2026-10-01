@@ -545,7 +545,8 @@ p { margin: 0; }
 .price-rows .tier { display: grid; gap: 0.1rem; padding: 0.45rem 0.6rem; border: 1px solid var(--line); border-radius: 4px; }
 .price-rows .tier .amount { text-align: left; }
 .price-rows .tier-label { color: var(--muted); font-size: var(--step--1); }
-.price-rows .svc-details { grid-column: 1 / -1; margin-top: 0.4rem; padding: 0.9rem 1rem; background: var(--sand); border-radius: 4px; }
+.price-rows .svc-details { grid-column: 1 / -1; }
+.price-rows .svc-details-body { margin-top: 0.4rem; padding: 0.9rem 1rem; background: var(--sand); border-radius: 4px; }
 .price-rows .svc-details-title { font-weight: 550; margin-bottom: 0.4rem; }
 .price-rows .svc-details ul { margin: 0 0 0.5rem; padding-left: 1.1rem; display: grid; gap: 0.2rem; }
 @media (max-width: 760px) { .price-cat { grid-template-columns: 1fr; } }
@@ -667,3 +668,106 @@ a.chip { display: inline-flex; align-items: center; text-decoration: none; }
   .craft-grid { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 78%; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 0.5rem; }
   .craft-grid figure { scroll-snap-align: start; }
 }
+
+/* ── Imagery ──────────────────────────────────────────────────────────
+   Feature photos come from data/imagery.json (one place each) and share one
+   frame: the hero's arch, smaller, with the brushed-steel rim. A place with
+   no photo yet shows warm plaster in the same frame. */
+:root {
+  /* broad, cloudy trowel marks of limewash; tiled, a few hundred bytes */
+  --tex-limewash: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='c'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.0035 .007' numOctaves='4' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .42 0 0 0 0 .33 0 0 0 .22 -.05'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23c)'/%3E%3C/svg%3E");
+  /* fine mineral flecks for basalt */
+  --tex-stone: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='s'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.55' numOctaves='2' seed='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .95 0 0 0 0 .92 0 0 0 0 .88 0 0 0 .09 -.02'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23s)'/%3E%3C/svg%3E");
+}
+.feature { position: relative; margin: 0; overflow: hidden; background: var(--sand); }
+.feature img { width: 100%; height: 100%; object-fit: cover; }
+.feature--photo {
+  /* the hero's arch: a true half-circle top over soft lower corners */
+  border-radius: 50% 50% var(--radius) var(--radius) / 34% 34% var(--radius) var(--radius);
+  box-shadow: 0 0 0 1px rgba(160, 156, 150, 0.5), 0 0 0 6px rgba(251, 248, 243, 0.7), 0 0 0 7px rgba(160, 156, 150, 0.3),
+    0 30px 60px -38px rgba(43, 38, 34, 0.55);
+}
+
+/* Limewash and soft light on the plain plaster bands. */
+.section--sand, .page-intro {
+  background-image:
+    radial-gradient(ellipse 60% 90% at 12% 0%, rgba(255, 251, 245, 0.75), rgba(255, 251, 245, 0) 70%),
+    var(--tex-limewash);
+}
+.section--stone { background-image: radial-gradient(ellipse 60% 70% at 85% 0%, rgba(125, 108, 92, 0.3), transparent 70%), var(--tex-stone); }
+
+/* Inner-page intros: words on the left, the page's photo in an arch. */
+.page-intro--media { padding-bottom: clamp(2.5rem, 2rem + 3vw, 4.5rem); }
+.page-intro-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: clamp(1.5rem, 1rem + 4vw, 5rem); align-items: center; }
+.page-intro-grid .feature { aspect-ratio: 4 / 4.4; max-width: 360px; width: 100%; justify-self: end; }
+.page-intro-copy:only-child { grid-column: 1 / -1; }
+@media (max-width: 760px) {
+  .page-intro-grid { grid-template-columns: 1fr; gap: 1.75rem; }
+  /* on a phone the photo is a short, wide window so the content stays close */
+  .page-intro-grid .feature { aspect-ratio: 16 / 9; max-width: none; justify-self: stretch;
+    border-radius: 50% 50% var(--radius) var(--radius) / 34% 34% var(--radius) var(--radius); }
+}
+
+/* Home: the services list beside a tall photo. */
+.services-feature { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.6fr); gap: clamp(2rem, 1rem + 4vw, 5rem); align-items: start; }
+.services-feature .feature { aspect-ratio: 4 / 5.2; position: sticky; top: calc(var(--header-h) + 2rem); }
+@media (max-width: 860px) {
+  .services-feature { grid-template-columns: 1fr; gap: 2rem; }
+  .services-feature .feature { position: relative; top: 0; aspect-ratio: 4 / 3; max-height: 340px;
+    border-radius: 50% 50% var(--radius) var(--radius) / 30% 30% var(--radius) var(--radius); }
+}
+.about-grid .feature { aspect-ratio: 4 / 5; border-radius: var(--radius); box-shadow: 0 30px 60px -38px rgba(43, 38, 34, 0.55); }
+@media (max-width: 860px) { .about-grid .feature { max-height: 520px; } }
+
+/* ── TARA LUMI: the name opens its description ───────────────────── */
+.price-rows .svc-toggle {
+  display: inline-flex; align-items: center; gap: 0.5rem; justify-self: start;
+  min-height: 44px; margin: -0.5rem 0; padding: 0.5rem 0.25rem 0.5rem 0;
+  border: 0; background: none; cursor: pointer; text-align: left;
+}
+.svc-toggle .chev {
+  width: 22px; height: 22px; padding: 3px; border-radius: 999px; flex: none;
+  color: var(--copper); background: var(--sand); transition: transform 0.35s var(--ease), background-color 0.2s;
+}
+.svc-toggle[aria-expanded="true"] .chev { transform: rotate(180deg); }
+.svc-toggle:hover .chev { background: var(--line); }
+.price-rows .svc-details { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 0.4s var(--ease), opacity 0.3s var(--ease); }
+.price-rows .svc-details-inner { overflow: hidden; min-height: 0; }
+.price-rows .svc-details.is-closed { grid-template-rows: 0fr; opacity: 0; }
+.price-rows .svc-details.is-closed[hidden] { display: none; }
+
+/* ── Motion: calm, and only where it helps ───────────────────────────
+   Sections ease in once as they reach the screen (site.js marks them; with
+   reduced motion, or without JavaScript, everything is simply there).
+   Photos drift a few pixels against the scroll, driven by the browser's own
+   scroll timeline, so no script runs while scrolling. */
+.has-motion [data-reveal]:not(.is-in), .has-motion [data-reveal-group]:not(.is-in) > * { opacity: 0; transform: translateY(18px); }
+.has-motion [data-reveal], .has-motion [data-reveal-group] > * {
+  transition: opacity 0.9s var(--ease), transform 0.9s var(--ease);
+  transition-delay: calc(var(--i, 0) * 70ms);
+}
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .feature--photo img {
+      animation: drift linear both; animation-timeline: view(); animation-range: cover;
+      will-change: transform;
+    }
+    @keyframes drift { from { transform: translateY(-4%) scale(1.08); } to { transform: translateY(4%) scale(1.08); } }
+  }
+}
+
+/* Cards and buttons answer the pointer, and a press on touch. */
+@media (hover: hover) {
+  .branch, .duo a, .craft-grid figure { transition: transform 0.4s var(--ease), box-shadow 0.4s var(--ease), background-color 0.3s; }
+  .branch:hover { transform: translateY(-3px); box-shadow: 0 22px 40px -30px rgba(43, 38, 34, 0.45); }
+  .duo a:hover { transform: translateY(-3px); }
+  .service-list a { transition: background-color 0.3s var(--ease), padding 0.4s var(--ease); }
+  .service-list a:hover { padding-left: 0.75rem; padding-right: 0.75rem; }
+  .gallery-grid button:hover img { transform: scale(1.045); }
+  .btn--primary:hover { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 16px 30px -16px rgba(43, 38, 34, 0.75); }
+}
+.btn { transition: background-color 0.2s var(--ease), color 0.2s var(--ease), border-color 0.2s var(--ease), box-shadow 0.3s var(--ease), transform 0.15s var(--ease); }
+.btn:active, .chip:active, .duo a:active, .service-list a:active, .gallery-grid button:active { transform: scale(0.98); }
+.chip { transition: background-color 0.2s var(--ease), border-color 0.2s var(--ease), transform 0.15s var(--ease); }
+/* The booking flow keeps exactly its own look and feel. */
+.booking .btn:active, .booking .chip:active { transform: none; }

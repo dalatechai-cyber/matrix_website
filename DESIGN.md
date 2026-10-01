@@ -95,8 +95,18 @@ rounded organic shapes, lots of space — and the new metallic logo.
 - Left-aligned, max width 1240 px, generous section spacing.
 - Rounded, organic: 14 px corners, pill buttons and chips, and the home hero's
   tall arched photo with a thin brushed-steel rim, lit from above.
-- One page-load reveal on the home hero; nothing else animates on its own.
-  `prefers-reduced-motion` removes it.
+- Motion is calm and slow (0.9 s, `--ease`). The home hero has its page-load
+  reveal. Below the first screen, section heads and groups ease in once as they
+  arrive (`data-reveal`, `data-reveal-group`; children stagger 70 ms). Feature
+  photos drift a few pixels against the scroll through the browser's own scroll
+  timeline (no script on scroll). Cards lift 3 px on hover; buttons, chips and
+  cards press to 98 % on tap. The booking flow has none of this.
+  `prefers-reduced-motion` removes all of it, and without JavaScript everything
+  is simply visible.
+- Feature photos sit in the hero's arch (half-circle top, steel rim) and are
+  chosen in `data/imagery.json` (see docs/IMAGERY.md). Plaster bands carry a
+  limewash texture and soft light; basalt bands a fine mineral fleck — both
+  inline SVG, a few hundred bytes.
 - Phones first: 16 px+ gutters, 44–52 px tap targets, no horizontal scroll,
   a «Цаг захиалах» bar once the first screen has scrolled away, and a
   pinned Back / Continue bar in the booking flow.
