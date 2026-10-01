@@ -719,6 +719,13 @@ a.chip { display: inline-flex; align-items: center; text-decoration: none; }
 .about-grid .feature { aspect-ratio: 4 / 5; border-radius: var(--radius); box-shadow: 0 30px 60px -38px rgba(43, 38, 34, 0.55); }
 @media (max-width: 860px) { .about-grid .feature { max-height: 520px; } }
 
+/* The description's own list: quiet bullets, not price rows. */
+.price-rows .svc-details li {
+  display: list-item; padding: 0; border: 0; color: var(--ink); line-height: 1.5;
+}
+.price-rows .svc-details li::marker { color: var(--copper); }
+.price-rows .svc-details ul { gap: 0.35rem; }
+.price-rows .svc-details .svc-note { display: block; margin-top: 0.2rem; }
 /* ── TARA LUMI: the name opens its description ───────────────────── */
 .price-rows .svc-toggle {
   display: inline-flex; align-items: center; gap: 0.5rem; justify-self: start;
