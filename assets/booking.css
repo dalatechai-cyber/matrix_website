@@ -42,8 +42,8 @@
 .options--branches { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .options--services { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 0.5rem; }
 .options--stylists { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
-@media (max-width: 600px) { .options--branches, .options--stylists { grid-template-columns: 1fr; } .options--services { grid-template-columns: 1fr 1fr; } }
-@media (max-width: 360px) { .options--services { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .options--branches, .options--stylists { grid-template-columns: 1fr; } .options--services { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 360px) { .options--services { grid-template-columns: minmax(0, 1fr); } }
 
 .option {
   position: relative; display: flex; gap: 0.9rem; align-items: flex-start; min-height: 56px;
@@ -82,11 +82,15 @@
 
 /* A service priced by hair length: its name, then one choice per length. */
 .service-tiers { grid-column: 1 / -1; border: 1px solid var(--line); border-radius: var(--radius); margin: 0; padding: 0.8rem 0.9rem 0.9rem; min-width: 0; }
-.service-tiers legend { font-weight: 550; padding: 0 0.3rem; }
+.service-group .service-tiers legend { font-family: inherit; font-size: 1rem; font-weight: 550; margin-bottom: 0.3rem; padding: 0 0.3rem; }
 .service-tiers > .option-meta { margin: 0 0 0.5rem; }
 .tier-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.4rem; }
-.tier-options .option--check { padding: 0.6rem 0.5rem 0.6rem 2.2rem; }
-.tier-options .option--check::before { left: 0.6rem; }
+/* Narrow cards: the box sits beside the length, the price gets the full width below. */
+.tier-options .option--check { align-items: flex-start; padding: 0.6rem 0.55rem; min-height: 0; }
+.tier-options .option--check::before { left: 0.55rem; top: 0.68rem; margin-top: 0; }
+.tier-options .option-body { min-width: 0; width: 100%; }
+.tier-options .option-title { padding-left: 1.6rem; }
+.tier-options .option-price { white-space: nowrap; }
 
 .gender-field { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
 .gender-field legend { float: left; margin-right: 0.6rem; font-weight: 550; padding: 0; }
@@ -211,4 +215,9 @@
   .booking-summary h2 { font-size: 1.1rem; margin-bottom: 0.5rem; }
   .booking-summary dl { grid-template-columns: auto 1fr; gap: 0.25rem 1rem; }
   .booking-summary dt { margin-top: 0; }
+}
+@media (max-width: 359px) {
+  .tier-options { grid-template-columns: minmax(0, 1fr); }
+  .tier-options .option-body { display: flex; justify-content: space-between; gap: 0.5rem; align-items: baseline; }
+  .tier-options .option-price { margin-top: 0; }
 }
