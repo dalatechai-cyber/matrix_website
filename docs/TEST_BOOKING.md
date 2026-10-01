@@ -88,6 +88,47 @@ The logs show `late-payment: outcome <invoice id> booked`. The calendar holds **
 - If no Telegram message arrives, the logs show `SALON ALERT NOT SENT`, and the
   Telegram variables are missing or wrong.
 
+## If launch goes wrong: Vercel Instant Rollback
+
+Instant Rollback points the live domain back at the previous production
+deployment within seconds. It does not rebuild anything, and there is no code
+change or Git revert. Use it if the live site breaks right after the merge, for
+example booking errors, payments failing, or pages not loading.
+
+**Before the merge**, write down the current production deployment: Vercel →
+Project `matrix-website` → Deployments, filter to Production, and note the top
+entry (its URL or ID). That is the deployment you would roll back to.
+
+**Dashboard (fastest):**
+1. Vercel → Project `matrix-website` → Deployments.
+2. Find the previous production deployment you noted. Open its ⋯ menu and choose
+   **Instant Rollback**, then confirm. The project overview page also offers
+   Instant Rollback for the current production deployment.
+3. Open the live domain in a private window and check that the old site is back.
+
+**CLI (same result):**
+```bash
+vercel rollback <previous-deployment-url-or-id>
+vercel rollback status
+vercel logs --environment production --status-code 5xx --since 5m
+```
+
+**Know before you press it:**
+- On the Hobby plan you can roll back only to the deployment directly before
+  the current one. Choosing a specific older deployment needs Pro or
+  Enterprise.
+- After a rollback, Vercel stops putting new production deployments on the
+  domain automatically. Pushes to `main` will build but not go live. When the
+  fix is ready, promote that deployment (⋯ → Promote, or
+  `vercel promote <deployment-url>`) or undo the rollback from the project
+  overview.
+- A rollback does not undo bookings. Calendar events and QPay invoices created
+  by the new site stay as they are. Check the Telegram alert group and the
+  hairdressers' calendars for any customer who paid in the window between
+  launch and rollback.
+- The rolled-back deployment runs with the settings it was built with. Change
+  environment variables only after the fix, then redeploy.
+
 ## Afterwards
 
 - There is no separate booking database. The calendar event (plus the QPay
