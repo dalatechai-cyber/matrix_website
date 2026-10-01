@@ -289,3 +289,16 @@ test('photos: every gallery photo exists at every listed width, and nothing from
   const html = rendered('index.html') + rendered('zurag.html');
   assert.ok(!/Pictures_Page|img\/gallery\//.test(html), 'old low-resolution gallery still referenced');
 });
+
+test('footer: the maker\'s credit is DalaTech\'s wordmark only, labelled, with tracked link', () => {
+  for (const page of PAGES) {
+    const html = rendered(page);
+    assert.ok(!html.includes('Гүйцэтгэсэн'), `${page} still has the text credit`);
+    const a = html.match(/<a class="footer-credit"[^>]*>[\s\S]*?<\/a>/);
+    assert.ok(a, `${page} has no footer credit`);
+    assert.ok(a[0].includes('href="https://dalatech.online/?utm_source=tara-salon&amp;utm_medium=footer&amp;utm_campaign=credit"'));
+    assert.ok(a[0].includes('target="_blank"') && a[0].includes('rel="noopener"') && a[0].includes('aria-label="DalaTech"'));
+    assert.ok(a[0].includes('src="/brand/dalatech-wordmark.svg"') && a[0].includes('alt=""'));
+  }
+  assert.ok(fs.existsSync(path.join(ROOT, 'brand/dalatech-wordmark.svg')));
+});

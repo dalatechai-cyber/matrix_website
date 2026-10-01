@@ -571,6 +571,15 @@ p { margin: 0; }
   margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid rgba(255, 255, 255, 0.14);
   display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem; font-size: var(--step--1); color: var(--on-stone-muted);
 }
+/* Maker's credit: DalaTech's white wordmark, about the height of the footer
+   text and quieter than Tara's own logo until pointed at. */
+.footer-base .footer-credit {
+  display: inline-flex; align-items: center; min-height: 24px; padding: 0 0.15rem;
+  opacity: 0.65; transition: opacity 0.35s ease;
+}
+.footer-base .footer-credit:hover, .footer-base .footer-credit:focus-visible { opacity: 1; text-decoration: none; }
+.footer-base .footer-credit:focus-visible { outline: 2px solid var(--on-stone); outline-offset: 3px; border-radius: 2px; }
+.footer-base .footer-credit img { display: block; height: 0.95em; width: auto; }
 @media (max-width: 960px) { .footer-grid { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 560px) { .footer-grid { grid-template-columns: 1fr; gap: 2rem; } }
 
