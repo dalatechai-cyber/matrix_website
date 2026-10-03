@@ -365,3 +365,13 @@ test('photos: no 4K originals ship from the site root', () => {
     assert.ok(!fs.existsSync(path.join(ROOT, f)), `${f} is still at the root`);
   }
 });
+
+test('booking: the men\'s styling printed in the women\'s section is offered under «Эрэгтэй засалт»', () => {
+  const js = fs.readFileSync(path.join(__dirname, '..', 'assets', 'booking.js'), 'utf8');
+  const key = 'Эмэгтэй засалт — Гоёлын засалт /эрэгтэй/';
+  assert.ok(js.includes(`MEN_IN_WOMENS_SECTION = new Set(["${key}"])`));
+  const menu = require('../data/services.json');
+  const women = menu.categories.find((c) => c.id === 'women');
+  assert.ok(women.services.some((s) => s.key === key), 'still on the current price list, in the women\'s section');
+  assert.ok(menu.categories.some((c) => c.id === 'men'));
+});

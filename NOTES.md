@@ -167,3 +167,21 @@ R2-4. Level-named haircuts: the service decides the level; a stylist of another 
   (branch claude/tara-park-od-tenant), with an index.
 - R2-10 Парк Од hand-off alerts reach only the founder's Telegram; nothing tells Boloroo yet
   (needs her chat). Listed as missing, not built.
+
+### Round 3 — founder's corrections (2026-10-04)
+
+- R3-1 QPay: Парк Од uses the same login and merchant as Яармаг (as Core Language
+  and Matrix); only `bank_accounts` differs, from PARKOD_QPAY_BANK_CODE /
+  _ACCOUNT_NUMBER / _ACCOUNT_NAME (Яармаг's invoice sends the holder's name too, so
+  it is required). Removed: PARKOD_QPAY_MERCHANT_ID, her optional own login, the
+  merchant-registration script, template and workflow, the Boloroo details list.
+  A test compares the two branches' invoice bodies field by field.
+- R3-2 Men's SPECIAL cut not bookable online: approved as built.
+- R3-3 «Гоёлын засалт /эрэгтэй/» (33,000₮, on the current list, women's section):
+  the booking shows it under «Эрэгтэй засалт»; male customers get Anand / Tuchku.
+  Price page unchanged (the salon's list as printed).
+- R3-4 Photos: all eight still shown were checked at full size; none shows the
+  Matrix name or logo, so all are kept and none removed (docs/PHOTOS.md).
+- R3-5 Alerts: Парк Од's payment alerts go to PARKOD_TELEGRAM_CHAT_ID — for now the
+  founder's own chat; Boloroo checks Messenger herself. Nothing built for owner
+  alerts. R2-10 is closed.

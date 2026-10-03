@@ -250,9 +250,23 @@
     return label;
   }
 
+  // «Гоёлын засалт /эрэгтэй/» is printed in the women's section of the price
+  // list but is a men's styling: the booking offers it under «Эрэгтэй засалт»
+  // (founder, 2026-10-04). Its key, price and duration are unchanged.
+  const MEN_IN_WOMENS_SECTION = new Set(["Эмэгтэй засалт — Гоёлын засалт /эрэгтэй/"]);
+  function bookingSections() {
+    const moved = [];
+    const sections = menu.categories.map((c) => {
+      if (c.id !== "women") return c;
+      const services = c.services.filter((s) => !(MEN_IN_WOMENS_SECTION.has(s.key) && moved.push(s)));
+      return { ...c, services };
+    });
+    return sections.map((c) => (c.id === "men" && moved.length ? { ...c, services: [...c.services, ...moved] } : c));
+  }
+
   function renderServices() {
     const wrap = $("service-options");
-    wrap.replaceChildren(...menu.categories.map((c) => {
+    wrap.replaceChildren(...bookingSections().map((c) => {
       const group = el("fieldset", "service-group");
       group.append(el("legend", "", c.name));
       const grid = el("div", "options options--services");
