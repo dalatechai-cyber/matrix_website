@@ -124,6 +124,7 @@ function entryFor(p, extra) {
     photo2x: p.photo2x || null,
     owner: !!p.owner,
     retired: !!p.retired,
+    calendarEnv: p.calendarEnv || null,
     ...extra,
   };
   // A calendar from the environment is read when asked for, so connecting a

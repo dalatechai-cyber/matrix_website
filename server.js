@@ -10,6 +10,7 @@ const {
 const webhookRouter = require('./routes/webhooks');
 const qpayRouter = require('./routes/qpay');
 const calendarRouter = require('./routes/calendar');
+const setupRouter = require('./routes/setup');
 const { getCalendarClient } = require('./services/googleCalendar');
 const { PAGES, renderPage } = require('./lib/pages');
 const { publicBranches } = require('./lib/publicBranches');
@@ -92,6 +93,8 @@ app.get('/api/branches', (_req, res) => {
 app.use('/api/webhooks', webhookRouter);
 app.use('/api/qpay', qpayRouter);
 app.use('/api/calendar', calendarRouter);
+// Preview-only setup check for connecting calendars (404 on Production).
+app.use('/api/setup', setupRouter);
 
 /**
  * GET /api/health

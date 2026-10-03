@@ -58,6 +58,23 @@ invoice bodies field by field.
 (`/?test=<BOOKING_TEST_TOKEN>`), book at Парк Од and pay the 100₮ QR; Boloroo
 confirms the 100₮ reached HER account. Only then set the same on Production.
 
+## Connecting Парк Од's calendars (same structure as Яармаг)
+
+Яармаг: one secondary Google calendar per hairdresser inside the booking account
+booking@matrixecosalon.org, each shared with the site's service account (the
+address in `GOOGLE_SERVICE_ACCOUNT_EMAIL`, «Make changes to events»); the site
+reads free/busy and writes bookings and 5-minute holds with that service
+account; Яармаг's calendar ids are fixed in `config/stylists.js`. Парк Од is
+identical except: the calendars live in tarasalon.parkod@gmail.com, and each id
+comes from a Vercel variable (`PARKOD_CALENDAR_<NAME>`, table below).
+
+**Setup check, Preview deployments only** (404 on Production):
+`/api/setup/check` shows the service-account address to share with, each
+hairdresser's variable, whether the site can read that calendar, and each
+branch's readiness. `/api/setup/prove?stylist=Saraa` writes one marked test
+event into her calendar, checks it landed there and that its hour is no longer
+offered, then deletes it (Парк Од only; Яармаг's calendars are only read).
+
 ## Environment variables (project `matrix-website`)
 
 Set on **Preview** first to test, then **Production** at go-live; every change

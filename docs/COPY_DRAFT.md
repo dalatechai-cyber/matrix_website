@@ -88,10 +88,9 @@ Matrix's). It returns only with Tara's own photos.
 - Payment step, calendar unreadable: «Уучлаарай, цагийн хуваарийг яг одоо шалгаж чадсангүй. Түр хүлээгээд дахин оролдоно уу.» (approved)
 - Payment step, time taken: «Уучлаарай, энэ цаг өөр хүнд захиалагдсан байна. Өөр цаг сонгоно уу.» (approved)
 
-## Still waiting for approval
+## Approved 2026-10-04 (founder): the two step-3 notices
 
-Two booking notices, added after the review (step 3, «Үсчин»). Until they are
-approved they show as written here; both only appear in rare cases.
+Nothing on the website waits for approval.
 
 - A level-named haircut with no hairdresser of that level for this customer
   (e.g. a man picks a women's SPECIAL cut): «Сонгосон тайралтыг SPECIAL үсчин
