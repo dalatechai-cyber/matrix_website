@@ -51,7 +51,11 @@ Final report: under 25 lines, plain English (see the brief's last paragraph).
       Vercel connection cannot even list env vars (403).
 - [ ] T3 Яармаг Дали quality (7 days of chats) — dala-ai
 - [ ] T4 names/titles everywhere
-- [x] T5 website: pushed, draft PR https://github.com/dalatechai-cyber/matrix_website/pull/83 (base = PR #82 head). Review running.
+- [x] T5 website: draft PR https://github.com/dalatechai-cyber/matrix_website/pull/83 (base = PR #82
+      head). Two review rounds done, all findings fixed (blocker: hold id prefix «wh» invalid in
+      Google → now «sh»; tie-break by holdPlacedAt; chat holds = dalaBookingState 'hold'; no
+      release of a customer's earlier hold; rate limit 20 placed/10 min). 214 tests. Preview
+      checked: /api/branches, real availability identical to production.
 - [ ] T6 dala-ai #280 update
 - [ ] T7 Парк Од tenant dry run + branch gate
 - [ ] Final report
