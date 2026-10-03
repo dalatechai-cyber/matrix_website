@@ -192,8 +192,11 @@ R2-4. Level-named haircuts: the service decides the level; a stylist of another 
   the full price). Now the match tolerates a «+» read as a space and stray
   spaces, and a rejected link leaves a short-lived marker so the booking page
   says «ТЕСТ холбоос буруу байна…». The cookie belongs to the address opened:
-  book on the same address. Preview-only `/api/setup/test-cookie` lets the 100₮
-  QR be proved without the token's value.
+  book on the same address.
+- R4-4 The founder's live 100₮ tests use a temporary branch (deleted after) that
+  sets 100₮ for Saraa and Uyanga only. #83 itself refuses any deposit below
+  10,000₮ in its tests (`tests/branches.test.js`), so a 100₮ price can never be
+  merged by accident.
 - R4-2 Payee names, as the bank app shows them: Яармаг «ОЮУНСҮРЭН ЭРХЭМБААТАР»
   (code; account number unchanged); Парк Од from PARKOD_QPAY_ACCOUNT_NAME
   («БОЛОРТУЯА ГОНГОР»). PARKOD_QPAY_ACCOUNT_NUMBER accepts her full IBAN

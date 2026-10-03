@@ -25,7 +25,6 @@ const http = require('http');
 const { getCalendarClient } = require('../services/googleCalendar');
 const { STYLIST_CONFIG, teamOf } = require('../config/stylists');
 const { BRANCH_IDS, branchReadiness, qpayAccountFor, alertChatFor } = require('../config/branches');
-const { testCookieHeader, clearTestRejectedCookieHeader } = require('../config/siteMode');
 
 const router = express.Router();
 const TEST_MARK = 'taraSetupTest';
@@ -92,21 +91,6 @@ router.get('/check', async (_req, res) => {
     };
   }
   res.json(out);
-});
-
-/**
- * GET /api/setup/test-cookie
- * Gives this browser the same signed test cookie a correct ?test= link gives
- * (100₮ deposit, booking titled «ТЕСТ»), so the 100₮ QR can be proved on a
- * preview without the token's value ever leaving Vercel. Preview only, like
- * every route here; needs BOOKING_TEST_TOKEN set.
- */
-router.get('/test-cookie', (_req, res) => {
-  if (String(process.env.BOOKING_TEST_TOKEN || '').trim().length < 16) {
-    return res.status(409).json({ error: 'BOOKING_TEST_TOKEN is not set on this deployment' });
-  }
-  res.setHeader('Set-Cookie', [testCookieHeader(), clearTestRejectedCookieHeader()]);
-  return res.json({ ok: true, test: true });
 });
 
 /** Call this same app's own availability endpoint in-process. */

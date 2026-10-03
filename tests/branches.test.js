@@ -419,3 +419,20 @@ test('Яармаг\'s payee name is in capitals, given name first; her account n
   const y = qpayAccountFor('yaarmag').bankAccounts[0];
   assert.deepEqual([y.account_bank_code, y.account_number, y.account_name], ['040000', '416055415', 'ОЮУНСҮРЭН ЭРХЭМБААТАР']);
 });
+
+test('no deposit anywhere is below 10,000₮: 20,000₮ SPECIAL and Мастер, 10,000₮ 1-р зэрэг', () => {
+  // Guards against a temporary 100₮ test price being merged by accident. The
+  // test link's 100₮ (config/siteMode.js) is not a price: it needs a signed
+  // cookie and marks the booking «ТЕСТ».
+  const { LEVELS, STYLIST_CONFIG } = require('../config/stylists');
+  const { publicBranches } = require('../lib/publicBranches');
+  const expected = { special: 20000, master: 20000, first: 10000 };
+  assert.deepEqual(Object.fromEntries(Object.entries(LEVELS).map(([k, v]) => [k, v.deposit])), expected);
+  for (const [key, cfg] of Object.entries(STYLIST_CONFIG)) {
+    assert.ok(cfg.price >= 10000, `${key}: deposit ${cfg.price}₮ is below 10,000₮`);
+    assert.equal(cfg.price, expected[cfg.levelKey], `${key}: deposit must be its level's`);
+  }
+  const shown = Object.values(publicBranches()).flatMap((b) => b.stylists || []);
+  assert.ok(shown.length > 0);
+  for (const s of shown) assert.ok(s.deposit >= 10000, `${s.id}: page deposit ${s.deposit}₮ is below 10,000₮`);
+});
