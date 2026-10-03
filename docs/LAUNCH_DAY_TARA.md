@@ -5,7 +5,9 @@ Every step for taking Яармаг and Парк Од live, in order: the website
 domain. **You** = the founder (merges, credentials, SQL editor, Vercel,
 Facebook, Namecheap, payments). **Claude** = checks, prepared files, fixes.
 Claude never merges, pushes to `main`, runs `supabase db push` or touches
-Production settings (the committed guardrails ask before each).
+Production settings (the committed guardrails ask before each). The one
+exception is B2 step 5: Claude applies the three dala-ai migrations, only on
+your «go», one at a time with read-back.
 
 Written 2026-10-04. The PRs, all drafts, CI green:
 
@@ -33,7 +35,8 @@ Written 2026-10-04. The PRs, all drafts, CI green:
 **A1 — Claude, the day before.** Re-run every test on the final heads of #82,
 #83 and #84 (`npm test`). Confirm CI is green, and check the preview's setup
 page (`/api/setup/check`): both branches ready, 14 calendars readable and
-distinct, `testLinkReady: true`.
+distinct. (`testLinkReady` is false on Preview since the token was deleted
+there; the Production token in A2 is what A4 needs.)
 
 **A2 — You: Production variables** (Vercel → `matrix-website` → Settings →
 Environment Variables → **Production**). Copy each value from its Preview
@@ -49,6 +52,9 @@ entry:
   Яармаг's payee name («ОЮУНСҮРЭН ЭРХЭМБААТАР») and account number live in
   the code (`config/branches.js`); there is no variable to set for her.
 - `PARKOD_TELEGRAM_CHAT_ID` (your own chat for now);
+- check that `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` exist in Production
+  (Яармаг's alerts; Preview has no `TELEGRAM_CHAT_ID`, so the preview cannot
+  test Яармаг's alert);
 - the seven calendars: `PARKOD_CALENDAR_BOLOROO`, `_SARAA`, `_TOMOO`,
   `_BULGAA`, `_ENHUUSH`, `_CHIMEGEE`, `_TUCHKU`;
 - `CRON_SECRET`: any random 32+ characters, e.g. `openssl rand -hex 32`;
@@ -129,35 +135,31 @@ scratch branch, then run on a scratch PostgreSQL:
 
 Report the result. Nothing is pushed anywhere.
 
-**B2 — You: merge and migrate.**
+**B2 — You merge; Claude applies the three migrations.**
 
 1. Merge #286 (guardrails).
-2. Merge #283, then #285, then #284 into `main`.
-3. Wait for the Vercel deploy of `main`. #285's booking code stays asleep while
-   `BOOKING_MODE` is unset.
-4. From your machine, on `main`:
+2. Merge #283 into `main`. Then **Claude** merges `main` into #285 and #284
+   and pushes: they conflict with #283 only in `NOTES.md` and
+   `docs/schema.md` (notes, no code; checked on a scratch merge 2026-10-04).
+   Wait for their CI to be green.
+3. Merge #285, then #284 into `main`.
+4. Wait for the Vercel deploy of `main` (READY). #285's booking code stays
+   asleep while `BOOKING_MODE` is unset.
+5. **Claude** applies `0082_booking`, `0083_photo_reel_question` and
+   `0084_prompt_blocks_seed`, in that order, through the Supabase connector,
+   one at a time with read-back, the way `0035`–`0081` were applied. Say «go»
+   in the session; the guardrails ask you to confirm each one.
+   **Never run `supabase db push` on this project**: the ledger records
+   `0035` onward under timestamp versions, so `db push` would try to re-apply
+   `0035`–`0081` (dala-ai `docs/publish-mac.md`).
 
-   ```
-   git pull
-   supabase db push
-   ```
+Don't publish any tenant between the deploy and step 5: the publisher refuses
+until `0084` exists.
 
-   This applies `0082_booking`, `0083_photo_question_price_page` and
-   `0084_prompt_blocks_seed`, in that order.
-
-5. Check the ledger:
-
-   ```sql
-   select max(version) from supabase_migrations.schema_migrations;
-   ```
-
-   It must be `0084…`.
-
-Don't publish any tenant between the deploy and the push: the publisher
-refuses until `0084` exists.
-
-*Check (Claude):* `npm run check` on `main`. The deploy is READY and `0084` is
-in the ledger.
+*Check (Claude):* `npm run check` on `main`; the deploy is READY; in the SQL
+editor, `select version, name from supabase_migrations.schema_migrations order
+by version desc limit 3;` lists `0084_prompt_blocks_seed`,
+`0083_photo_reel_question`, `0082_booking`.
 
 **B3 — You: Яармаг's SQL** (Supabase → SQL editor). Run each file once, in
 this order. Each one refuses a second run:
@@ -167,15 +169,24 @@ this order. Each one refuses a second run:
 2. `scripts/provision/tara-yarmag-answers-2026-10-04.sql` (deposit deducted,
    loan apps, dye brand, the hand-off line).
 
-**B4 — You: publish Яармаг at once** (operator's machine, with
-`SUPABASE_SECRET_PUBLISH`):
+**B4 — You: publish Яармаг at once** (your Mac, set up as in «Your Mac» at
+the end of this page):
 
-1. `git pull`
-2. `node scripts/publish/tenant.ts --slug matrix-eco-salon` (dry run). It must
-   be clean.
-3. `node scripts/publish/tenant.ts --slug matrix-eco-salon --with-model`. This
-   is the one paid model run; read its result.
-4. `node scripts/publish/tenant.ts --slug matrix-eco-salon --publish`
+```
+cd ~/dalatech/dala-ai && git checkout main && git pull && npm ci
+export NEXT_PUBLIC_SUPABASE_URL=https://tlggenaatnopnxzbkbuf.supabase.co
+SUPABASE_SECRET_PUBLISH="$(security find-generic-password -s dala-supabase-publish-mac -w)" \
+  node scripts/publish/tenant.ts --slug matrix-eco-salon
+SUPABASE_SECRET_PUBLISH="$(security find-generic-password -s dala-supabase-publish-mac -w)" \
+ANTHROPIC_API_KEY="$(security find-generic-password -s dala-anthropic-publish-mac -w)" \
+  node scripts/publish/tenant.ts --slug matrix-eco-salon --with-model
+SUPABASE_SECRET_PUBLISH="$(security find-generic-password -s dala-supabase-publish-mac -w)" \
+  node scripts/publish/tenant.ts --slug matrix-eco-salon --publish
+```
+
+The first is the dry run: it must be clean. The second is the one paid model
+run: every reply case must pass, then `facts: … every copy agrees` and
+`Dry run. Nothing was written.` Only then the third.
 
 *Check:* send Tara's Page these four messages from your Messenger and compare
 the replies:
@@ -448,3 +459,36 @@ test cookie belongs to one domain). *Check (Claude):* the Vercel logs show
 A fresh Яармаг test is worth it once, because this release changed the payment
 path (the hold, the level and gender rules, the bank account per branch). Its
 invoice body is unchanged except the payee name, now «ОЮУНСҮРЭН ЭРХЭМБААТАР».
+
+---
+
+## Your Mac (for B4 and, later, C3–C7)
+
+One time (full detail: dala-ai `docs/publish-mac.md`):
+
+1. **Node 22.18 or newer**: `node --version`; if older, `brew install node@22`.
+2. **The checkout**: `mkdir -p ~/dalatech && cd ~/dalatech && git clone
+   https://github.com/dalatechai-cyber/dala-ai.git && cd dala-ai && npm ci`.
+   Git must be signed in to GitHub (the repository is private): `gh auth
+   login`, or the GitHub Desktop/Keychain credentials you already use.
+3. **The Supabase key** (the secret): Supabase dashboard → project
+   `tlggenaatnopnxzbkbuf` → Project Settings → API Keys → Secret keys → «Add
+   new secret key», name it `publish-mac`, copy it once, then store it (paste
+   the value at the prompt, never on the command line):
+   `security add-generic-password -a "$USER" -s dala-supabase-publish-mac -w`
+4. **The Anthropic key** (only for `--with-model`, which spends): Anthropic
+   console → API keys → create `publish-mac`, then
+   `security add-generic-password -a "$USER" -s dala-anthropic-publish-mac -w`
+
+No Supabase CLI is needed, and `supabase db push` must never be run here (B2).
+
+**Is my Mac ready?** One command; it ends with `MAC READY` or stops at the
+first thing missing. It reads only (the publish dry run writes nothing and
+spends nothing). The first time, macOS asks whether `security` may read each
+key: «Always Allow».
+
+```
+cd ~/dalatech/dala-ai && node -e 'const [a,b]=process.versions.node.split(".").map(Number);if(a<22||(a===22&&b<18)){console.error("Node "+process.version+" is too old: need 22.18+");process.exit(1)}console.log("node ok",process.version)' && git fetch -q origin && echo "github ok" && security find-generic-password -s dala-supabase-publish-mac -w >/dev/null && echo "supabase key ok" && security find-generic-password -s dala-anthropic-publish-mac -w >/dev/null && echo "anthropic key ok" && NEXT_PUBLIC_SUPABASE_URL=https://tlggenaatnopnxzbkbuf.supabase.co SUPABASE_SECRET_PUBLISH="$(security find-generic-password -s dala-supabase-publish-mac -w)" node scripts/publish/tenant.ts --slug matrix-eco-salon >/tmp/dala-dryrun.txt 2>&1 && tail -3 /tmp/dala-dryrun.txt && echo MAC READY
+```
+
+If the last step fails, send `/tmp/dala-dryrun.txt` to Claude.
