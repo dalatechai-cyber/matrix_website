@@ -11,27 +11,33 @@ const { STYLIST_CONFIG, personOf } = require('../config/stylists');
  * Before an invoice is created, both create-payment handlers put an opaque
  * (busy) event on the hairdresser's calendar covering the WHOLE appointment:
  *
- *   id      'wh' + sha256(calendarId|startISO|phoneDigits)[0..40]
+ *   id      'sh' + sha256(calendarId|startISO|phoneDigits)[0..40]
+ *           (Google event ids allow only a–v and 0–9, so «sh», never «wh»)
  *           — one per booking, so a renewed QR («Шинэ QR код авах») extends
  *           the same hold instead of adding a second one;
- *   private { taraHold: '1', holdExpiresAt: <ISO> }
+ *   private { taraHold: '1', holdExpiresAt, holdPlacedAt, holdPhone }
  *
  * Then it looks at the window again. If anything else now overlaps (a booking,
  * a chat hold, another website hold), the hold is given back and no QR is made
- * — except a hold created strictly AFTER ours: that one sees ours and yields.
+ * — except a hold PLACED strictly after ours (holdPlacedAt, rewritten on every
+ * renewal; a chat `dh` hold's own creation time): that one sees ours and
+ * yields. A customer has one website hold per calendar: a new one releases
+ * their others.
  * So two customers can never both reach a QR for one time.
  *
  * Paid: services/bookingWriter.js writes the `qb…` booking and deletes the
  * hold. Unpaid: the hold expires with the QR. Expired holds are deleted when
  * anyone next looks at that day's times, by create-payment, and by the daily
- * sweep (GET /api/calendar/sweep-holds); dala-ai treats an expired `wh` hold as
+ * sweep (GET /api/calendar/sweep-holds); dala-ai treats an expired `sh` hold as
  * free. A late payment after expiry is still booked if the time is free, or
  * alerted if not (unchanged).
  *
  * The site has no database: the calendar event IS the hold.
  */
 
-const HOLD_PREFIX = 'wh';
+const HOLD_PREFIX = 'sh';
+// dala-ai's in-chat holds: 'dh' + 40 hex characters.
+const CHAT_HOLD_ID = /^dh[0-9a-v]{40}$/;
 const HOLD_FLAG = 'taraHold';
 // The QR's life on the booking page (assets/booking.js QPAY_QR_VALID_MS),
 // plus a margin: the hold is placed a moment BEFORE the invoice, so without it
@@ -52,7 +58,14 @@ function statusOf(err) {
 
 function isHoldEvent(e) {
   const priv = (e && e.extendedProperties && e.extendedProperties.private) || {};
-  return priv[HOLD_FLAG] === '1' || /^(wh|dh)/.test(String((e && e.id) || ''));
+  return priv[HOLD_FLAG] === '1' || CHAT_HOLD_ID.test(String((e && e.id) || ''));
+}
+
+/** When a hold was (last) placed: a website hold's holdPlacedAt, else its creation. */
+function placedAtOf(e) {
+  const priv = (e && e.extendedProperties && e.extendedProperties.private) || {};
+  const t = new Date(priv.holdPlacedAt || (e && e.created) || 0);
+  return Number.isNaN(t.getTime()) ? new Date(0) : t;
 }
 
 /** A website hold whose QR has run out: free, and safe to delete. */
@@ -135,7 +148,7 @@ async function getEvent(calendar, calendarId, eventId) {
   }
 }
 
-function holdBody({ id, stylistId, start, end, phone, services, expiresAt, test }) {
+function holdBody({ id, stylistId, start, end, phone, services, expiresAt, placedAt, test }) {
   const serviceText = Array.isArray(services) ? services.join(', ') : (services || '');
   return {
     id,
@@ -150,7 +163,7 @@ function holdBody({ id, stylistId, start, end, phone, services, expiresAt, test 
     end: { dateTime: end.toISOString() },
     transparency: 'opaque',
     status: 'confirmed',
-    extendedProperties: { private: { [HOLD_FLAG]: '1', holdExpiresAt: expiresAt.toISOString() } },
+    extendedProperties: { private: { [HOLD_FLAG]: '1', holdExpiresAt: expiresAt.toISOString(), holdPlacedAt: placedAt.toISOString(), holdPhone: phone } },
   };
 }
 
@@ -177,7 +190,9 @@ async function placeHold(calendar, { stylistId, start, minutes, phone, services,
     return { ok: false, reason: 'slot-taken' };
   }
 
-  const body = holdBody({ id, stylistId, start, end, phone: String(phone).replace(/\D/g, ''), services, expiresAt, test });
+  const digits = String(phone).replace(/\D/g, '');
+  const placedAt = new Date();
+  const body = holdBody({ id, stylistId, start, end, phone: digits, services, expiresAt, placedAt, test });
   let mine;
   try {
     mine = (await calendar.events.insert({ calendarId, requestBody: body })).data;
@@ -188,16 +203,39 @@ async function placeHold(calendar, { stylistId, start, minutes, phone, services,
     const { id: _id, ...patch } = body;
     mine = (await calendar.events.patch({ calendarId, eventId: id, requestBody: patch })).data;
   }
-  const ourCreated = new Date((mine && mine.created) || now);
+  const ourPlaced = placedAtOf(mine && mine.extendedProperties ? mine : { extendedProperties: { private: { holdPlacedAt: placedAt.toISOString() } } });
 
-  // Look again: someone may have taken an overlapping time meanwhile.
+  // Look again: someone may have taken an overlapping time meanwhile. A hold
+  // placed after ours yields to ours (it sees ours when it looks again).
   const others = await othersOverlapping(calendar, calendarId, start, end, ownIds, now);
-  const winners = others.filter((e) => !(isHoldEvent(e) && new Date(e.created || 0) > ourCreated));
+  const winners = others.filter((e) => !(isHoldEvent(e) && placedAtOf(e) > ourPlaced));
   if (winners.length > 0) {
     await deleteQuietly(calendar, calendarId, id);
     return { ok: false, reason: 'slot-taken' };
   }
+  await releaseOtherHoldsOfPhone(calendar, calendarId, digits, id);
   return { ok: true, holdId: id, expiresAt };
+}
+
+/**
+ * One website hold per customer per calendar: a customer who stepped back and
+ * chose another time gives the first one back. Best effort.
+ */
+async function releaseOtherHoldsOfPhone(calendar, calendarId, digits, keepId) {
+  try {
+    const items = await listWindow(calendar, calendarId, null, null, {
+      privateExtendedProperty: `holdPhone=${digits}`,
+      updatedMin: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
+    });
+    for (const e of items) {
+      const priv = (e.extendedProperties && e.extendedProperties.private) || {};
+      if (e.id !== keepId && e.status !== 'cancelled' && priv[HOLD_FLAG] === '1' && String(e.id).startsWith(HOLD_PREFIX)) {
+        await deleteQuietly(calendar, calendarId, e.id);
+      }
+    }
+  } catch (err) {
+    console.warn('hold: could not release the customer\'s other holds', err.message || err);
+  }
 }
 
 /** Give a hold back (invoice failed, or the booking is written). */
@@ -228,9 +266,15 @@ async function sweepExpiredHolds(calendar, calendarIds, { from = null, to = null
   const extra = { privateExtendedProperty: `${HOLD_FLAG}=1` };
   if (updatedSince) extra.updatedMin = updatedSince.toISOString();
   for (const calendarId of calendarIds) {
-    const items = await listWindow(calendar, calendarId, from, to, extra);
-    for (const e of items) {
-      if (isExpiredWebsiteHold(e, now) && await deleteQuietly(calendar, calendarId, e.id)) deleted += 1;
+    try {
+      const items = await listWindow(calendar, calendarId, from, to, extra);
+      for (const e of items) {
+        // With updatedMin Google also returns deleted events: skip them.
+        if (e.status !== 'cancelled' && isExpiredWebsiteHold(e, now) && await deleteQuietly(calendar, calendarId, e.id)) deleted += 1;
+      }
+    } catch (err) {
+      // One calendar not shared yet must not stop the others.
+      console.warn('hold sweep: calendar unreadable', calendarId, err.message || err);
     }
   }
   return deleted;
@@ -248,7 +292,33 @@ const HOLD_UNAVAILABLE_MESSAGE = 'Уучлаарай, цагийн хуваар�
  *
  * @returns {Promise<{ ok: true, release: () => Promise<boolean> } | { ok: false, status: number, payload: object }>}
  */
-async function holdForPaymentRequest(body, { test = false } = {}) {
+// A light brake on someone scripting holds to block a day: per client
+// address, per server instance (no database). Real customers hold one time,
+// renewing it at most every five minutes.
+const RATE_WINDOW_MS = 10 * 60 * 1000;
+const RATE_MAX = 8;
+const recentByClient = new Map();
+function rateLimited(client, nowMs = Date.now()) {
+  if (!client) return false;
+  const times = (recentByClient.get(client) || []).filter((t) => nowMs - t < RATE_WINDOW_MS);
+  if (times.length >= RATE_MAX) { recentByClient.set(client, times); return true; }
+  times.push(nowMs);
+  recentByClient.set(client, times);
+  if (recentByClient.size > 5000) recentByClient.clear();
+  return false;
+}
+
+/** The caller's address as Vercel reports it. */
+function clientOf(req) {
+  const fwd = req && req.headers && (req.headers['x-forwarded-for'] || req.headers['x-real-ip']);
+  return fwd ? String(fwd).split(',')[0].trim() : ((req && req.socket && req.socket.remoteAddress) || null);
+}
+
+async function holdForPaymentRequest(body, { test = false, client = null } = {}) {
+  if (rateLimited(client)) {
+    console.warn('hold: too many holds from one client', client);
+    return { ok: false, status: 429, payload: { error: HOLD_UNAVAILABLE_MESSAGE, reason: 'hold-rate-limited' } };
+  }
   const { parseBookingDescription } = require('./lateBooking');
   const { totalDurationFor } = require('../config/serviceDurations');
   const { getCalendarClient } = require('./googleCalendar');
@@ -286,6 +356,8 @@ async function holdForPaymentRequest(body, { test = false } = {}) {
 }
 
 module.exports = {
+  clientOf,
+  _resetRateLimit: () => recentByClient.clear(),
   SLOT_TAKEN_MESSAGE,
   HOLD_UNAVAILABLE_MESSAGE,
   holdForPaymentRequest,

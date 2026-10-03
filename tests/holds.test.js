@@ -163,7 +163,7 @@ for (const [label, send] of PATHS) {
 
   test(`${label}: a Messenger hold or a booking on the time means no QR; an unreadable calendar means no QR`, async () => {
     fakeCal.put(CAL, {
-      id: 'dh0123456789abcdef', summary: 'chat hold', transparency: 'opaque',
+      id: 'dh' + '0123456789abcdef'.repeat(3).slice(0, 40), summary: 'chat hold', transparency: 'opaque',
       start: { dateTime: `${DATE}T06:30:00Z` }, end: { dateTime: `${DATE}T07:30:00Z` },
     });
     const r = await send(pay('99112233'));
@@ -189,7 +189,7 @@ test('race: another hold inserted earlier while ours went in — ours yields; on
       fakeCal.hooks.beforeInsert = null;
       await fakeCal.api.events.insert({ calendarId: CAL, requestBody: {
         id: holdIdFor(CAL, START, '88112233'), transparency: 'opaque',
-        extendedProperties: { private: { taraHold: '1', holdExpiresAt: new Date(Date.now() + 300000).toISOString() } },
+        extendedProperties: { private: { taraHold: '1', holdExpiresAt: new Date(Date.now() + 300000).toISOString(), holdPlacedAt: new Date(Date.now() - 1000).toISOString() } },
         start: { dateTime: START.toISOString() }, end: { dateTime: new Date(START.getTime() + 3600000).toISOString() },
       } });
     }
@@ -201,10 +201,10 @@ test('race: another hold inserted earlier while ours went in — ours yields; on
   fakeCal.reset();
   // A chat hold lands just AFTER ours: we keep the time (the chat sees ours and yields).
   fakeCal.hooks.afterInsert = async ({ event }) => {
-    if (event.id.startsWith('wh')) {
+    if (event.id.startsWith(HOLD_PREFIX)) {
       fakeCal.hooks.afterInsert = null;
       await fakeCal.api.events.insert({ calendarId: CAL, requestBody: {
-        id: 'dhlater0000', transparency: 'opaque',
+        id: 'dh' + 'b'.repeat(40), transparency: 'opaque',
         start: { dateTime: START.toISOString() }, end: { dateTime: new Date(START.getTime() + 3600000).toISOString() },
       } });
     }
@@ -254,13 +254,13 @@ test('paid late, after the hold expired and the time was taken: alert, never a d
   const late = await request('POST', url.slice('https://www.example.mn'.length), { object_id: 'inv_1' });
   assert.equal(late.body.handled, 'conflict');
   assert.equal(qpay.telegram.length, 1);
-  assert.equal(fakeCal.live(CAL).filter((e) => e.transparency !== 'transparent' && !e.id.startsWith('wh')).length, 0, 'no booking over the other customer\'s hold');
+  assert.equal(fakeCal.live(CAL).filter((e) => e.transparency !== 'transparent' && !e.id.startsWith(HOLD_PREFIX)).length, 0, 'no booking over the other customer\'s hold');
 });
 
 test('sweep: deletes only expired website holds; protected by CRON_SECRET when set', async () => {
   await standalone(pay('99112233'));
   await standalone(pay('88112233', { time: '17:00' }));
-  fakeCal.put(CAL, { id: 'dhchat', transparency: 'opaque', start: { dateTime: `${DATE}T02:00:00Z` }, end: { dateTime: `${DATE}T03:00:00Z` } });
+  fakeCal.put(CAL, { id: 'dh' + 'c'.repeat(40), transparency: 'opaque', start: { dateTime: `${DATE}T02:00:00Z` }, end: { dateTime: `${DATE}T03:00:00Z` } });
   expire(holds()[0].id);
   process.env.CRON_SECRET = 'cron-secret';
   try {
@@ -272,7 +272,7 @@ test('sweep: deletes only expired website holds; protected by CRON_SECRET when s
     delete process.env.CRON_SECRET;
   }
   assert.equal(holds().length, 1, 'the live hold stays');
-  assert.ok(fakeCal.live(CAL).some((e) => e.id === 'dhchat'), 'a chat hold is never touched');
+  assert.ok(fakeCal.live(CAL).some((e) => e.id === 'dh' + 'c'.repeat(40)), 'a chat hold is never touched');
 });
 
 test('Яармаг\'s invoice is exactly what it always was (plus nothing)', async () => {
@@ -291,4 +291,33 @@ test('Яармаг\'s invoice is exactly what it always was (plus nothing)', asy
   assert.ok(cb.startsWith('https://www.example.mn/api/qpay/late-payment?b=v1.oyunaa.'));
   const token = qpay.calls.find((c) => c.url.endsWith('/auth/token'));
   assert.deepEqual(token.body, { terminal_id: 'DALATECH_AI' });
+});
+
+test('one website hold per customer: choosing another time gives the first back', async () => {
+  await standalone(pay('99112233'));
+  const r = await standalone(pay('99112233', { time: '17:00' }));
+  assert.equal(r.status, 200);
+  assert.deepEqual(holds().map((h) => h.id), [holdIdFor(CAL, new Date(`${DATE}T17:00:00+08:00`), '99112233')]);
+});
+
+test('hold ids are valid Google event ids (a–v, 0–9 only)', () => {
+  const id = holdIdFor(CAL, START, '99112233');
+  assert.match(id, /^[a-v0-9]{5,1024}$/);
+  assert.ok(id.startsWith('sh'));
+});
+
+test('a burst of holds from one address is refused', async () => {
+  const { _resetRateLimit } = require('../services/bookingHold');
+  _resetRateLimit();
+  const results = [];
+  for (let i = 0; i < 10; i += 1) {
+    results.push((await request('POST', '/api/qpay/create-payment', pay(`9911${String(1000 + i)}`, { time: `${10 + (i % 9)}:00` }))).status);
+  }
+  assert.ok(results.includes(429), results.join(','));
+  _resetRateLimit();
+});
+
+test('sweep: refused without CRON_SECRET', async () => {
+  delete process.env.CRON_SECRET;
+  assert.equal((await request('GET', '/api/calendar/sweep-holds')).status, 401);
 });

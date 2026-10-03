@@ -245,12 +245,14 @@ router.get('/available-slots', async (req, res) => {
  * Deletes website holds whose QR has run out, on every connected calendar
  * (every hold written in the last three days, whatever its day). Run daily by Vercel Cron
  * (vercel.json); expired holds are also cleared whenever a day's times are
- * read, so this is housekeeping, not what frees a time. When CRON_SECRET is
- * set, only a request carrying it (Vercel Cron sends it) is served.
+ * read, so this is housekeeping, not what frees a time. Served only with
+ * CRON_SECRET (Vercel Cron sends it); without it the sweep is off.
  */
 router.get('/sweep-holds', async (req, res) => {
+  // Only Vercel Cron (which sends CRON_SECRET). Without the secret the sweep
+  // is off; expired holds are still cleared whenever a day is read.
   const secret = process.env.CRON_SECRET;
-  if (secret && req.headers.authorization !== `Bearer ${secret}`) {
+  if (!secret || req.headers.authorization !== `Bearer ${secret}`) {
     return res.status(401).json({ error: 'unauthorized' });
   }
   const calendarIds = [...new Set(Object.values(STYLIST_CONFIG).map((c) => c.calendarId).filter(Boolean))];

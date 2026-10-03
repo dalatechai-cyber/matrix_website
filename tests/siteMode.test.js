@@ -29,9 +29,9 @@ Module._load = function (request) {
           freebusy: fakeCal.api.freebusy,
           events: {
             ...fakeCal.api.events,
-            // Bookings are counted; the 5-minute holds (wh…) are not.
+            // Bookings are counted; the 5-minute holds (sh…) are not.
             insert: async (args) => {
-              if (!String(args.requestBody.id || '').startsWith('wh')) { calls.insert += 1; calls.events.push(args.requestBody); }
+              if (!String(args.requestBody.id || '').startsWith('sh')) { calls.insert += 1; calls.events.push(args.requestBody); }
               return fakeCal.api.events.insert(args);
             },
           },

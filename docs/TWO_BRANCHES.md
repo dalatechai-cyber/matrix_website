@@ -99,9 +99,29 @@ needs a redeploy. None has a known value yet, so none was set by this round.
 | `PARKOD_QPAY_ACCOUNT_NAME` | treat as sensitive | Account holder's name exactly as the bank has it |
 | `PARKOD_TELEGRAM_CHAT_ID` | no | Her alert group: add the salon bot to a group with her, read the chat id |
 | `PARKOD_CALENDAR_BOLOROO`, `_SARAA`, `_TOMOO`, `_BULGAA`, `_ENHUUSH`, `_CHIMEGEE`, `_TUCHKU` | no | Each calendar's «Calendar ID» (Google Calendar → Settings → Integrate calendar), after it is shared with tarasalon.parkod@gmail.com AND the site's service account (the address in `GOOGLE_SERVICE_ACCOUNT_EMAIL`), both «Make changes to events» |
-| `CRON_SECRET` | yes, optional | Any random 32+ characters; protects the daily hold sweep (Vercel Cron sends it) |
+| `CRON_SECRET` | yes | Any random 32+ characters. Turns on the daily hold sweep (Vercel Cron sends it); without it the sweep is off and expired holds are cleared only when a day's times are read |
 | `PARKOD_QPAY_USERNAME`, `_PASSWORD`, `_TERMINAL_ID` | yes | Only if QPay issues Парк Од a login of her own; otherwise leave unset |
 
 A hairdresser is bookable as soon as her calendar variable exists; the branch
 opens when at least one is set AND the QPay and Telegram variables are
 complete.
+
+## Rollback note
+
+Callbacks signed by this version name hairdressers by their new ASCII ids
+(`oyunaa`, `badamaa`, `zaya`, `chimgee`, `saraa`…). A rollback to the version
+before it cannot read them: a payment made on an invoice from this version
+would reach the failure alert (customer details included) instead of being
+booked automatically. Roll back only with no open invoices, or book those by
+hand from the alert.
+
+## Limits of the hold
+
+- The hold is the calendar event itself; the site has no database. A burst of
+  holds from one address is refused (8 in 10 minutes, per server instance),
+  and a customer keeps one website hold per calendar, but nothing stops a
+  determined person with many addresses from holding times for 5½ minutes
+  each — the same exposure the payment page has always had for invoices.
+- dala-ai's in-chat booking must follow the same rule (yield to anything
+  overlapping except a hold placed after its own, and treat an expired `sh`
+  hold as free). Its PR documents what it implements.

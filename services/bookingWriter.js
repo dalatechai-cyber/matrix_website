@@ -278,6 +278,11 @@ async function ensurePaidBooking(calendar, booking, { late = false, amount = nul
   // hold already swept), the calendar's busy time decides, as before.
   const { findOwnHold, othersOverlapping } = require('./bookingHold');
   const ownHold = await findOwnHold(calendar, { calendarId, start: booking.start, phone: booking.customerPhone });
+  if (!ownHold) {
+    // Someone else's expired hold is free time: clear it before freebusy reads it.
+    const { sweepExpiredHolds } = require('./bookingHold');
+    await sweepExpiredHolds(calendar, [calendarId], { from: booking.start, to: end });
+  }
   const busy = ownHold
     ? (await othersOverlapping(calendar, calendarId, booking.start, end, [ownHold.id, ...lookupIds])).length > 0
     : await slotIsBusy(calendar, calendarId, booking.start, end);

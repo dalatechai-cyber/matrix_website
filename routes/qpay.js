@@ -5,7 +5,7 @@ const { createInvoice, checkPayment, getInvoice, getPayment, isPaidCheck } = req
 const { getCalendarClient } = require('../services/googleCalendar');
 const { STYLIST_CONFIG } = require('../config/stylists');
 const { checkPaymentRequest } = require('../services/closureGuard');
-const { holdForPaymentRequest } = require('../services/bookingHold');
+const { holdForPaymentRequest, clientOf } = require('../services/bookingHold');
 const { checkPaymentBookingRules, consentTime, REFRESH_MESSAGE } = require('../services/bookingRules');
 const { callbackUrlForPayment, publicOrigin, decodeCallback } = require('../services/lateBooking');
 const { ensurePaidBooking, alertBookingFailure, hasBookingForPhone } = require('../services/bookingWriter');
@@ -170,7 +170,7 @@ router.post('/create-payment', async (req, res) => {
   const account = qpayAccountFor(branchCheck.branch);
 
   // Same 5-minute hold as the standalone handler (services/bookingHold.js).
-  const hold = await holdForPaymentRequest(req.body || {}, { test: isTestRequest(req) });
+  const hold = await holdForPaymentRequest(req.body || {}, { test: isTestRequest(req), client: clientOf(req) });
   if (!hold.ok) {
     console.warn('Blocked QPay invoice by hold:', hold.payload.reason, staffName);
     return res.status(hold.status).json(hold.payload);

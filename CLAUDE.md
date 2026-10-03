@@ -57,12 +57,12 @@ in the salon's list): not shown or bookable, kept only for old callbacks.
 
 Before any QR, both create-payment handlers hold the time on the
 hairdresser's calendar ([services/bookingHold.js](services/bookingHold.js)):
-an opaque `wh…` event over the whole appointment, expiring with the QR (+30 s).
+an opaque `sh…` event over the whole appointment, expiring with the QR (+30 s).
 After inserting, it looks again and yields to anything overlapping except a
-hold created after its own. Taken: 409 «taken», no QR. Calendar unreadable:
+hold placed after its own (one hold per customer). Taken: 409 «taken», no QR. Calendar unreadable:
 no QR. The paid booking replaces the hold; expired holds are deleted when a
 day's times are read and by the daily cron (`/api/calendar/sweep-holds`,
-optional `CRON_SECRET`). dala-ai's in-chat booking holds with `dh…` events on
+needs `CRON_SECRET`). dala-ai's in-chat booking holds with `dh…` events on
 the same calendars, so neither side can sell a time the other is holding.
 
 ## Salon closures (holidays)

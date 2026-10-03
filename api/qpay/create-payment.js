@@ -4,7 +4,7 @@ const { checkPaymentBookingRules, consentTime, REFRESH_MESSAGE } = require('../.
 const { callbackUrlForPayment, publicOrigin } = require('../../services/lateBooking');
 const { blockedByMaintenance, MAINTENANCE_MESSAGE, depositFor, isTestRequest } = require('../../config/siteMode');
 const { resolveBookingBranch, qpayAccountFor } = require('../../config/branches');
-const { holdForPaymentRequest } = require('../../services/bookingHold');
+const { holdForPaymentRequest, clientOf } = require('../../services/bookingHold');
 
 // The merchant Яармаг has always been invoiced under. Used for Яармаг only:
 // another branch is invoiced under its own merchant (config/branches.js).
@@ -63,7 +63,7 @@ module.exports = async function handler(req, res) {
     // The time is held on the hairdresser's calendar before a QR exists, so
     // no other customer (website or Messenger) can reach a QR for it. Taken,
     // or the calendar cannot be read: no invoice. services/bookingHold.js.
-    const hold = await holdForPaymentRequest(req.body || {}, { test: isTestRequest(req) });
+    const hold = await holdForPaymentRequest(req.body || {}, { test: isTestRequest(req), client: clientOf(req) });
     if (!hold.ok) {
         console.warn('Blocked QPay invoice by hold:', hold.payload.reason, (req.body || {}).staffName);
         return res.status(hold.status).json(hold.payload);
