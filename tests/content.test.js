@@ -210,11 +210,15 @@ test('booking: the gender step and note use the approved wording', () => {
   assert.ok(!/name="stylist"/.test(html));
   const script = fs.readFileSync(path.join(ROOT, 'assets/booking.js'), 'utf8');
   assert.ok(!/Оюунсүрэн|Бадамцэцэг|Ананд/.test(script), 'booking.js must not carry its own list of hairdressers');
-  assert.ok(script.includes('.filter((s) => s.gender === state.gender)'), 'only hairdressers matching the customer are listed');
+  assert.ok(script.includes('s.gender === state.gender && (!level || s.levelKey === level)'), 'only hairdressers matching the customer (and the haircut\'s level) are listed');
 });
 
 test('booking: the deposit box and the recorded agreement use the approved wording', () => {
   assert.ok(rendered('booking.html').includes(DEPOSIT_TERMS));
+  // Founder, 2026-10-04: the deposit is deducted from the service price.
+  for (const page of ['booking.html', 'index.html', 'services.html']) {
+    assert.ok(rendered(page).includes('Урьдчилгаа төлбөр үйлчилгээний үнээс хасагдана.'), page);
+  }
   assert.equal(require('../services/bookingRules').DEPOSIT_TERMS_TEXT, DEPOSIT_TERMS);
 });
 
@@ -339,14 +343,14 @@ test('TARA LUMI: the name toggles its description, which is in the page without 
 test('team: «Манай үсчид» shows every current hairdresser of both branches with photo, short name, title and branch', () => {
   const html = rendered('index.html');
   const team = html.slice(html.indexOf('id="team"'), html.indexOf('</section>', html.indexOf('id="team"')));
-  const yaarmag = ['Oyunaa', 'Badamaa', 'Anand', 'Uyanga', 'Zaya', 'Chimgee'];
+  const yaarmag = ['Oyunaa', 'Badamaa', 'Anand', 'Uyanga', 'Zaya', 'Chimgee', 'Otgonjargal'];
   const parkod = ['Boloroo', 'Saraa', 'Tomoo', 'Bulgaa', 'Enhuush', 'Chimegee', 'Tuchku'];
   const names = [...team.matchAll(/<h4 class="team-name">([^<]+)<\/h4>/g)].map((m) => m[1]);
   assert.deepEqual(names, [...yaarmag, ...parkod]);
-  for (const old of ['Оюунсүрэн', 'Бадамцэцэг', 'Батзаяа', 'Уранчимэг', 'Отгонжаргал', 'Otgonjargal', 'hair salonner', 'стилист']) {
+  for (const old of ['Оюунсүрэн', 'Бадамцэцэг', 'Батзаяа', 'Уранчимэг', 'Отгонжаргал', 'Senior Hair Stylist', 'hair salonner', 'стилист']) {
     assert.ok(!team.includes(old), `team section still says ${old}`);
   }
-  assert.ok(team.includes('SPECIAL Hair Stylist') && team.includes('Master Hair Stylist'));
+  assert.ok(team.includes('SPECIAL Hair Stylist') && team.includes('Master Hair Stylist') && team.includes('>Hair Stylist<'));
   for (const m of team.matchAll(/src="(\/img\/stylists\/[^"]+)"/g)) {
     assert.ok(fs.existsSync(path.join(ROOT, m[1])), `${m[1]} missing`);
   }

@@ -336,3 +336,19 @@ test('sweep: refused without CRON_SECRET', async () => {
   delete process.env.CRON_SECRET;
   assert.equal((await request('GET', '/api/calendar/sweep-holds')).status, 401);
 });
+
+test('level-named haircuts go only to a hairdresser of that level, on both payment paths', async () => {
+  for (const send of [standalone, (b) => request('POST', '/api/qpay/create-payment', b)]) {
+    qpay.calls = [];
+    const wrong = await send(pay('99112233', { staff: 'Zaya', services: 'Эмэгтэй засалт — Тайралт том хүн /МАСТЕР/' }));
+    assert.equal(wrong.status, 422);
+    assert.equal(wrong.body.reason, 'level-mismatch');
+    const mixed = await send(pay('99112233', { staff: 'Oyunaa', services: 'Эмэгтэй засалт — Тайралт том хүн /SPECIAL/, Эмэгтэй засалт — Тайралт том хүн /МАСТЕР/' }));
+    assert.equal(mixed.body.reason, 'level-conflict');
+    assert.equal(invoices().length, 0, 'no QR for a level the hairdresser does not hold');
+  }
+  const right = await standalone(pay('99112233', { staff: 'Oyunaa' }));
+  assert.equal(right.status, 200, 'SPECIAL cut with the SPECIAL hairdresser');
+  const free = await standalone(pay('88112233', { staff: 'Zaya', time: '17:00', services: 'Эмэгтэй засалт — Тайралт хүүхэд' }));
+  assert.equal(free.status, 200, 'a service without a level goes to any level');
+});

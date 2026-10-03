@@ -110,7 +110,11 @@
     if (step <= 1) return true;
     if (step === 2) return !!(state.branch && state.branch.ready);
     if (step === 3) return canEnter(2) && state.services.length > 0;
-    if (step === 4) return canEnter(3) && !!state.stylist && state.stylist.gender === state.gender;
+    if (step === 4) {
+      const level = requiredLevel(state.services);
+      return canEnter(3) && !!state.stylist && state.stylist.gender === state.gender
+        && (!level || state.stylist.levelKey === level);
+    }
     if (step === 5) return canEnter(4) && !!state.date && !!state.time && !closureFor(state.date);
     if (step === 6) return canEnter(5) && !!pay.request;
     return false;
@@ -212,11 +216,14 @@
     const changed = !state.branch || state.branch.id !== b.id;
     state.branch = b;
     if (changed) {
-      // Hairdressers, times and a pending payment belong to one branch only.
+      // Hairdressers, times and a pending payment belong to one branch only,
+      // and so do level-named services (a level the branch lacks is hidden).
       state.stylist = null;
       state.date = null;
       state.time = null;
       resetPaymentRequest();
+      renderServices();
+      state.services = Array.from(document.querySelectorAll(".service-checkbox:checked")).map((i) => i.value);
     }
     updateActions();
     renderSummary();
@@ -250,6 +257,10 @@
       group.append(el("legend", "", c.name));
       const grid = el("div", "options options--services");
       c.services.forEach((s) => {
+        // A level-named haircut nobody at this branch holds (e.g. 1-р зэрэг at
+        // Парк Од) is not offered.
+        const lv = levelOfService(s.key || s.name);
+        if (lv && state.branch && !state.branch.stylists.some((x) => x.levelKey === lv)) return;
         if (!Array.isArray(s.prices)) {
           grid.append(serviceChoice(s.key, s.name, s.price, s.note));
           return;
@@ -285,6 +296,19 @@
     renderSummary();
   }
 
+  // Level-named haircuts go only to a hairdresser of that level (the server
+  // refuses any other); services/bookingRules.js has the same markers.
+  const LEVEL_MARKERS = [[/\/\s*SPECIAL\s*\//iu, "special"], [/\/\s*МАСТЕР\s*\//iu, "master"], [/\/\s*1-р зэрэг\s*\//iu, "first"]];
+  function levelOfService(key) {
+    const hit = LEVEL_MARKERS.find(([re]) => re.test(String(key).normalize("NFC")));
+    return hit ? hit[1] : null;
+  }
+  function requiredLevel(keys) {
+    const levels = new Set(keys.map(levelOfService).filter(Boolean));
+    if (levels.size === 0) return null;
+    return levels.size === 1 ? [...levels][0] : "conflict";
+  }
+
   // ── Step 3: customer gender, then only matching hairdressers ──────────
   function selectedGender() {
     const c = document.querySelector('input[name="customer-gender"]:checked');
@@ -294,10 +318,13 @@
   function renderStylists() {
     state.gender = selectedGender();
     const wrap = $("stylist-options");
-    const list = (state.branch ? state.branch.stylists : []).filter((s) => s.gender === state.gender);
-    // The salon's rule: a hairdresser who does not serve this customer can
-    // never stay selected (the server refuses such a payment as well).
-    if (state.stylist && state.stylist.gender !== state.gender) {
+    const level = requiredLevel(state.services);
+    const fits = (s) => s.gender === state.gender && (!level || s.levelKey === level);
+    const list = (state.branch ? state.branch.stylists : []).filter(fits);
+    // The salon's rules: a hairdresser who does not serve this customer, or
+    // not at the level the chosen haircut names, can never stay selected (the
+    // server refuses such a payment as well).
+    if (state.stylist && !fits(state.stylist)) {
       state.stylist = null;
       state.date = null;
       state.time = null;

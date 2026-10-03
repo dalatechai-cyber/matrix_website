@@ -127,6 +127,14 @@ today until the owner approves the switch.
   390 and 1440 px (local, faked Google and QPay): team, Парк Од booking, two
   customers racing for one time (the second sent back to the times), paid.
 
+## Part 7 — founder's review (2026-10-04) ✅ (preview only)
+
+- Otgonjargal (Отгонжаргал) back as a bookable 1-р зэргийн үсчин; «Hair
+  Stylist» title for 1-р зэрэг; level-named haircuts only with that level
+  (page + both payment paths); deposit deducted from the price (home, price
+  page, booking); «Бүтээл» gallery and its photos removed; tarasalon.org in
+  the domain plan; Парк Од merchant steps without an e-mail to QPay.
+
 ## Open items for the owner
 
 - New copy, all in one place: `docs/COPY_DRAFT.md`.

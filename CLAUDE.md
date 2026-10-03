@@ -2,16 +2,19 @@
 
 Multi-page site for **Tara Salon** (Ulaanbaatar, Mongolia; formerly Matrix Eco
 Salon) with two branches — **Яармаг** and **Парк Од** — same brand and prices,
-separate owners. Seven pages — `index`, `services` (price list), `zurag`
-(gallery), `products` (Amos), `keune-products`, `booking`, `contact` — served by
+separate owners. Six pages — `index`, `services` (price list), `products`
+(Amos), `keune-products`, `booking`, `contact` — served by
 `server.js`, which assembles them with `lib/pages.js` (shared `partials/`,
 branch details from `data/branches.json`). Styles and scripts live in
 `assets/`, logos in `brand/`, fonts in `fonts/`. An Express API (`routes/`)
 handles QPay payments and Google Calendar booking. Content is Mongolian
 (Cyrillic). `PROGRESS.md` tracks the rebuild. Photos: `data/gallery.json` lists
-the salon's own photos (4:5 WebP crops in `img/photos/`, never upscaled);
-`docs/PHOTOS.md` says where each came from and why it was chosen. The Facebook
-export lives only on branch `tara-photos` — never merge it or ship it.
+the feature photos (4:5 WebP crops in `img/photos/`, never upscaled);
+`docs/PHOTOS.md` says where each came from. The «Бүтээл» gallery was removed on
+2026-10-04 (its photos were Matrix's; `/zurag.html` forwards home) and returns
+only with Tara's own photos. The Facebook export lives only on branch
+`tara-photos` — never merge it or ship it. The site moves to **tarasalon.org**
+(Namecheap) later: `docs/DOMAIN_MOVE.md`; until then it is matrixecosalon.org.
 
 ## Branches: calendars and QPay never cross
 
@@ -44,14 +47,22 @@ hairdressers from `GET /api/branches` — there is no copy in the browser.
 ## Hairdressers: names, levels, the team section
 
 Shown everywhere by the short Latin names the salon chose on 2026-10-03
-(Oyunaa, Badamaa, Uyanga, Zaya, Chimgee, Anand; Boloroo, Saraa, Tomoo, Bulgaa,
-Enhuush, Chimegee, Tuchku), exactly as written. Former names stay accepted as
+(Oyunaa, Badamaa, Uyanga, Zaya, Chimgee, Anand, and Otgonjargal — her full
+name, founder 2026-10-04; Boloroo, Saraa, Tomoo, Bulgaa, Enhuush, Chimegee,
+Tuchku), exactly as written. Former names stay accepted as
 aliases so an open page or a signed callback still reaches the same person.
 Levels: SPECIAL and Мастер 20,000₮, 1-р зэрэг 10,000₮ (Яармаг only); English
-titles «SPECIAL Hair Stylist», «Master Hair Stylist», and (proposed, awaiting
-approval) «Senior Hair Stylist» — never «hair salonner». The home page's
-«Манай үсчид» section renders from the same list. Отгонжаргал is retired (not
-in the salon's list): not shown or bookable, kept only for old callbacks.
+titles «SPECIAL Hair Stylist», «Master Hair Stylist», «Hair Stylist» (1-р
+зэрэг; founder 2026-10-04) — never «hair salonner». The home page's «Манай
+үсчид» section renders from the same list. A `retired` hairdresser is not
+shown or bookable and is kept only for old callbacks.
+
+**Level-named haircuts** («Тайралт том хүн /SPECIAL/», «/МАСТЕР/», «/1-р
+зэрэг/») go only to a hairdresser of that level (founder, 2026-10-04): the
+booking page lists only those, hides a level the branch lacks, and both
+create-payment handlers refuse a mismatch (`services/bookingRules.js`). The
+deposit is deducted from the service price («Урьдчилгаа төлбөр үйлчилгээний
+үнээс хасагдана.» on the home, price and booking pages).
 
 ## The 5-minute hold (website ↔ Messenger)
 

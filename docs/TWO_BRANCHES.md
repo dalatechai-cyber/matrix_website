@@ -45,46 +45,51 @@ under one login. So Парк Од is a **second merchant under the same login**:
   equal to Яармаг's is refused, and an incomplete setting keeps Парк Од closed;
 - her alerts go only to her own Telegram chat.
 
-**What could not be verified.** QPay's documentation site (developer.qpay.mn)
-is blocked from this environment. The endpoints and fields above are from the
-repository's own working code and from unofficial Quick QR SDKs. That the
-money follows the invoice's `bank_accounts` is the strongest inference, not a
-documented fact. Hence the questions below, before the first real payment.
+**How it is proven.** No e-mail to QPay (founder, 2026-10-04). The founder
+registers Парк Од as a merchant under his login with her bank account, exactly
+as Яармаг was registered, and the proof is a real 100₮ test that lands in her
+account. (QPay's documentation could not be read from this environment; the
+fields below come from the repository's own working code and Quick QR SDKs.)
 
-## Exactly what to ask QPay (one e-mail, from the login's owner)
+## Registering Парк Од's merchant — what to get from Boloroo, and the steps
 
-> Сайн байна уу. Бид Quick QR v2 API-г `DALATECH_AI` terminal-аар ашиглаж,
-> «Matrix Eco Salon» merchant-аар төлбөр авдаг. Шинэ салбар «Tara Salon — Парк Од»
-> өөр эзэмшигчтэй, өөрийн дансанд төлбөр авах ёстой. Дараахыг баталж өгнө үү:
-> 1. Нэг terminal / нэвтрэх эрхээр хоёр дахь merchant (`POST /v2/merchant/person`
->    эсвэл `/company`) бүртгэж, түүгээр нэхэмжлэх үүсгэж болох уу? Идэвхжүүлэх,
->    гэрээ, баримт бичиг шаардлагатай юу?
-> 2. Нэхэмжлэхийн `bank_accounts`-д заасан дансанд мөнгө шилжих үү, эсвэл
->    merchant-д бүртгэсэн дансанд уу? Данс эзэмшигч merchant-ийн регистртэй
->    таарах ёстой юу?
-> 3. Мөнгө хэдэн хоногт шилжих вэ, шимтгэл ямар байх вэ?
-> 4. Хэрэв нэг эрхээр боломжгүй бол Парк Од-д тусдаа terminal/нэвтрэх эрх олгоно уу.
+**Details to get from Boloroo** (as on her documents; nothing else is needed):
 
-(In English: may terminal DALATECH_AI register and invoice for a second
-merchant; does an invoice settle into its `bank_accounts` or the merchant's
-registered account, and must the holder match the merchant; activation,
-contract, documents, settlement time and fee; else issue Парк Од her own login.)
+| Field | If she registers as an individual (`person`) | If as a company (`company`) |
+| --- | --- | --- |
+| Register number | her РД (e.g. two letters + eight digits) | the company's register number, and her own РД as owner |
+| Names | surname (овог) and given name (нэр) | company legal name, and owner's surname and given name |
+| Trading name | «Tara Salon Парк Од» (`business_name`) | «Tara Salon Парк Од» (`name`) |
+| Address | Баянзүрх дүүрэг, 26-р хороо, Парк-Од молл, 4 давхар, 405 тоот | same |
+| City / district | Улаанбаатар / Баянзүрх (the script looks up QPay's codes) | same |
+| Phone | the number QPay may call her on | same |
+| E-mail | bolotuyagongor@gmail.com | same |
+| Bank account | her bank's name, account number, holder name exactly as the bank shows it | the company account |
+| MCC | 7230 (beauty and barber shops), as Яармаг | same |
 
-**From the Парк Од owner** (for the registration form): company or individual;
-register number; legal name (company) and the owner's surname and given name;
-trading name («Tara Salon Парк Од»); address with city/aimag and district/sum;
-phone; e-mail (bolotuyagongor@gmail.com); her bank, account number and the
-holder's name exactly as the bank has it.
+Ask her whether she trades as an individual or a company: that decides the form.
 
-Then register her merchant, either way:
-- GitHub → Actions → «Register Парк Од QPay merchant»: store the filled form
-  (the JSON described at the top of `scripts/qpay-merchant.js`) as the
-  repository secret `PARKOD_MERCHANT_FORM`, run with send = false (checks the
-  form), then send = true; the log shows only the merchant id. Uses the same
-  `QPAY_USERNAME`/`QPAY_PASSWORD` repository secrets as Яармаг's registration.
-- or locally: `node scripts/qpay-merchant.js register parkod.json` (dry run),
-  then with `--send`. One real 100₮ test
-through the test link, and she confirms the money reached her account.
+**Steps (founder)**
+
+1. Look up the codes: `node scripts/qpay-merchant.js cities`, then
+   `node scripts/qpay-merchant.js districts <Улаанбаатар's code>`; note
+   Баянзүрх's code. (Needs `QPAY_USERNAME`/`QPAY_PASSWORD` in your shell, e.g.
+   from `vercel env pull`; never printed.) Her bank's code: QPay's bank code
+   for her bank (Khan Bank is `040000`, as Яармаг).
+2. Fill `scripts/parkod-merchant.example.json` (a copy, outside the repo — the
+   repo is public) with her details.
+3. Check it: `node scripts/qpay-merchant.js register parkod.json` (dry run:
+   validates, sends nothing). Or on GitHub: put the JSON in the repository
+   secret `PARKOD_MERCHANT_FORM` and run Actions → «Register Парк Од QPay
+   merchant» with send = false (the log never shows her details).
+4. Register: the same with `--send` (or send = true). It prints the merchant id.
+5. Set in Vercel (Preview first): `PARKOD_QPAY_MERCHANT_ID` (the printed id),
+   `PARKOD_QPAY_BANK_CODE`, `PARKOD_QPAY_ACCOUNT_NUMBER`,
+   `PARKOD_QPAY_ACCOUNT_NAME`, `PARKOD_TELEGRAM_CHAT_ID`, and at least one
+   `PARKOD_CALENDAR_<NAME>`; Redeploy.
+6. Proof: open the site with the test link (`/?test=<BOOKING_TEST_TOKEN>`),
+   book at Парк Од, pay the 100₮ QR, and Boloroo confirms the 100₮ reached HER
+   account. Only then set the same variables on Production.
 
 ## Environment variables (project `matrix-website`)
 

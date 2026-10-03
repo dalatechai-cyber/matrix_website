@@ -32,9 +32,10 @@
  * calendar is shown on the team section but not offered in booking, and a
  * branch with none is not bookable.
  *
- * Retired: Отгонжаргал is not in the salon's list of 2026-10-03. She is not
- * shown or bookable; her entry stays only so a payment signed for her before
- * the change still reaches her calendar instead of being lost.
+ * Otgonjargal (Отгонжаргал) still works at Яармаг (founder, 2026-10-04): her
+ * full name in Latin letters, 1-р зэргийн үсчин, as in the salon's data. The
+ * `retired` flag remains for anyone who leaves: not shown or bookable, kept
+ * only so a payment signed for them before still reaches their calendar.
  *
  * The salon no longer offers manicure: no manicurist is configured here.
  */
@@ -42,9 +43,9 @@
 const LEVELS = {
   special: { key: 'special', rank: 0, level: 'SPECIAL үсчин', title: 'SPECIAL Hair Stylist', deposit: 20000 },
   master: { key: 'master', rank: 1, level: 'Мастер үсчин', title: 'Master Hair Stylist', deposit: 20000 },
-  // English title for 1-р зэрэг is a proposal awaiting the founder's approval
-  // (docs/COPY_DRAFT.md); it is the one place to change it.
-  first: { key: 'first', rank: 2, level: '1-р зэргийн үсчин', title: 'Senior Hair Stylist', deposit: 10000 },
+  // «Hair Stylist» for 1-р зэрэг (founder, 2026-10-04: «Senior» sounded higher
+  // than Master).
+  first: { key: 'first', rank: 2, level: '1-р зэргийн үсчин', title: 'Hair Stylist', deposit: 10000 },
 };
 
 function env(name) {
@@ -95,9 +96,9 @@ const PEOPLE = [
     formerly: ['Уранчимэг', 'uranchimeg'], photo: null, photo2x: null,
   },
   {
-    name: 'Отгонжаргал', ascii: 'otgonzargal', branch: 'yaarmag', level: 'first', gender: 'female', retired: true,
+    name: 'Otgonjargal', ascii: 'otgonjargal', branch: 'yaarmag', level: 'first', gender: 'female',
     calendarId: 'c_1f0f02975a17088e3a939396200de8fb1b624fc4633c66f4e9a330576e24b27e@group.calendar.google.com',
-    formerly: [], photo: null, photo2x: null,
+    formerly: ['Отгонжаргал', 'otgonzargal'], ...photoSet('otgonjargal'),
   },
   // ── Парк Од салбар (every hairdresser but Boloroo is Мастер) ───────────────
   { name: 'Boloroo', ascii: 'boloroo', branch: 'parkod', level: 'special', gender: 'female', owner: true, calendarEnv: 'PARKOD_CALENDAR_BOLOROO', formerly: [], ...photoSet('boloroo') },
@@ -177,7 +178,7 @@ function teamOf(branchId) {
     .map(({ p }) => p.name);
 }
 
-// Kept for older imports (tests, scripts); the hairdresser is retired.
-const OTGONZARGAL_CALENDAR_ID = STYLIST_CONFIG['Отгонжаргал'].calendarId;
+// Kept for older imports (tests, scripts).
+const OTGONZARGAL_CALENDAR_ID = STYLIST_CONFIG.Otgonjargal.calendarId;
 
 module.exports = { STYLIST_CONFIG, STYLIST_CALENDAR_MAP, OTGONZARGAL_CALENDAR_ID, LEVELS, personOf, asciiOf, teamOf };

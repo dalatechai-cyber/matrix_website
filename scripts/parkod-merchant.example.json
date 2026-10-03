@@ -1,0 +1,17 @@
+{
+  "_comment": "Template for scripts/qpay-merchant.js register. Copy it OUTSIDE the repository (it is public), fill in Boloroo's details, and never commit the filled copy. For a company use \"type\": \"company\" with register_number, company_name, name, owner_register_no, owner_first_name, owner_last_name instead of the person fields.",
+  "type": "person",
+  "register_number": "",
+  "first_name": "",
+  "last_name": "",
+  "business_name": "Tara Salon Парк Од",
+  "mcc_code": "7230",
+  "city": "",
+  "district": "",
+  "address": "Баянзүрх дүүрэг, 26-р хороо, Парк-Од молл, 4 давхар, 405 тоот",
+  "phone": "",
+  "email": "bolotuyagongor@gmail.com",
+  "bank_accounts": [
+    { "account_bank_code": "", "account_number": "", "account_name": "", "is_default": true }
+  ]
+}

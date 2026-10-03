@@ -70,7 +70,9 @@ async function main() {
     const form = JSON.parse(fs.readFileSync(arg, 'utf8'));
     const problems = checkForm(form);
     if (problems.length) { console.error('Form not ready:\n- ' + problems.join('\n- ')); process.exit(2); }
-    const { type, ...body } = form;
+    const { type, ...rest } = form;
+    // Keys starting with «_» are notes in the template, never sent.
+    const body = Object.fromEntries(Object.entries(rest).filter(([k]) => !k.startsWith('_')));
     const path = `/merchant/${type}`;
     if (flag !== '--send') {
       console.log(`DRY RUN — would POST ${BASE}${path}${noEcho ? ` (fields: ${Object.keys(body).join(', ')})` : ' with:'}`);

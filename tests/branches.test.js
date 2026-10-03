@@ -159,7 +159,7 @@ test('branches: Яармаг is bookable with every current hairdresser; Пар�
   for (const [id, cfg] of Object.entries(STYLIST_CONFIG)) {
     assert.ok(['yaarmag', 'parkod'].includes(cfg.branch), `${id} has no branch`);
   }
-  assert.deepEqual(stylistsOf('yaarmag'), ['Oyunaa', 'Badamaa', 'Anand', 'Uyanga', 'Zaya', 'Chimgee']);
+  assert.deepEqual(stylistsOf('yaarmag'), ['Oyunaa', 'Badamaa', 'Anand', 'Uyanga', 'Zaya', 'Chimgee', 'Otgonjargal']);
   assert.deepEqual(stylistsOf('parkod'), [], 'no Парк Од calendar is connected yet');
 });
 
@@ -181,7 +181,7 @@ test('branches: /api/branches lists each branch\'s hairdressers only, and no cal
   const [yaarmag, parkod] = list;
   assert.equal(parkod.ready, false);
   assert.deepEqual(parkod.stylists, [], 'no hairdressers offered at a branch not yet connected');
-  assert.equal(yaarmag.stylists.length, 6);
+  assert.equal(yaarmag.stylists.length, 7);
   for (const s of yaarmag.stylists) {
     assert.equal(STYLIST_CONFIG[s.id].gender, s.gender, `${s.id} gender differs from the server`);
     assert.equal(STYLIST_CONFIG[s.id].price, s.deposit, `${s.id} deposit differs from the server`);
@@ -367,18 +367,29 @@ test('stylists: renamed hairdressers keep their calendars; the old names still b
   assert.deepEqual(Object.keys(STYLIST_CONFIG).filter((k) => STYLIST_CONFIG[k].gender === 'male' && !STYLIST_CONFIG[k].alias && !STYLIST_CONFIG[k].ascii), ['Anand', 'Tuchku']);
 });
 
-test('retired hairdresser: no times and no invoice, but a payment signed before still books her calendar', async () => {
-  assert.ok(!stylistsOf('yaarmag').includes('Отгонжаргал'));
-  const slots = await request('GET', `/api/calendar/available-slots?date=2035-06-04&stylistId=${encodeURIComponent('Отгонжаргал')}`);
-  assert.equal(slots.status, 409);
-  const r = await invokeStandalone(paymentBody('Отгонжаргал'));
-  assert.equal(r.status, 409);
-  assert.equal(r.body.reason, 'stylist-retired');
-  assert.equal(net.calls.length, 0);
-  const url = callbackUrlFor('https://www.example.mn', {
-    stylistId: 'Отгонжаргал', date: '2035-06-04', time: '14:00', customerGender: 'female',
-    customerPhone: '99112233', services: [], agreedAt: new Date(), amount: 10000,
-  });
-  const late = await request('POST', url.slice('https://www.example.mn'.length), { object_id: 'inv_1' });
-  assert.equal(late.body.handled, 'booked');
+test('Otgonjargal is bookable again (1-р зэрэг, 10,000₮); her old ids reach her', async () => {
+  assert.ok(stylistsOf('yaarmag').includes('Otgonjargal'));
+  for (const old of ['Отгонжаргал', 'otgonzargal']) {
+    assert.equal(STYLIST_CONFIG[old].person, 'Otgonjargal');
+    assert.equal(STYLIST_CONFIG[old].calendarId, STYLIST_CONFIG.Otgonjargal.calendarId);
+  }
+  assert.equal(STYLIST_CONFIG.Otgonjargal.price, 10000);
+  assert.equal(STYLIST_CONFIG.Otgonjargal.title, 'Hair Stylist');
+  const r = await invokeStandalone(paymentBody('Otgonjargal'));
+  assert.equal(r.status, 200);
+  assert.equal(invoiceCall().body.amount, 10000);
+});
+
+test('a retired hairdresser gets no times and no invoice', async () => {
+  STYLIST_CONFIG['Retired Test'] = { ...STYLIST_CONFIG.Zaya, person: 'Retired Test', retired: true, calendarId: 'retired@cal' };
+  try {
+    const slots = await request('GET', `/api/calendar/available-slots?date=2035-06-04&stylistId=${encodeURIComponent('Retired Test')}`);
+    assert.equal(slots.status, 409);
+    const r = await invokeStandalone(paymentBody('Retired Test'));
+    assert.equal(r.status, 409);
+    assert.equal(r.body.reason, 'stylist-retired');
+    assert.equal(net.calls.length, 0);
+  } finally {
+    delete STYLIST_CONFIG['Retired Test'];
+  }
 });

@@ -150,6 +150,7 @@
 .field-error { color: var(--danger); font-size: var(--step--1); }
 .deposit-box { padding: 1.25rem 1.4rem; background: var(--sand); border-left: 3px solid var(--star); border-radius: 0 var(--radius) var(--radius) 0; display: grid; gap: 0.9rem; }
 .deposit-line strong { font-size: 1.15rem; color: var(--stone); }
+.deposit-note { margin-top: -0.5rem; font-size: var(--step--1); color: var(--muted); }
 .deposit-terms { display: grid; grid-template-columns: 24px 1fr; gap: 0.75rem; align-items: start; cursor: pointer; }
 .deposit-terms input { width: 22px; height: 22px; margin: 0.15rem 0 0; accent-color: var(--stone); cursor: pointer; }
 .notice--error { background: #fbeeee; border-color: #e3b5b7; color: #6b1a1e; }
