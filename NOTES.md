@@ -45,16 +45,24 @@ Final report: under 25 lines, plain English (see the brief's last paragraph).
 
 ## Status
 
-- [ ] T1 QPay/booking investigation + two-branch design + code
-- [ ] T2 env var list; set non-secret Preview values
+- [x] T1 QPay/booking investigation + two-branch design + code (docs/TWO_BRANCHES.md)
+- [x] T2 env var list (docs/TWO_BRANCHES.md). Nothing set on Preview: no variable has a known
+      value yet (merchant id, bank, chat id, calendar ids all still to be created), and the
+      Vercel connection cannot even list env vars (403).
 - [ ] T3 Яармаг Дали quality (7 days of chats) — dala-ai
 - [ ] T4 names/titles everywhere
-- [ ] T5 website: durations, both branches' stylists, team section, per-branch booking, 5-min hold
+- [x] T5 website: pushed, draft PR https://github.com/dalatechai-cyber/matrix_website/pull/83 (base = PR #82 head). Review running.
 - [ ] T6 dala-ai #280 update
 - [ ] T7 Парк Од tenant dry run + branch gate
 - [ ] Final report
 
 ## Open items for the founder (collect here)
+
+- Level-named haircut services («Тайралт том хүн /SPECIAL/», «/МАСТЕР/», «/1-р зэрэг/») can be
+  booked with a hairdresser of any level; no rule given, not enforced. Founder to decide.
+- Chimgee (Уранчимэг) has no photo: team shows her initial.
+- 1-р зэрэг English title proposal «Senior Hair Stylist».
+- QPay written confirmation (questions in docs/TWO_BRANCHES.md); Парк Од owner's registration details.
 
 ### Decisions, continued
 
