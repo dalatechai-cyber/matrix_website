@@ -27,8 +27,8 @@ const { execFileSync } = require('child_process');
 
 // Built from parts so this file never contains the number it blocks (and can
 // still be edited under its own rule). Matched in any spelling: digits split
-// by up to three spaces, dashes, dots, brackets or slashes («9927 3339»,
-// «9927-3339»), never inside a longer number — the same rule as dala-ai's
+// by up to three spaces, dashes, dots, brackets or slashes, never inside a
+// longer number — the same rule as dala-ai's
 // scripts/guards/check-no-banned-number.mjs.
 const FORBIDDEN_NUMBER = ['9927', '3339'].join('');
 const SEP = '[\\s\\u00a0\\-\\u2010-\\u2015.()/_]{0,3}';
