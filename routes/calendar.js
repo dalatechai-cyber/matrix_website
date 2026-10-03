@@ -7,6 +7,7 @@ const { getClosures, findClosure, salonDateOf } = require('../config/closures');
 const { totalDurationFor } = require('../config/serviceDurations');
 const { normalizeCustomerGender, checkGenderMatch } = require('../services/bookingRules');
 const { ensurePaidBooking, alertBookingFailure } = require('../services/bookingWriter');
+const { sweepExpiredHolds } = require('../services/bookingHold');
 
 const { blockedByMaintenance, MAINTENANCE_MESSAGE, isTestRequest } = require('../config/siteMode');
 const { branchOfStylist, branchReadiness, workHoursFor, normalizeBranchId } = require('../config/branches');
@@ -163,6 +164,13 @@ router.get('/available-slots', async (req, res) => {
 
   try {
     const calendar = await getCalendarClient();
+    // A website hold whose QR ran out is free: delete it before reading busy
+    // time, so the time is offered again at once (services/bookingHold.js).
+    try {
+      await sweepExpiredHolds(calendar, [stylist.calendarId], { from: new Date(timeMin), to: new Date(timeMax) });
+    } catch (err) {
+      console.warn('available-slots: could not clear expired holds', err.message || err);
+    }
     const freebusyResponse = await calendar.freebusy.query({
       requestBody: {
         timeMin,
@@ -228,6 +236,33 @@ router.get('/available-slots', async (req, res) => {
       error: 'Failed to check calendar availability',
       details: err.message || String(err),
     });
+  }
+});
+
+/**
+ * GET /api/calendar/sweep-holds
+ *
+ * Deletes website holds whose QR has run out, on every connected calendar
+ * (every hold written in the last three days, whatever its day). Run daily by Vercel Cron
+ * (vercel.json); expired holds are also cleared whenever a day's times are
+ * read, so this is housekeeping, not what frees a time. When CRON_SECRET is
+ * set, only a request carrying it (Vercel Cron sends it) is served.
+ */
+router.get('/sweep-holds', async (req, res) => {
+  const secret = process.env.CRON_SECRET;
+  if (secret && req.headers.authorization !== `Bearer ${secret}`) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+  const calendarIds = [...new Set(Object.values(STYLIST_CONFIG).map((c) => c.calendarId).filter(Boolean))];
+  const now = new Date();
+  try {
+    const calendar = await getCalendarClient();
+    const deleted = await sweepExpiredHolds(calendar, calendarIds, { updatedSince: new Date(now.getTime() - 3 * 86400000), now });
+    console.log('sweep-holds: deleted', deleted, 'expired hold(s) on', calendarIds.length, 'calendar(s)');
+    return res.status(200).json({ deleted, calendars: calendarIds.length });
+  } catch (err) {
+    console.error('sweep-holds failed:', err.message || err);
+    return res.status(500).json({ error: 'sweep failed' });
   }
 });
 

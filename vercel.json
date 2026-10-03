@@ -30,5 +30,8 @@
       "source": "/api/(.*)",
       "destination": "/server.js"
     }
+  ],
+  "crons": [
+    { "path": "/api/calendar/sweep-holds", "schedule": "0 20 * * *" }
   ]
 }

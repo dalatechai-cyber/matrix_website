@@ -18,16 +18,22 @@ process.env.SALON_CLOSURE_START = 'none';
 const Module = require('node:module');
 const originalLoad = Module._load;
 const calls = { insert: 0, qpay: 0, invoices: [], events: [] };
+const { createFakeCalendar } = require('./helpers/fakeCalendar');
+const fakeCal = createFakeCalendar();
 Module._load = function (request) {
   if (request === 'googleapis') {
     return {
       google: {
         auth: { JWT: class { async authorize() { return {}; } } },
         calendar: () => ({
-          freebusy: { query: async () => ({ data: { calendars: {} } }) },
+          freebusy: fakeCal.api.freebusy,
           events: {
-            get: async () => { const e = new Error('nf'); e.code = 404; throw e; },
-            insert: async ({ requestBody }) => { calls.insert += 1; calls.events.push(requestBody); return { data: { id: requestBody.id || 'e1' } }; },
+            ...fakeCal.api.events,
+            // Bookings are counted; the 5-minute holds (wh…) are not.
+            insert: async (args) => {
+              if (!String(args.requestBody.id || '').startsWith('wh')) { calls.insert += 1; calls.events.push(args.requestBody); }
+              return fakeCal.api.events.insert(args);
+            },
           },
         }),
       },
@@ -89,7 +95,7 @@ const PAGES = ['/', '/index.html', '/services.html', '/zurag.html', '/products.h
 beforeEach(() => {
   delete process.env.SITE_MAINTENANCE;
   process.env.BOOKING_TEST_TOKEN = TOKEN;
-  calls.insert = 0; calls.qpay = 0; calls.invoices = []; calls.events = [];
+  calls.insert = 0; calls.qpay = 0; calls.invoices = []; calls.events = []; fakeCal.reset();
 });
 
 test('maintenance off (default): every page is the real page', async () => {
@@ -218,7 +224,8 @@ test('a booking from the tester\'s browser is titled «ТЕСТ»; a customer\'s
   const cookie = await testCookie();
   const body = { stylistId: 'Ананд', startTime: '2035-06-04T15:00:00+08:00', customerPhone: '99112233', customerGender: 'male' };
   await request('POST', '/api/calendar/book', { body: { ...body, invoiceId: 'inv_t' }, cookie });
-  await request('POST', '/api/calendar/book', { body: { ...body, invoiceId: 'inv_r' } });
+  // Another customer (another phone), an hour later: same calendar, no «ТЕСТ».
+  await request('POST', '/api/calendar/book', { body: { ...body, startTime: '2035-06-04T16:00:00+08:00', customerPhone: '88112233', invoiceId: 'inv_r' } });
   assert.ok(calls.events[0].summary.startsWith('ТЕСТ – '), calls.events[0].summary);
   assert.ok(calls.events[0].description.startsWith('ТЕСТ'), 'description says test too');
   assert.ok(!calls.events[1].summary.includes('ТЕСТ'), calls.events[1].summary);

@@ -22,7 +22,10 @@ const axiosStub = {
 
 const Module = require('node:module');
 const originalLoad = Module._load;
+const { createFakeCalendar, googleapisWith } = require('./helpers/fakeCalendar');
+const fakeCal = createFakeCalendar();
 Module._load = function (request, parent, isMain) {
+  if (request === 'googleapis') return googleapisWith(fakeCal);
   if (request === 'axios') {
     return {
       post: async (_url, _body, _opts) => {

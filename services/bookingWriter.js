@@ -228,6 +228,18 @@ function conflictAlertText({ stylistId, start, customerName, customerPhone, serv
   ].filter(Boolean).join('\n');
 }
 
+/** Delete this booking's 5-minute hold, if any. Never throws. */
+async function releaseOwnHold(calendar, calendarId, booking) {
+  try {
+    const { holdIdFor } = require('./bookingHold');
+    const id = holdIdFor(calendarId, booking.start, booking.customerPhone);
+    if (id) await calendar.events.delete({ calendarId, eventId: id });
+  } catch (err) {
+    const code = err && (err.code || (err.response && err.response.status));
+    if (code !== 404 && code !== 410) console.warn('Could not release the booking\'s hold:', err.message || err);
+  }
+}
+
 /**
  * Put a paid booking on the calendar, exactly once per booking — however
  * many invoices (expired QRs replaced by new ones) it took to pay.
@@ -255,9 +267,21 @@ async function ensurePaidBooking(calendar, booking, { late = false, amount = nul
   // Already written for this booking (by the other path, a retried call, or
   // an earlier invoice for the same booking).
   const existing = await settle();
-  if (existing) return existing;
+  if (existing) {
+    await releaseOwnHold(calendar, calendarId, booking);
+    return existing;
+  }
 
-  if (await slotIsBusy(calendar, calendarId, booking.start, end)) {
+  // The customer's own 5-minute hold (services/bookingHold.js) covers this
+  // very time; it must not read as someone else's booking. With a hold on the
+  // calendar, only OTHER events count; without one (an older invoice, or the
+  // hold already swept), the calendar's busy time decides, as before.
+  const { findOwnHold, othersOverlapping } = require('./bookingHold');
+  const ownHold = await findOwnHold(calendar, { calendarId, start: booking.start, phone: booking.customerPhone });
+  const busy = ownHold
+    ? (await othersOverlapping(calendar, calendarId, booking.start, end, [ownHold.id, ...lookupIds])).length > 0
+    : await slotIsBusy(calendar, calendarId, booking.start, end);
+  if (busy) {
     // Busy may be this very booking, written by the other path a moment ago
     // (the browser and QPay's callback usually arrive together).
     const raced = await settle();
@@ -287,6 +311,7 @@ async function ensurePaidBooking(calendar, booking, { late = false, amount = nul
       }
       console.error('Could not write the paid-but-conflicting note to the calendar:', err.message || err);
     }
+    await releaseOwnHold(calendar, calendarId, booking);
     console.error('PAID booking conflicts with an existing appointment:', booking.stylistId, booking.start.toISOString(), invoiceId);
     await sendSalonAlert(conflictAlertText({ ...booking, start: booking.start, amount, invoiceId, late }),
       { branch: branchOfStylist(booking.stylistId) });
@@ -298,11 +323,13 @@ async function ensurePaidBooking(calendar, booking, { late = false, amount = nul
     const response = await calendar.events.insert({ calendarId, requestBody });
     console.log('Calendar booking created:', response.data.id, 'for stylist', booking.stylistId,
       `(${built.durationMinutes} min)`, late ? '[from QPay callback]' : '');
+    // The booking now holds the time; the hold is no longer needed.
+    await releaseOwnHold(calendar, calendarId, booking);
     return { status: 'booked', eventId: response.data.id, durationMinutes: built.durationMinutes };
   } catch (err) {
     if (eventId && isConflictError(err)) {
       const other = await settle();
-      if (other) return other;
+      if (other) { await releaseOwnHold(calendar, calendarId, booking); return other; }
       return { status: 'already-booked', eventId, durationMinutes: built.durationMinutes };
     }
     throw err;

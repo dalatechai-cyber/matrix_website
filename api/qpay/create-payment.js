@@ -4,6 +4,7 @@ const { checkPaymentBookingRules, consentTime, REFRESH_MESSAGE } = require('../.
 const { callbackUrlForPayment, publicOrigin } = require('../../services/lateBooking');
 const { blockedByMaintenance, MAINTENANCE_MESSAGE, depositFor, isTestRequest } = require('../../config/siteMode');
 const { resolveBookingBranch, qpayAccountFor } = require('../../config/branches');
+const { holdForPaymentRequest } = require('../../services/bookingHold');
 
 // The merchant Яармаг has always been invoiced under. Used for Яармаг only:
 // another branch is invoiced under its own merchant (config/branches.js).
@@ -58,6 +59,16 @@ module.exports = async function handler(req, res) {
     const account = qpayAccountFor(branchCheck.branch);
     const merchantId = branchCheck.branch === 'yaarmag' ? YAARMAG_MERCHANT_ID : account.merchantId;
 
+    // --- 0г. 5 МИНУТЫН ТҮР ХАДГАЛАЛТ ---
+    // The time is held on the hairdresser's calendar before a QR exists, so
+    // no other customer (website or Messenger) can reach a QR for it. Taken,
+    // or the calendar cannot be read: no invoice. services/bookingHold.js.
+    const hold = await holdForPaymentRequest(req.body || {}, { test: isTestRequest(req) });
+    if (!hold.ok) {
+        console.warn('Blocked QPay invoice by hold:', hold.payload.reason, (req.body || {}).staffName);
+        return res.status(hold.status).json(hold.payload);
+    }
+
     try {
         // --- 1. ФРОНТЕНДООС ИРСЭН МЭДЭЭЛЛИЙГ ХҮЛЭЭЖ АВАХ ---
         const { amount, name, phone, staffName } = req.body;
@@ -67,6 +78,7 @@ module.exports = async function handler(req, res) {
         // гарын үсэгтэй cookie-той хөтөчид 100₮. Хөтчөөс ирсэн дүнг үл тооно.
         const finalAmount = depositFor(req, staffName);
         if (!finalAmount) {
+            await hold.release();
             return res.status(422).json({ error: 'Unknown stylist' });
         }
         const isTest = isTestRequest(req);
@@ -121,10 +133,12 @@ module.exports = async function handler(req, res) {
             acceptedAtSource: consent.source,
         }));
 
-        return res.status(200).json(invoiceRes.data);
+        return res.status(200).json({ ...invoiceRes.data, hold_expires_at: hold.expiresAt.toISOString() });
 
     } catch (error) {
         console.error("API ROUTE АЛДАА:", error.response?.data || error.message);
+        // No QR for this time after all: give it back at once.
+        await hold.release();
         return res.status(500).json({ 
             error: 'Failed to create QPay invoice', 
             details: error.response?.data || error.message 

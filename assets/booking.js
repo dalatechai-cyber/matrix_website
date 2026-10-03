@@ -603,6 +603,15 @@
         showStep(4);
         return;
       }
+      if (r.status === 409 && r.data.slotTaken) {
+        // Someone (here or in Messenger) holds or booked this time: pick another.
+        stopTimers();
+        pay.request = null;
+        state.time = null;
+        showStep(4, { focus: false });
+        await loadSlots({ notice: SLOT_TAKEN_RENEW_MSG });
+        return;
+      }
       pay.request = null;
       showStep(5);
       const e = $("pay-error");
@@ -757,22 +766,10 @@
         }
       } catch (_) { /* cannot tell: carry on; the server still books once */ }
     }
-    let stillFree = true;
-    try {
-      const params = new URLSearchParams({ date: req.bookingDate, stylistId: req.staffName, branch: req.branch });
-      if (req.selectedServices) params.set("services", req.selectedServices.split(", ").join(","));
-      const r = await getJSON(`/api/calendar/available-slots?${params}`);
-      if (r.ok) stillFree = !r.data.closure && Array.isArray(r.data.availableSlots) && r.data.availableSlots.includes(req.bookingTime);
-    } catch (_) { /* network trouble: treat as free; the server will not double-book */ }
     if (pay.request !== req) return;
-    if (!stillFree) {
-      stopTimers();
-      pay.request = null;
-      state.time = null;
-      showStep(4, { focus: false });
-      await loadSlots({ notice: SLOT_TAKEN_RENEW_MSG });
-      return;
-    }
+    // The server holds the time again for this customer before the new QR,
+    // or answers «taken» (handled in createInvoice), so no separate check here:
+    // a check would see this customer's own hold and call the time taken.
     await createInvoice();
   }
 
