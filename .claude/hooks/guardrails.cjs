@@ -25,9 +25,15 @@
 
 const { execFileSync } = require('child_process');
 
-// Built from two halves so this file never contains the number it blocks
-// (and can still be edited under its own rule).
+// Built from parts so this file never contains the number it blocks (and can
+// still be edited under its own rule). Matched in any spelling: digits split
+// by up to three spaces, dashes, dots, brackets or slashes («9927 3339»,
+// «9927-3339»), never inside a longer number — the same rule as dala-ai's
+// scripts/guards/check-no-banned-number.mjs.
 const FORBIDDEN_NUMBER = ['9927', '3339'].join('');
+const SEP = '[\\s\\u00a0\\-\\u2010-\\u2015.()/_]{0,3}';
+const FORBIDDEN_RUN = new RegExp(`(?<![0-9])${FORBIDDEN_NUMBER.split('').join(SEP)}(?![0-9])`, 'u');
+const hasForbidden = (text) => FORBIDDEN_RUN.test(String(text).normalize('NFC'));
 const MAIN = '(?:main|master)';
 
 function decide(decision, reason) {
@@ -54,8 +60,8 @@ const WRITES_IN_SHELL = /(^|[^<0-9])>{1,2}(?!&)|\btee\b|\bsed\b[^|;&]*\s-[a-zA-Z
 
 function checkBash(command, cwd) {
   const cmd = String(command || '');
-  if (cmd.includes(FORBIDDEN_NUMBER) && WRITES_IN_SHELL.test(cmd)) {
-    return decide('deny', `writing ${FORBIDDEN_NUMBER} into a file is not allowed.`);
+  if (hasForbidden(cmd) && WRITES_IN_SHELL.test(cmd)) {
+    return decide('deny', 'writing the blocked number into a file is not allowed.');
   }
   if (/\bsupabase\s+(?:--?\S+\s+)*db\s+push\b/.test(cmd)) {
     return decide('ask', '`supabase db push` changes the database. Confirm before it runs.');
@@ -93,8 +99,8 @@ function targetsProduction(input) {
 }
 
 function checkMcp(tool, input) {
-  if (strings(input).some((s) => s.includes(FORBIDDEN_NUMBER)) && /(create_or_update_file|push_files|write|upload|update_doc|create_file)/i.test(tool)) {
-    return decide('deny', `writing ${FORBIDDEN_NUMBER} into a file is not allowed.`);
+  if (strings(input).some(hasForbidden) && /(create_or_update_file|push_files|write|upload|update_doc|create_file)/i.test(tool)) {
+    return decide('deny', 'writing the blocked number into a file is not allowed.');
   }
   if (/^mcp__github__merge_pull_request$|^mcp__github__enable_pr_auto_merge$/.test(tool)) {
     return decide('ask', 'merging a pull request. Confirm before it runs.');
@@ -116,8 +122,8 @@ function checkMcp(tool, input) {
 }
 
 function checkFileWrite(input) {
-  if (strings(input).some((s) => s.includes(FORBIDDEN_NUMBER))) {
-    return decide('deny', `writing ${FORBIDDEN_NUMBER} into a file is not allowed.`);
+  if (strings(input).some(hasForbidden)) {
+    return decide('deny', 'writing the blocked number into a file is not allowed.');
   }
   return null;
 }
@@ -147,4 +153,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { evaluate, FORBIDDEN_NUMBER };
+module.exports = { evaluate, hasForbidden };

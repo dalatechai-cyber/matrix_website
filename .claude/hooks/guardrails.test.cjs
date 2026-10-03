@@ -97,6 +97,12 @@ test('the blocked number is never written into a file', () => {
   assert.equal(bash(`echo ${N} | tee -a notes.txt`), 'deny');
   assert.equal(bash(`sed -i 's/x/${N}/' notes.txt`), 'deny');
   assert.equal(run({ tool_name: 'mcp__github__create_or_update_file', tool_input: { branch: 'claude/x', path: 'a', content: N } }), 'deny');
+  // Any spelling: spaced, dashed, dotted.
+  for (const spelled of [`${N.slice(0, 4)} ${N.slice(4)}`, `${N.slice(0, 4)}-${N.slice(4)}`, N.split('').join('.')]) {
+    assert.equal(run({ tool_name: 'Write', tool_input: { file_path: '/tmp/a.txt', content: `утас ${spelled}` } }), 'deny', spelled);
+  }
+  // Inside a longer number it is a different number.
+  assert.equal(run({ tool_name: 'Write', tool_input: { file_path: '/tmp/a.txt', content: `id 1${N}5` } }), 'allow');
   // Removing it, or searching for it, is fine.
   assert.equal(run({ tool_name: 'Edit', tool_input: { file_path: '/tmp/a.txt', old_string: N, new_string: '' } }), 'allow');
   assert.equal(bash(`grep -rn ${N} .`), 'allow');
