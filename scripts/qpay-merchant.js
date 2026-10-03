@@ -16,6 +16,10 @@
  *   node scripts/qpay-merchant.js get <merchant_id>       read one merchant back
  *   node scripts/qpay-merchant.js list                    merchants under this login
  *
+ * Or from GitHub: Actions → «Register Парк Од QPay merchant» (manual), with the
+ * filled form stored as the repository secret PARKOD_MERCHANT_FORM — the repo
+ * is public, so the form is never committed and never printed (--no-echo).
+ *
  * form.json, for a person:
  *   { "type": "person", "register_number": "…", "first_name": "<овог>", "last_name": "<нэр>",
  *     "business_name": "Tara Salon Парк Од", "mcc_code": "7230", "city": "…", "district": "…",
@@ -58,7 +62,10 @@ function checkForm(form) {
 }
 
 async function main() {
-  const [cmd, arg, flag] = process.argv.slice(2);
+  const args = process.argv.slice(2);
+  // --no-echo: never print the form (personal data) — for public CI logs.
+  const noEcho = args.includes('--no-echo');
+  const [cmd, arg, flag] = args.filter((a) => a !== '--no-echo');
   if (cmd === 'register') {
     const form = JSON.parse(fs.readFileSync(arg, 'utf8'));
     const problems = checkForm(form);
@@ -66,8 +73,8 @@ async function main() {
     const { type, ...body } = form;
     const path = `/merchant/${type}`;
     if (flag !== '--send') {
-      console.log(`DRY RUN — would POST ${BASE}${path} with:`);
-      console.log(JSON.stringify(body, null, 2));
+      console.log(`DRY RUN — would POST ${BASE}${path}${noEcho ? ` (fields: ${Object.keys(body).join(', ')})` : ' with:'}`);
+      if (!noEcho) console.log(JSON.stringify(body, null, 2));
       console.log('\nNothing was sent. Re-run with --send to register.');
       return;
     }
@@ -85,6 +92,11 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error('QPay error:', (err.response && JSON.stringify(err.response.data)) || err.message);
+  const data = err.response && err.response.data;
+  // Under --no-echo, never repeat QPay's answer whole: it may quote the form.
+  const shown = process.argv.includes('--no-echo')
+    ? `${(err.response && err.response.status) || ''} ${(data && (data.error || data.message)) || err.message}`
+    : ((data && JSON.stringify(data)) || err.message);
+  console.error('QPay error:', shown);
   process.exit(1);
 });

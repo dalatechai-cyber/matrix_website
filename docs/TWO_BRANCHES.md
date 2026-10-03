@@ -76,8 +76,14 @@ trading name («Tara Salon Парк Од»); address with city/aimag and distric
 phone; e-mail (bolotuyagongor@gmail.com); her bank, account number and the
 holder's name exactly as the bank has it.
 
-Then: `node scripts/qpay-merchant.js register parkod.json` (dry run), and
-with `--send` to register; it prints the merchant id. One real 100₮ test
+Then register her merchant, either way:
+- GitHub → Actions → «Register Парк Од QPay merchant»: store the filled form
+  (the JSON described at the top of `scripts/qpay-merchant.js`) as the
+  repository secret `PARKOD_MERCHANT_FORM`, run with send = false (checks the
+  form), then send = true; the log shows only the merchant id. Uses the same
+  `QPAY_USERNAME`/`QPAY_PASSWORD` repository secrets as Яармаг's registration.
+- or locally: `node scripts/qpay-merchant.js register parkod.json` (dry run),
+  then with `--send`. One real 100₮ test
 through the test link, and she confirms the money reached her account.
 
 ## Environment variables (project `matrix-website`)
