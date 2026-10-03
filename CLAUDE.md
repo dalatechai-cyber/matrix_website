@@ -134,8 +134,10 @@ generic UI tooling. The `.impeccable/` directory holds its sidecar
 
 `.claude/settings.json` runs `.claude/hooks/guardrails.cjs` before every
 shell command, file write and MCP call, in local and cloud sessions alike. It
-**asks** a person before `supabase db push` (and the Supabase MCP's
-migrations), `npm audit fix --force`, merging into or pushing to `main`, and
-any Vercel Production change; it **refuses** writing the blocked number
-(see the hook) into any file. Tests: `.claude/hooks/guardrails.test.cjs`
-(part of `npm test`). Never weaken or bypass the hook without the founder.
+**asks** a person before `supabase db push` or a remote `db reset` (and the
+Supabase MCP's migrations or data-changing SQL), `npm audit fix --force`,
+merging into or pushing to `main`, and any Vercel Production change (env,
+`--prod`, promote, rollback, redeploy, alias); it **refuses** writing the
+blocked number (see the hook) into any file. Tests:
+`.claude/hooks/guardrails.test.cjs` (run by `npm test` as `pretest`). Never
+weaken or bypass the hook without the founder.
