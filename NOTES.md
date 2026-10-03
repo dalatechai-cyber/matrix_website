@@ -129,3 +129,15 @@ R2-3. Guardrails PRs on their own branches from main (`claude/guardrails-hooks`)
       founder asked for one PR per repo; #83's branch is not used for them.
 R2-4. Level-named haircuts: the service decides the level; a stylist of another level is
       neither offered nor invoiced (server refuses).
+
+## Round 2 status
+
+- Website #83: gallery removed, Otgonjargal back, «Hair Stylist», level-named haircuts by level
+  (page + both payment paths), deposit-deducted line, docs (tarasalon.org, merchant steps,
+  copy draft). 216 tests; browser 390/1440 verified locally. Pushed 63a33c0.
+- Guardrails: matrix_website PR #84 (178 tests), dala-ai PR #286 (npm run check green: 2634,
+  1 skip). The hook builds the blocked number from parts and matches any spelling; dala-ai's
+  banned-number guard passes on it.
+- Workers stopped at an API session limit (~09:20–11:50 UTC); resumed 15:45 UTC.
+- R2-5. Hero/«Бидний тухай»/«Уралдаан ба сургалт» photos are from the same Facebook export as
+  the removed gallery: kept, flagged for the founder.
