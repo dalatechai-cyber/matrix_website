@@ -125,6 +125,7 @@ async function createCalendarEventForInvoice(invoiceId) {
  * Returns: { invoice_id: string, qr_image: <Base64 string>, urls: [ { name, link }, ... ] }
  */
 router.post('/create-payment', async (req, res) => {
+  const startedAt = new Date(); // the hold's release must fit in this function's time
   const { name, phone, amount, description, staffName, selectedServices, serviceName } = req.body || {};
 
   // Maintenance: no new invoices (payments already made are still honoured).
@@ -170,7 +171,7 @@ router.post('/create-payment', async (req, res) => {
   const account = qpayAccountFor(branchCheck.branch);
 
   // Same 5-minute hold as the standalone handler (services/bookingHold.js).
-  const hold = await holdForPaymentRequest(req.body || {}, { test: isTestRequest(req), client: clientOf(req) });
+  const hold = await holdForPaymentRequest(req.body || {}, { test: isTestRequest(req), client: clientOf(req), startedAt });
   if (!hold.ok) {
     console.warn('Blocked QPay invoice by hold:', hold.payload.reason, staffName);
     return res.status(hold.status).json(hold.payload);

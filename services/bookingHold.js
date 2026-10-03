@@ -46,9 +46,13 @@ const CHAT_HOLD_STATE = 'hold';
 const HOLD_FLAG = 'taraHold';
 // The QR's life on the booking page (assets/booking.js QPAY_QR_VALID_MS),
 // plus a margin: the hold is placed a moment BEFORE the invoice, so without it
-// the hold would end a second or two before the QR does.
-const HOLD_MINUTES = 5;
-const HOLD_GRACE_SECONDS = 30;
+// the hold would end a second or two before the QR does. 4½ minutes, not 5:
+// the request that placed the hold deletes it at expiry, and a Vercel function
+// lives at most 300 s (Hobby), so hold + margin + release must end inside that.
+const HOLD_SECONDS = 270;
+const HOLD_GRACE_SECONDS = 15;
+// Leave the function this much of its 300 s for the release itself.
+const FUNCTION_BUDGET_MS = 292 * 1000;
 const SALON_TZ_OFFSET = '+08:00';
 
 function holdIdFor(calendarId, start, phone) {
@@ -187,7 +191,7 @@ async function placeHold(calendar, { stylistId, start, minutes, phone, services,
   const id = holdIdFor(calendarId, start, phone);
   if (!id) return { ok: false, reason: 'no-phone' };
   const end = new Date(start.getTime() + minutes * 60 * 1000);
-  const expiresAt = new Date(now.getTime() + HOLD_MINUTES * 60 * 1000 + HOLD_GRACE_SECONDS * 1000);
+  const expiresAt = new Date(now.getTime() + (HOLD_SECONDS + HOLD_GRACE_SECONDS) * 1000);
   // The customer's own booking for this time (paid on an earlier QR) is theirs.
   const { eventIdForBooking } = require('./bookingWriter');
   const ownIds = [id, eventIdForBooking(calendarId, start, phone)].filter(Boolean);
@@ -230,9 +234,9 @@ async function releaseHold(calendar, { stylistId, start, phone }) {
   return deleteQuietly(calendar, stylist.calendarId, id);
 }
 
-// Delete a few seconds after the hold's own expiry, so the check below never
-// sees it a moment early.
-const RELEASE_LAG_MS = 5 * 1000;
+// Delete a moment after the hold's own expiry, so the check below never sees
+// it a moment early.
+const RELEASE_LAG_MS = 2 * 1000;
 // unref: a test run or a local server never waits on it; on Vercel, waitUntil
 // keeps the function alive for it.
 const sleepMs = (ms) => new Promise((resolve) => { const t = setTimeout(resolve, ms); if (t.unref) t.unref(); });
@@ -240,12 +244,18 @@ const sleepMs = (ms) => new Promise((resolve) => { const t = setTimeout(resolve,
 /**
  * Wait until this hold has expired, then delete it — unless it is gone (paid:
  * the booking writer removed it) or was renewed (a new QR moved its expiry;
- * that request waits for the new time). Never throws.
+ * that request waits for the new time). Never waits past `deadline` (the
+ * function's own time limit). Never throws.
  * @returns {Promise<'deleted'|'gone'|'renewed'|'failed'>}
  */
-async function releaseWhenExpired(calendar, calendarId, holdId, expiresAt, { sleep = sleepMs, now = () => new Date() } = {}) {
+async function releaseWhenExpired(calendar, calendarId, holdId, expiresAt, { sleep = sleepMs, now = () => new Date(), deadline = null } = {}) {
   try {
-    const wait = expiresAt.getTime() + RELEASE_LAG_MS - now().getTime();
+    let until = expiresAt.getTime() + RELEASE_LAG_MS;
+    if (deadline && until > deadline.getTime()) {
+      console.warn('hold release: expiry is past the function\'s time limit; left to the read-time cleanup', holdId);
+      until = deadline.getTime();
+    }
+    const wait = until - now().getTime();
     if (wait > 0) await sleep(wait);
     const ev = await getEvent(calendar, calendarId, holdId);
     let outcome;
@@ -262,8 +272,8 @@ async function releaseWhenExpired(calendar, calendarId, holdId, expiresAt, { sle
 
 /**
  * Keep the serverless function alive after its response until the hold is
- * released (Vercel waitUntil; maxDuration in vercel.json covers the 5½
- * minutes). Off Vercel the timer simply runs in the process.
+ * released (Vercel waitUntil; maxDuration 300 in vercel.json covers the
+ * 4 min 45 s). Off Vercel the timer simply runs in the process.
  */
 function releaseAfterResponse(promise) {
   try {
@@ -348,7 +358,7 @@ function clientOf(req) {
   return fwd ? String(fwd).split(',')[0].trim() : ((req && req.socket && req.socket.remoteAddress) || null);
 }
 
-async function holdForPaymentRequest(body, { test = false, client = null } = {}) {
+async function holdForPaymentRequest(body, { test = false, client = null, startedAt = new Date() } = {}) {
   if (!test && rateLimited(client)) {
     console.warn('hold: too many holds from one client', client);
     return { ok: false, status: 429, payload: { error: HOLD_UNAVAILABLE_MESSAGE, reason: 'hold-rate-limited' } };
@@ -389,7 +399,9 @@ async function holdForPaymentRequest(body, { test = false, client = null } = {})
     expiresAt: result.expiresAt,
     release: () => releaseHold(calendar, { stylistId, start, phone }),
     // Call once the QR exists: deletes the hold when it expires unpaid.
-    releaseWhenExpired: () => releaseAfterResponse(releaseWhenExpired(calendar, calendarId, result.holdId, result.expiresAt)),
+    releaseWhenExpired: () => releaseAfterResponse(releaseWhenExpired(calendar, calendarId, result.holdId, result.expiresAt, {
+      deadline: new Date(startedAt.getTime() + FUNCTION_BUDGET_MS),
+    })),
   };
 }
 
@@ -399,7 +411,8 @@ module.exports = {
   SLOT_TAKEN_MESSAGE,
   HOLD_UNAVAILABLE_MESSAGE,
   holdForPaymentRequest,
-  HOLD_MINUTES,
+  HOLD_SECONDS,
+  HOLD_GRACE_SECONDS,
   HOLD_PREFIX,
   holdIdFor,
   placeHold,

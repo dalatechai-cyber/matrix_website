@@ -13,6 +13,7 @@ const YAARMAG_MERCHANT_ID = "17e69f2a-d1a4-4fe6-a5a2-34a649378414";
 const BRANCH_NOT_READY_MESSAGE = 'Энэ салбарт онлайн захиалга хараахан нээгдээгүй байна. Салбарын утсаар холбогдоно уу.';
 
 module.exports = async function handler(req, res) {
+    const startedAt = new Date(); // the hold's release must fit in this function's time
     if (req.method !== 'POST') {
         return res.status(405).json({ message: 'Зөвхөн POST хүсэлт зөвшөөрөгдөнө' });
     }
@@ -66,7 +67,7 @@ module.exports = async function handler(req, res) {
     // The time is held on the hairdresser's calendar before a QR exists, so
     // no other customer (website or Messenger) can reach a QR for it. Taken,
     // or the calendar cannot be read: no invoice. services/bookingHold.js.
-    const hold = await holdForPaymentRequest(req.body || {}, { test: isTestRequest(req), client: clientOf(req) });
+    const hold = await holdForPaymentRequest(req.body || {}, { test: isTestRequest(req), client: clientOf(req), startedAt });
     if (!hold.ok) {
         console.warn('Blocked QPay invoice by hold:', hold.payload.reason, (req.body || {}).staffName);
         return res.status(hold.status).json(hold.payload);

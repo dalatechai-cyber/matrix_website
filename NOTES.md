@@ -205,3 +205,16 @@ R2-4. Level-named haircuts: the service decides the level; a stylist of another 
   number; whether QPay accepts an IBAN there is shown by the first 100₮ test.
 - R4-3 Booking date row: the next 7 days only, in one row with no sideways
   scrolling (phone and desktop); today reads «Өнөө» on phones.
+
+## 2026-10-04 — round 5: unpaid holds release themselves
+
+- Cause: an expired hold was deleted only when someone next read that day on
+  the website, or by the daily sweep, which Vercel runs only on Production and
+  only with CRON_SECRET. On a preview, or on a quiet day, it stayed in the
+  calendar (seen: holds left for hours on Saraa's and Uyanga's calendars).
+- Fix: the create-payment request deletes its own hold at expiry (Vercel
+  waitUntil). A Vercel function lives at most 300 s on this plan (seen:
+  «Task timed out after 300 seconds» with a 5½-minute hold), so the QR is now
+  4½ minutes and the hold 4 min 45 s. On a Pro plan with maxDuration above
+  330 s the QR could go back to 5 minutes. The read-time cleanup and the daily
+  sweep stay as back-ups; dala-ai already reads an expired hold as free.

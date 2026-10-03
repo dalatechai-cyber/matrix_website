@@ -70,12 +70,16 @@ deposit is deducted from the service price («Урьдчилгаа төлбөр 
 
 Before any QR, both create-payment handlers hold the time on the
 hairdresser's calendar ([services/bookingHold.js](services/bookingHold.js)):
-an opaque `sh…` event over the whole appointment, expiring with the QR (+30 s).
+an opaque `sh…` event over the whole appointment, expiring with the QR
+(4½ min, +15 s). The request that placed it deletes it at expiry (Vercel
+`waitUntil`; a function lives at most 300 s, which is why the QR is 4½ min,
+not 5) — no schedule needed.
 After inserting, it looks again and yields to anything overlapping except a
 hold placed after its own (a chat hold is one with `dalaBookingState` 'hold'). Taken: 409 «taken», no QR. Calendar unreadable:
-no QR. The paid booking replaces the hold; expired holds are deleted when a
-day's times are read and by the daily cron (`/api/calendar/sweep-holds`,
-needs `CRON_SECRET`). dala-ai's in-chat booking holds with `dh…` events on
+no QR. The paid booking replaces the hold; as back-ups, expired holds are
+deleted when a day's times are read and by the daily cron
+(`/api/calendar/sweep-holds`, Production only, needs `CRON_SECRET`), and both
+the website and dala-ai read an expired hold as free. dala-ai's in-chat booking holds with `dh…` events on
 the same calendars, so neither side can sell a time the other is holding.
 
 ## Salon closures (holidays)

@@ -136,7 +136,7 @@ for (const [label, send] of PATHS) {
     assert.equal(h.start.dateTime, START.toISOString());
     assert.equal(new Date(h.end.dateTime) - START, 75 * 60000, 'the whole SPECIAL cut, 75 min');
     const left = new Date(h.extendedProperties.private.holdExpiresAt) - Date.now();
-    assert.ok(left > 5 * 60000 && left <= 5 * 60000 + 31000, `expires with the QR (+30 s): ${left}`);
+    assert.ok(left > 4.5 * 60000 && left <= 4.5 * 60000 + 16000, `expires with the QR (4½ min, +15 s): ${left}`);
 
     qpay.calls = [];
     const b = await send(pay('88112233', { time: '15:00' })); // overlaps 14:00–15:15
@@ -385,11 +385,29 @@ test('release: an unpaid hold deletes itself when its QR runs out — no schedul
   const noWait = { sleep: async () => {} };
   const [h] = holds();
   const at = new Date(h.extendedProperties.private.holdExpiresAt);
-  assert.ok(at - Date.now() > 4 * 60 * 1000 && at - Date.now() <= 5.5 * 60 * 1000, 'the hold lasts the QR (5 min) plus 30 s');
+  assert.ok(at - Date.now() > 4 * 60 * 1000 && at - Date.now() <= 285 * 1000, 'the hold lasts the QR (4½ min) plus 15 s');
+  // …so its release fits inside the function's 300 s, with room to spare.
+  const { HOLD_SECONDS, HOLD_GRACE_SECONDS } = require('../services/bookingHold');
+  assert.ok(HOLD_SECONDS + HOLD_GRACE_SECONDS + 2 <= 292);
   assert.equal(await releaseWhenExpired(calendar, CAL, h.id, at, noWait), 'renewed', 'not yet expired (or a new QR moved it): kept');
   assert.ok(holds().some((x) => x.id === h.id));
   expire(h.id);
   assert.equal(await releaseWhenExpired(calendar, CAL, h.id, at, noWait), 'deleted');
   assert.ok(!holds().some((x) => x.id === h.id), 'gone from the calendar');
   assert.equal(await releaseWhenExpired(calendar, CAL, h.id, at, noWait), 'gone', 'paid or already removed: nothing to do');
+});
+
+test('release: never waits past the function\'s time limit', async () => {
+  const { releaseWhenExpired } = require('../services/bookingHold');
+  const { getCalendarClient } = require('../services/googleCalendar');
+  await standalone(pay('77112233', { time: '12:00' }));
+  const h = holds().find((x) => x.id === holdIdFor(CAL, new Date(`${DATE}T12:00:00+08:00`), '77112233'));
+  const at = new Date(h.extendedProperties.private.holdExpiresAt);
+  let slept = null;
+  const outcome = await releaseWhenExpired(await getCalendarClient(), CAL, h.id, at, {
+    sleep: async (ms) => { slept = ms; },
+    deadline: new Date(Date.now() + 60 * 1000),
+  });
+  assert.ok(slept <= 60 * 1000, `slept ${slept} ms`);
+  assert.equal(outcome, 'renewed', 'not yet expired at the deadline: kept, left to the read-time cleanup');
 });
