@@ -68,6 +68,10 @@ account; Яармаг's calendar ids are fixed in `config/stylists.js`. Парк
 identical except: the calendars live in tarasalon.parkod@gmail.com, and each id
 comes from a Vercel variable (`PARKOD_CALENDAR_<NAME>`, table below).
 
+The service account (the same for both branches and for dala-ai's in-chat
+booking): `matrix-booking-bot@utility-seeker-488514-q9.iam.gserviceaccount.com`.
+Парк Од's seven calendars were shared with it on 2026-10-04, in Ulaanbaatar time.
+
 **Setup check, Preview deployments only** (404 on Production):
 `/api/setup/check` shows the service-account address to share with, each
 hairdresser's variable, whether the site can read that calendar, and each
