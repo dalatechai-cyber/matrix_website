@@ -36,9 +36,8 @@ has been changed yet.
 4. **QPay merchant profile:** update the website on the one merchant both
    branches use.
 5. **Дали, both tenants (dala-ai):** the booking link becomes
-   `https://tarasalon.org/booking.html` and the price page link (Дали points
-   to it for prices it doesn't hold, founder 2026-10-04) becomes
-   `https://tarasalon.org/services.html` — in both Tara tenants' rows, then
+   `https://tarasalon.org/booking.html` (Дали no longer links the price page:
+   dropped 2026-10-04, D-177) — in both Tara tenants' rows, then
    publish both (dala-ai `docs/tenants/tara-*.md` lists every place). For one
    branch: `/booking.html?branch=yaarmag` or `?branch=parkod`.
 6. **Google Business Profile:** Яармаг — website and appointment link; create

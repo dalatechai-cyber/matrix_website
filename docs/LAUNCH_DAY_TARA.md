@@ -25,7 +25,6 @@ Written 2026-10-04. The PRs, all drafts, CI green:
 | --- | --- | --- |
 | **Page admin access to Парк Од's Facebook Page** (tomorrow) | C1–C8 (Парк Од's Дали) and her in-chat booking | You are admin and have read her Page ID |
 | **Парк Од's Page ID** (expected 100067391025472, unconfirmed) | C2 | You read it on the Page (Settings → Page transparency / About → «Page ID») |
-| **Two missing prices**: women's «Эмчилгээний хими» and «өнгө гаргалт» | Only the price-page replies (B5, C8). Everything else goes live without them | The salon gives both prices, and Claude adds them to `data/services.json` (and both tenants' price rows) |
 
 ---
 
@@ -195,8 +194,12 @@ the replies:
 *Check:* send a hair photo with no text → the approved photo question comes
 back, and the chat stays with Дали. Then answer «Tara perm, урт» → the price.
 
-`scripts/provision/tara-yarmag-price-page-2026-10-04.sql` can run at any time:
-its rows land **disabled**. **BLOCKED:** its step 2 waits for the two prices.
+`scripts/provision/tara-yarmag-colour-and-treatment-perm-2026-10-04.sql` can
+run at any time: its two rows (women's «Эмчилгээний хими» not offered;
+«өнгө гаргалт» answered with the colour prices) land **disabled**. Its step 2
+switches them on once you approve their wording (dala-ai approvals file 08).
+The price-page replies are gone (your decision, 2026-10-04: neither is a Tara
+service), and the website needs no change for them.
 
 ---
 
@@ -256,8 +259,11 @@ sheet id (18 lines, all approved on 2026-10-04). Then run:
 the name check. Also ask «Яармаг салбар хаана байдаг вэ?» → Яармаг's address,
 76001888 and Яармаг's Page, never 91005498.
 
-**C8 — BLOCKED (the two prices):** the commented step 9 of
-`tara-park-od-after-onboarding.sql`, on the same day as Яармаг's B5 step 2.
+**C8 — After you approve file 08:** the commented step 9 of
+`tara-park-od-after-onboarding.sql` (the two D-177 rows on), on the same day as
+Яармаг's B5 step 2. *Check:* «ungu gargalt hed ve» → the colour prices and
+76001888, never «not offered»; «emegtei emchilgeenii himi hed ve» → not
+offered, never 189,000₮.
 
 ---
 
@@ -373,7 +379,7 @@ redeploy.
 
 **E5 — Claude** prepares one SQL file per tenant that changes Дали's booking
 link, booking line, the `booking` reply, the products FAQ, the website contact
-and the price-page link to tarasalon.org. **You** run them and publish both
+to tarasalon.org. **You** run them and publish both
 tenants (as B4 and C7).
 
 **E6 — You:** update the QPay merchant's website field, Google Business

@@ -218,3 +218,9 @@ R2-4. Level-named haircuts: the service decides the level; a stylist of another 
   4½ minutes and the hold 4 min 45 s. On a Pro plan with maxDuration above
   330 s the QR could go back to 5 minutes. The read-time cleanup and the daily
   sweep stay as back-ups; dala-ai already reads an expired hold as free.
+
+## 2026-10-04 — round 6: no price page in Дали
+
+- Founder: women's «Эмчилгээний хими» and «өнгө гаргалт» are not Tara services. Дали's price-page
+  replies and «Үнийн хуудас» are dropped (dala-ai D-177, #283 and #284); the website needs no
+  change and gains no price. LAUNCH_DAY_TARA.md loses the «two missing prices» blocker.
