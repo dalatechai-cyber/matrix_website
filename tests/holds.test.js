@@ -163,7 +163,7 @@ for (const [label, send] of PATHS) {
 
   test(`${label}: a Messenger hold or a booking on the time means no QR; an unreadable calendar means no QR`, async () => {
     fakeCal.put(CAL, {
-      id: 'dh' + '0123456789abcdef'.repeat(3).slice(0, 40), summary: 'chat hold', transparency: 'opaque',
+      id: 'dh' + '0123456789abcdef'.repeat(2), summary: 'chat hold', extendedProperties: { private: { dalaBookingState: 'hold' } }, transparency: 'opaque',
       start: { dateTime: `${DATE}T06:30:00Z` }, end: { dateTime: `${DATE}T07:30:00Z` },
     });
     const r = await send(pay('99112233'));
@@ -204,7 +204,7 @@ test('race: another hold inserted earlier while ours went in — ours yields; on
     if (event.id.startsWith(HOLD_PREFIX)) {
       fakeCal.hooks.afterInsert = null;
       await fakeCal.api.events.insert({ calendarId: CAL, requestBody: {
-        id: 'dh' + 'b'.repeat(40), transparency: 'opaque',
+        id: 'dh' + 'b'.repeat(32), transparency: 'opaque', extendedProperties: { private: { dalaBookingState: 'hold' } },
         start: { dateTime: START.toISOString() }, end: { dateTime: new Date(START.getTime() + 3600000).toISOString() },
       } });
     }
@@ -293,11 +293,20 @@ test('Яармаг\'s invoice is exactly what it always was (plus nothing)', asy
   assert.deepEqual(token.body, { terminal_id: 'DALATECH_AI' });
 });
 
-test('one website hold per customer: choosing another time gives the first back', async () => {
+test('a customer\'s earlier hold is never dropped by a newer one (its QR may still be paid)', async () => {
   await standalone(pay('99112233'));
   const r = await standalone(pay('99112233', { time: '17:00' }));
   assert.equal(r.status, 200);
-  assert.deepEqual(holds().map((h) => h.id), [holdIdFor(CAL, new Date(`${DATE}T17:00:00+08:00`), '99112233')]);
+  assert.equal(holds().length, 2);
+});
+
+test('a paid chat booking (dh…, state booking) is never treated as a hold that yields', async () => {
+  fakeCal.put(CAL, {
+    id: 'dh' + 'a'.repeat(32), transparency: 'opaque', extendedProperties: { private: { dalaBookingState: 'booking' } },
+    start: { dateTime: START.toISOString() }, end: { dateTime: new Date(START.getTime() + 3600000).toISOString() },
+  });
+  const r = await standalone(pay('99112233'));
+  assert.equal(r.status, 409);
 });
 
 test('hold ids are valid Google event ids (a–v, 0–9 only)', () => {
@@ -310,10 +319,16 @@ test('a burst of holds from one address is refused', async () => {
   const { _resetRateLimit } = require('../services/bookingHold');
   _resetRateLimit();
   const results = [];
-  for (let i = 0; i < 10; i += 1) {
-    results.push((await request('POST', '/api/qpay/create-payment', pay(`9911${String(1000 + i)}`, { time: `${10 + (i % 9)}:00` }))).status);
+  for (let i = 0; i < 24; i += 1) {
+    // Different days so every hold succeeds; only placed holds count.
+    const day = String(1 + i).padStart(2, '0');
+    const body = pay(`9911${String(1000 + i)}`);
+    body.description = body.description.replace(DATE, `2035-07-${day}`);
+    body.bookingDate = `2035-07-${day}`;
+    results.push((await request('POST', '/api/qpay/create-payment', body)).status);
   }
-  assert.ok(results.includes(429), results.join(','));
+  assert.equal(results.filter((x) => x === 200).length, 20, results.join(','));
+  assert.ok(results.slice(20).every((x) => x === 429), results.join(','));
   _resetRateLimit();
 });
 

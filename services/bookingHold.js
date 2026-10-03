@@ -21,8 +21,8 @@ const { STYLIST_CONFIG, personOf } = require('../config/stylists');
  * a chat hold, another website hold), the hold is given back and no QR is made
  * — except a hold PLACED strictly after ours (holdPlacedAt, rewritten on every
  * renewal; a chat `dh` hold's own creation time): that one sees ours and
- * yields. A customer has one website hold per calendar: a new one releases
- * their others.
+ * yields. A customer's earlier hold is never released by a newer one: its QR
+ * may still be paid (a parent booking two times, two tabs); it simply expires.
  * So two customers can never both reach a QR for one time.
  *
  * Paid: services/bookingWriter.js writes the `qb…` booking and deletes the
@@ -36,8 +36,10 @@ const { STYLIST_CONFIG, personOf } = require('../config/stylists');
  */
 
 const HOLD_PREFIX = 'sh';
-// dala-ai's in-chat holds: 'dh' + 40 hex characters.
-const CHAT_HOLD_ID = /^dh[0-9a-v]{40}$/;
+// dala-ai's in-chat holds carry dalaBookingState 'hold'. The id is no guide:
+// a paid chat booking keeps its `dh…` id and becomes state 'booking', and a
+// booking must never be treated as a hold that yields.
+const CHAT_HOLD_STATE = 'hold';
 const HOLD_FLAG = 'taraHold';
 // The QR's life on the booking page (assets/booking.js QPAY_QR_VALID_MS),
 // plus a margin: the hold is placed a moment BEFORE the invoice, so without it
@@ -58,7 +60,8 @@ function statusOf(err) {
 
 function isHoldEvent(e) {
   const priv = (e && e.extendedProperties && e.extendedProperties.private) || {};
-  return priv[HOLD_FLAG] === '1' || CHAT_HOLD_ID.test(String((e && e.id) || ''));
+  return (priv[HOLD_FLAG] === '1' && String((e && e.id) || '').startsWith(HOLD_PREFIX))
+    || priv.dalaBookingState === CHAT_HOLD_STATE;
 }
 
 /** When a hold was (last) placed: a website hold's holdPlacedAt, else its creation. */
@@ -213,29 +216,7 @@ async function placeHold(calendar, { stylistId, start, minutes, phone, services,
     await deleteQuietly(calendar, calendarId, id);
     return { ok: false, reason: 'slot-taken' };
   }
-  await releaseOtherHoldsOfPhone(calendar, calendarId, digits, id);
   return { ok: true, holdId: id, expiresAt };
-}
-
-/**
- * One website hold per customer per calendar: a customer who stepped back and
- * chose another time gives the first one back. Best effort.
- */
-async function releaseOtherHoldsOfPhone(calendar, calendarId, digits, keepId) {
-  try {
-    const items = await listWindow(calendar, calendarId, null, null, {
-      privateExtendedProperty: `holdPhone=${digits}`,
-      updatedMin: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
-    });
-    for (const e of items) {
-      const priv = (e.extendedProperties && e.extendedProperties.private) || {};
-      if (e.id !== keepId && e.status !== 'cancelled' && priv[HOLD_FLAG] === '1' && String(e.id).startsWith(HOLD_PREFIX)) {
-        await deleteQuietly(calendar, calendarId, e.id);
-      }
-    }
-  } catch (err) {
-    console.warn('hold: could not release the customer\'s other holds', err.message || err);
-  }
 }
 
 /** Give a hold back (invoice failed, or the booking is written). */
@@ -296,16 +277,22 @@ const HOLD_UNAVAILABLE_MESSAGE = 'Уучлаарай, цагийн хуваар�
 // address, per server instance (no database). Real customers hold one time,
 // renewing it at most every five minutes.
 const RATE_WINDOW_MS = 10 * 60 * 1000;
-const RATE_MAX = 8;
+// Only holds actually placed count, and the limit is generous: Mongolian
+// mobile carriers put many customers behind one address.
+const RATE_MAX = 20;
 const recentByClient = new Map();
-function rateLimited(client, nowMs = Date.now()) {
-  if (!client) return false;
+function recentHolds(client, nowMs = Date.now()) {
   const times = (recentByClient.get(client) || []).filter((t) => nowMs - t < RATE_WINDOW_MS);
-  if (times.length >= RATE_MAX) { recentByClient.set(client, times); return true; }
-  times.push(nowMs);
   recentByClient.set(client, times);
+  return times;
+}
+function rateLimited(client) {
+  return !!client && recentHolds(client).length >= RATE_MAX;
+}
+function countHold(client) {
+  if (!client) return;
   if (recentByClient.size > 5000) recentByClient.clear();
-  return false;
+  recentHolds(client).push(Date.now());
 }
 
 /** The caller's address as Vercel reports it. */
@@ -315,7 +302,7 @@ function clientOf(req) {
 }
 
 async function holdForPaymentRequest(body, { test = false, client = null } = {}) {
-  if (rateLimited(client)) {
+  if (!test && rateLimited(client)) {
     console.warn('hold: too many holds from one client', client);
     return { ok: false, status: 429, payload: { error: HOLD_UNAVAILABLE_MESSAGE, reason: 'hold-rate-limited' } };
   }
@@ -347,6 +334,7 @@ async function holdForPaymentRequest(body, { test = false, client = null } = {})
     }
     return { ok: false, status: 422, payload: { error: REFRESH_MESSAGE, reason: `hold-${result.reason}` } };
   }
+  if (!test) countHold(client);
   return {
     ok: true,
     holdId: result.holdId,

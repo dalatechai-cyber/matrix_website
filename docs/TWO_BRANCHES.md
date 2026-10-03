@@ -117,11 +117,15 @@ hand from the alert.
 
 ## Limits of the hold
 
-- The hold is the calendar event itself; the site has no database. A burst of
-  holds from one address is refused (8 in 10 minutes, per server instance),
-  and a customer keeps one website hold per calendar, but nothing stops a
-  determined person with many addresses from holding times for 5½ minutes
-  each — the same exposure the payment page has always had for invoices.
+- The hold is the calendar event itself; the site has no database. More than
+  20 placed holds in 10 minutes from one address are refused (per server
+  instance; generous because mobile carriers share addresses; the test link is
+  exempt). A determined person with many addresses could still hold times for
+  5½ minutes each — the same exposure the payment page has always had.
+- A customer's earlier hold is not released by a newer one (its QR may still
+  be paid); it expires on its own.
 - dala-ai's in-chat booking must follow the same rule (yield to anything
   overlapping except a hold placed after its own, and treat an expired `sh`
-  hold as free). Its PR documents what it implements.
+  hold as free). A chat hold is recognised by its private
+  `dalaBookingState = 'hold'`, never by its `dh…` id (a paid chat booking
+  keeps that id). Its PR documents what it implements.
