@@ -3,8 +3,8 @@
 /**
  * Tara Salon's branches — Яармаг and Парк Од. Same brand and prices, separate
  * owners: each branch books into its OWN stylists' Google Calendars and is
- * paid into its OWN QPay merchant. Nothing here may let one branch's booking
- * reach the other's calendar or QPay account.
+ * paid into its OWN bank account. Nothing here may let one branch's booking
+ * reach the other's calendar or bank account.
  *
  * Public facts (address, phones, hours) live in data/branches.json, shared
  * with the pages. This file adds what only the server may know: the QPay
@@ -21,27 +21,19 @@
  *
  * Яармаг keeps exactly the QPay settings the site has always used.
  *
- * Парк Од is paid into HER OWN merchant and bank account. The site holds one
- * QPay Quick QR partner login (QPAY_USERNAME / QPAY_PASSWORD, terminal
- * DALATECH_AI); under that login each salon is a separate merchant
- * (POST /v2/merchant/company or /merchant/person, see createMerchant.js), and
- * every invoice names the merchant and the bank account that receives the
- * payment (`bank_accounts`). So Парк Од needs, all REQUIRED:
+ * Парк Од uses the SAME QPay as Яармаг (founder, 2026-10-04): the same Quick
+ * QR login (QPAY_USERNAME / QPAY_PASSWORD, terminal DALATECH_AI) and the same
+ * merchant, exactly as Core Language and Matrix do. The ONLY difference is the
+ * bank account her deposits are paid into, which every invoice names in
+ * `bank_accounts`. So Парк Од needs, all REQUIRED:
  *
- *   PARKOD_QPAY_MERCHANT_ID       her merchant id (registered under the login)
- *   PARKOD_QPAY_BANK_CODE         her bank's code, e.g. 040000
+ *   PARKOD_QPAY_BANK_CODE         her bank's QPay code (Khan Bank: 040000)
  *   PARKOD_QPAY_ACCOUNT_NUMBER    her account number
  *   PARKOD_QPAY_ACCOUNT_NAME      the account holder's name, as the bank has it
- *   PARKOD_TELEGRAM_CHAT_ID       her own alert chat
+ *   PARKOD_TELEGRAM_CHAT_ID       the chat her payment alerts go to
  *
- * and, only if QPay gives her a login of her own (all three or none):
- *
- *   PARKOD_QPAY_USERNAME, PARKOD_QPAY_PASSWORD, PARKOD_QPAY_TERMINAL_ID
- *
- * With none of those three, Парк Од's invoices are created through the
- * shared partner login — still on her merchant id and her bank account.
- * Nothing of Яармаг's merchant or account is ever used for her: a merchant id
- * or account number equal to Яармаг's is refused as a misconfiguration.
+ * Яармаг's account number is refused for her, so a copy-paste in Vercel can
+ * never send her deposits to Яармаг.
  */
 
 const data = require('../data/branches.json');
@@ -50,12 +42,10 @@ const { STYLIST_CONFIG, teamOf } = require('./stylists');
 const DEFAULT_BRANCH = 'yaarmag';
 const BRANCH_IDS = data.order.filter((id) => data.branches[id]);
 
-// The account Яармаг has always been paid into (see api/qpay/create-payment.js
-// and routes/qpay.js). merchantId is deliberately absent: each of those two
-// handlers keeps the merchant it has always used for Яармаг.
-// Яармаг's merchant (api/qpay/create-payment.js invoices under it) and the
-// partner terminal; named here only so Парк Од can be checked against them.
-const YAARMAG_MERCHANT_ID = '17e69f2a-d1a4-4fe6-a5a2-34a649378414';
+// The partner terminal, and the account Яармаг has always been paid into (see
+// api/qpay/create-payment.js and routes/qpay.js). merchantId is deliberately
+// absent: each of those two handlers keeps the merchant it has always used,
+// for both branches.
 const YAARMAG_TERMINAL_ID = 'DALATECH_AI';
 
 const YAARMAG_BANK_ACCOUNTS = [{
@@ -92,35 +82,19 @@ function qpayAccountFor(branchId) {
     };
   }
   if (branchId === 'parkod') {
-    const ownUsername = env('PARKOD_QPAY_USERNAME');
-    const ownPassword = env('PARKOD_QPAY_PASSWORD');
-    const ownTerminal = env('PARKOD_QPAY_TERMINAL_ID');
-    const ownLoginParts = [ownUsername, ownPassword, ownTerminal].filter(Boolean).length;
-    // Her own login only when all three are set; none set = the shared login.
-    const ownLogin = ownLoginParts === 3;
-    const loginOk = ownLoginParts === 0 || ownLogin;
-    const username = ownLogin ? ownUsername : env('QPAY_USERNAME');
-    const password = ownLogin ? ownPassword : env('QPAY_PASSWORD');
-    const terminalId = ownLogin ? ownTerminal : YAARMAG_TERMINAL_ID;
-    const merchantId = env('PARKOD_QPAY_MERCHANT_ID');
     const bankCode = env('PARKOD_QPAY_BANK_CODE');
     const accountNumber = env('PARKOD_QPAY_ACCOUNT_NUMBER');
     const accountName = env('PARKOD_QPAY_ACCOUNT_NAME');
     const bankAccounts = bankCode && accountNumber && accountName
       ? [{ account_bank_code: bankCode, account_number: accountNumber, account_name: accountName, is_default: true }]
       : null;
-    // Never Яармаг's merchant or account, even by a copy-paste in Vercel.
-    const notYaarmag = merchantId !== YAARMAG_MERCHANT_ID && merchantId !== env('QPAY_MERCHANT_ID')
-      && !YAARMAG_BANK_ACCOUNTS.some((a) => a.account_number === accountNumber);
+    // Never Яармаг's account, even by a copy-paste in Vercel.
+    const notYaarmag = !YAARMAG_BANK_ACCOUNTS.some((a) => a.account_number === accountNumber);
     return {
+      ...qpayAccountFor('yaarmag'),
       branch: 'parkod',
-      username,
-      password,
-      terminalId,
-      merchantId,
       bankAccounts,
-      sharedLogin: !ownLogin,
-      complete: !!(loginOk && username && password && terminalId && merchantId && bankAccounts && notYaarmag),
+      complete: !!(bankAccounts && notYaarmag),
     };
   }
   return null;

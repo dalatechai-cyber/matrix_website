@@ -33,8 +33,8 @@ has been changed yet.
 3. **Vercel → Environment Variables:** set `BASE_URL=https://tarasalon.org`
    (used when a request's host is unreadable, and by `/api/health`), then
    Redeploy.
-4. **QPay merchant profiles:** update the website on Яармаг's merchant; register
-   Парк Од's merchant with tarasalon.org from the start.
+4. **QPay merchant profile:** update the website on the one merchant both
+   branches use.
 5. **Дали, both tenants (dala-ai):** the booking link becomes
    `https://tarasalon.org/booking.html` and the price page link (Дали points
    to it for prices it doesn't hold, founder 2026-10-04) becomes

@@ -6,8 +6,9 @@ const { blockedByMaintenance, MAINTENANCE_MESSAGE, depositFor, isTestRequest } =
 const { resolveBookingBranch, qpayAccountFor } = require('../../config/branches');
 const { holdForPaymentRequest, clientOf } = require('../../services/bookingHold');
 
-// The merchant Яармаг has always been invoiced under. Used for Яармаг only:
-// another branch is invoiced under its own merchant (config/branches.js).
+// The merchant Яармаг has always been invoiced under. Парк Од uses the same
+// merchant (founder, 2026-10-04); only her bank account differs
+// (config/branches.js).
 const YAARMAG_MERCHANT_ID = "17e69f2a-d1a4-4fe6-a5a2-34a649378414";
 const BRANCH_NOT_READY_MESSAGE = 'Энэ салбарт онлайн захиалга хараахан нээгдээгүй байна. Салбарын утсаар холбогдоно уу.';
 
@@ -57,7 +58,9 @@ module.exports = async function handler(req, res) {
         return res.status(409).json({ error: BRANCH_NOT_READY_MESSAGE, reason: branchCheck.reason });
     }
     const account = qpayAccountFor(branchCheck.branch);
-    const merchantId = branchCheck.branch === 'yaarmag' ? YAARMAG_MERCHANT_ID : account.merchantId;
+    // One merchant for both branches (founder, 2026-10-04); only the bank
+    // account differs (account.bankAccounts, below).
+    const merchantId = YAARMAG_MERCHANT_ID;
 
     // --- 0г. 5 МИНУТЫН ТҮР ХАДГАЛАЛТ ---
     // The time is held on the hairdresser's calendar before a QR exists, so

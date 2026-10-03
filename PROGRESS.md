@@ -114,11 +114,10 @@ today until the owner approves the switch.
 - Stylists by the salon's short Latin names, levels and deposits; Парк Од's
   seven with photos (4K originals optimised, never upscaled); Отгонжаргал
   retired (not in the salon's list). Former names kept as aliases.
-- Парк Од: hours, her own QPay merchant and bank account through the shared
-  Quick QR login (or her own), calendars by `PARKOD_CALENDAR_*`; closed until
-  connected. `docs/TWO_BRANCHES.md`: QPay design, the questions for QPay,
-  every variable. `scripts/qpay-merchant.js` registers her merchant (dry run
-  by default).
+- Парк Од: hours, calendars by `PARKOD_CALENDAR_*`; closed until connected.
+  QPay: the same login and merchant as Яармаг, only her bank account differs
+  (founder, 2026-10-04; the merchant-registration script was removed).
+  `docs/TWO_BRANCHES.md`: QPay design and every variable.
 - 5-minute hold on both payment paths (`services/bookingHold.js`), so the
   website and Messenger can never both sell one time; daily sweep cron.
 - The 62 durations are confirmed by the salon.
@@ -133,7 +132,7 @@ today until the owner approves the switch.
   Stylist» title for 1-р зэрэг; level-named haircuts only with that level
   (page + both payment paths); deposit deducted from the price (home, price
   page, booking); «Бүтээл» gallery and its photos removed; tarasalon.org in
-  the domain plan; Парк Од merchant steps without an e-mail to QPay.
+  the domain plan; Парк Од paid on the same merchant into her own bank account.
 
 ## Open items for the owner
 

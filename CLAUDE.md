@@ -25,15 +25,15 @@ Both create-payment handlers refuse a request that names another branch, a
 branch not yet connected, a retired hairdresser or one without a calendar,
 before QPay is called. Яармаг keeps exactly its original QPay settings.
 
-**QPay, two branches, one login.** The site holds one QPay Quick QR partner
-login (`QPAY_USERNAME`/`QPAY_PASSWORD`, terminal `DALATECH_AI`). Each salon is
-its own merchant under it, and every invoice names the merchant and the bank
-account that receives the money (`bank_accounts`). Парк Од REQUIRES her own
-`PARKOD_QPAY_MERCHANT_ID` and payout account (`PARKOD_QPAY_BANK_CODE`,
-`PARKOD_QPAY_ACCOUNT_NUMBER`, `PARKOD_QPAY_ACCOUNT_NAME`); her own login
-(`PARKOD_QPAY_USERNAME`/`_PASSWORD`/`_TERMINAL_ID`) is optional, all three or
-none. A merchant id or account equal to Яармаг's is refused. Full design and
-what to ask QPay: [docs/TWO_BRANCHES.md](docs/TWO_BRANCHES.md).
+**QPay, two branches, one merchant.** Both branches use the site's one QPay
+Quick QR login (`QPAY_USERNAME`/`QPAY_PASSWORD`, terminal `DALATECH_AI`) and
+the same merchant, exactly as Core Language and Matrix do (founder,
+2026-10-04). The only difference is the bank account a deposit is paid into,
+which every invoice names (`bank_accounts`): Парк Од REQUIRES
+`PARKOD_QPAY_BANK_CODE` (Khan Bank `040000`), `PARKOD_QPAY_ACCOUNT_NUMBER` and
+`PARKOD_QPAY_ACCOUNT_NAME`; Яармаг's account number is refused for her. No
+merchant is registered for her. Proof: a real 100₮ test lands in her account.
+Full design: [docs/TWO_BRANCHES.md](docs/TWO_BRANCHES.md).
 
 A branch takes online bookings only when it has opening hours in
 `data/branches.json`, at least one hairdresser with a calendar, a complete

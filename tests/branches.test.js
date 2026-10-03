@@ -79,11 +79,7 @@ const qpayService = require('../services/qpay');
 const PARKOD_CAL = 'parkod-calendar@group.calendar.google.com';
 
 const PARKOD_ENV = {
-  PARKOD_QPAY_USERNAME: 'parkod_user',
-  PARKOD_QPAY_PASSWORD: 'parkod_pass',
-  PARKOD_QPAY_TERMINAL_ID: 'PARKOD_TERMINAL',
-  PARKOD_QPAY_MERCHANT_ID: 'PARKOD_MERCHANT',
-  PARKOD_QPAY_BANK_CODE: '050000',
+  PARKOD_QPAY_BANK_CODE: '040000',
   PARKOD_QPAY_ACCOUNT_NUMBER: '5000123456',
   PARKOD_QPAY_ACCOUNT_NAME: 'Парк Од эзэмшигч',
   PARKOD_TELEGRAM_CHAT_ID: '-100parkod',
@@ -166,9 +162,8 @@ test('branches: Яармаг is bookable with every current hairdresser; Пар�
 test('branches: Парк Од never falls back to Яармаг\'s QPay account', () => {
   const account = qpayAccountFor('parkod');
   assert.equal(account.complete, false);
-  assert.equal(account.sharedLogin, true, 'no own login: the shared partner login');
-  assert.equal(account.merchantId, null);
-  assert.equal(account.bankAccounts, null);
+  assert.equal(account.merchantId, null, 'the handlers keep the one merchant they always used');
+  assert.equal(account.bankAccounts, null, 'no bank account until hers is set');
   connectParkOd();
   const connected = qpayAccountFor('parkod');
   assert.equal(connected.complete, true);
@@ -233,36 +228,35 @@ test('Яармаг: both payment paths use exactly the account they always did',
   assert.equal(inv.body.bank_accounts[0].account_number, '416055415');
 });
 
-test('Парк Од connected: invoices, payment checks and times use only its own account and calendar', async () => {
+test('Парк Од connected: the same login and merchant as Яармаг, only her bank account differs', async () => {
   connectParkOd();
   const standalone = await invokeStandalone(paymentBody('Saraa', { branch: 'parkod' }));
   assert.equal(standalone.status, 200);
   let inv = invoiceCall();
-  assert.equal(inv.body.merchant_id, 'PARKOD_MERCHANT');
-  assert.equal(inv.body.bank_accounts[0].account_number, '5000123456');
-  assert.deepEqual(tokenCalls()[0].body, { terminal_id: 'PARKOD_TERMINAL' });
-  assert.equal(tokenCalls()[0].auth, basic('parkod_user', 'parkod_pass'));
+  assert.equal(inv.body.merchant_id, '17e69f2a-d1a4-4fe6-a5a2-34a649378414', 'Яармаг\'s merchant, as for Яармаг');
+  assert.deepEqual(inv.body.bank_accounts, [{ account_bank_code: '040000', account_number: '5000123456', account_name: 'Парк Од эзэмшигч', is_default: true }]);
+  assert.deepEqual(tokenCalls()[0].body, { terminal_id: 'DALATECH_AI' });
+  assert.equal(tokenCalls()[0].auth, basic('yaarmag_user', 'yaarmag_pass'));
 
   net.calls = [];
   const viaExpress = await request('POST', '/api/qpay/create-payment', paymentBody('Saraa', { branch: 'parkod' }));
   assert.equal(viaExpress.status, 200);
   inv = invoiceCall();
-  assert.equal(inv.body.merchant_id, 'PARKOD_MERCHANT');
-  assert.ok(net.calls.every((c) => !c.auth || !c.auth.includes(Buffer.from('yaarmag_user:yaarmag_pass').toString('base64'))),
-    'Яармаг credentials never used for Парк Од');
+  assert.equal(inv.body.merchant_id, 'YAARMAG_ENV_MERCHANT', 'the Express path\'s merchant, as for Яармаг');
+  assert.equal(inv.body.bank_accounts[0].account_number, '5000123456');
 
   net.calls = [];
   const check = await request('POST', '/api/qpay/check-payment', { invoice_id: 'inv_1', branch: 'parkod' });
   assert.equal(check.body.invoice_status, 'PAID');
   const checkCall = net.calls.find((c) => c.url.endsWith('/payment/check'));
-  assert.equal(checkCall.auth, `Bearer tok:${basic('parkod_user', 'parkod_pass')}`, 'checked with Парк Од\'s token');
+  assert.equal(checkCall.auth, `Bearer tok:${basic('yaarmag_user', 'yaarmag_pass')}`, 'checked on the one shared login');
 
   const slots = await request('GET', `/api/calendar/available-slots?date=2035-06-04&stylistId=${'Saraa'}&branch=parkod`);
   assert.equal(slots.status, 200);
   assert.deepEqual(cal.freebusy, [PARKOD_CAL]);
 });
 
-test('Парк Од: a late QPay callback is checked on Парк Од\'s account and booked on its calendar', async () => {
+test('Парк Од: a late QPay callback is checked on the shared login and booked on her calendar', async () => {
   connectParkOd();
   const url = callbackUrlFor('https://www.example.mn', {
     stylistId: 'Saraa', date: '2035-06-04', time: '14:00', customerGender: 'female',
@@ -273,8 +267,8 @@ test('Парк Од: a late QPay callback is checked on Парк Од\'s account
   const r = await request('POST', path, { object_id: 'inv_1' });
   assert.equal(r.status, 200);
   assert.equal(r.body.handled, 'booked');
-  assert.ok(net.calls.filter((c) => c.url.includes('qpay')).every((c) => c.auth.includes(basic('parkod_user', 'parkod_pass'))),
-    'every QPay call made with Парк Од credentials');
+  assert.ok(net.calls.filter((c) => c.url.includes('qpay')).every((c) => c.auth.includes(basic('yaarmag_user', 'yaarmag_pass'))),
+    'every QPay call made on the one shared login');
   assert.equal(cal.inserts.length, 1);
   assert.equal(cal.inserts[0].calendarId, PARKOD_CAL);
   assert.ok(cal.inserts[0].requestBody.description.includes('Branch: Парк Од салбар'));
@@ -313,37 +307,36 @@ test('Яармаг hours: available times keep today\'s opening hours', async ()
   assert.equal(wrong.status, 400);
 });
 
-test('Парк Од on the shared partner login: her merchant and her account, never Яармаг\'s', async () => {
-  connectParkOd();
-  for (const k of ['PARKOD_QPAY_USERNAME', 'PARKOD_QPAY_PASSWORD', 'PARKOD_QPAY_TERMINAL_ID']) delete process.env[k];
-  const account = qpayAccountFor('parkod');
-  assert.equal(account.complete, true);
-  assert.equal(account.sharedLogin, true);
-  for (const send of [invokeStandalone, (b) => request('POST', '/api/qpay/create-payment', b)]) {
-    net.calls = [];
-    qpayService._resetTokenCache();
-    const r = await send(paymentBody('Saraa', { branch: 'parkod' }));
-    assert.equal(r.status, 200);
-    const inv = invoiceCall();
-    assert.equal(inv.body.merchant_id, 'PARKOD_MERCHANT');
-    assert.deepEqual(inv.body.bank_accounts, [{ account_bank_code: '050000', account_number: '5000123456', account_name: 'Парк Од эзэмшигч', is_default: true }]);
-    assert.deepEqual(tokenCalls()[0].body, { terminal_id: 'DALATECH_AI' });
-    assert.equal(tokenCalls()[0].auth, basic('yaarmag_user', 'yaarmag_pass'));
+test('Парк Од\'s invoice is Яармаг\'s invoice with only the bank account changed', async () => {
+  const bodies = {};
+  for (const [staff, branch] of [['Oyunaa', 'yaarmag'], ['Saraa', 'parkod']]) {
+    connectParkOd();
+    bodies[branch] = [];
+    for (const send of [invokeStandalone, (b) => request('POST', '/api/qpay/create-payment', b)]) {
+      net.calls = [];
+      qpayService._resetTokenCache();
+      const r = await send(paymentBody(staff, { branch, time: '15:00' }));
+      assert.equal(r.status, 200, `${staff} @ ${branch}`);
+      const { bank_accounts: bank, description, callback_url: _cb, amount: _a, ...rest } = invoiceCall().body;
+      bodies[branch].push({ rest, bank, token: tokenCalls()[0] });
+    }
+  }
+  for (let i = 0; i < 2; i += 1) {
+    assert.deepEqual(bodies.parkod[i].rest, bodies.yaarmag[i].rest, 'merchant, currency, mcc: identical');
+    assert.deepEqual(bodies.parkod[i].token, bodies.yaarmag[i].token, 'same login and terminal');
+    assert.equal(bodies.yaarmag[i].bank[0].account_number, '416055415');
+    assert.equal(bodies.parkod[i].bank[0].account_number, '5000123456');
   }
 });
 
-test('Парк Од: half a login, a missing bank account, or Яармаг\'s merchant or account is refused', () => {
+test('Парк Од: a missing bank account, or Яармаг\'s account, keeps her closed', () => {
   connectParkOd();
-  delete process.env.PARKOD_QPAY_TERMINAL_ID;
-  assert.equal(qpayAccountFor('parkod').complete, false, 'two of three login parts');
-  connectParkOd();
-  delete process.env.PARKOD_QPAY_ACCOUNT_NAME;
-  assert.equal(qpayAccountFor('parkod').complete, false, 'no payout account');
-  connectParkOd();
-  process.env.PARKOD_QPAY_MERCHANT_ID = '17e69f2a-d1a4-4fe6-a5a2-34a649378414';
-  assert.equal(qpayAccountFor('parkod').complete, false, 'Яармаг\'s merchant');
-  process.env.PARKOD_QPAY_MERCHANT_ID = 'YAARMAG_ENV_MERCHANT';
-  assert.equal(qpayAccountFor('parkod').complete, false, 'Яармаг\'s merchant from the environment');
+  assert.equal(qpayAccountFor('parkod').complete, true);
+  for (const k of ['PARKOD_QPAY_BANK_CODE', 'PARKOD_QPAY_ACCOUNT_NUMBER', 'PARKOD_QPAY_ACCOUNT_NAME']) {
+    connectParkOd();
+    delete process.env[k];
+    assert.equal(qpayAccountFor('parkod').complete, false, `without ${k}`);
+  }
   connectParkOd();
   process.env.PARKOD_QPAY_ACCOUNT_NUMBER = '416055415';
   assert.equal(qpayAccountFor('parkod').complete, false, 'Яармаг\'s bank account');
