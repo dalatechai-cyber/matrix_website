@@ -57,7 +57,12 @@ Final report: under 25 lines, plain English (see the brief's last paragraph).
       release of a customer's earlier hold; rate limit 20 placed/10 min). 214 tests. Preview
       checked: /api/branches, real availability identical to production.
 - [ ] T6 dala-ai #280 update
-- [ ] T7 Парк Од tenant dry run + branch gate
+- [x] T7 + T4 (Дали data): dala-ai draft PR https://github.com/dalatechai-cyber/dala-ai/pull/284 (CI green).
+      Яармаг names SQL (not applied; also switches off Отгонжаргал and the still-active manicurist
+      row), Парк Од intake form + after-onboarding SQL, local dry run only; branch gate clean both
+      tenants. Drafts: prompt/drafts/tara_stylist_names.mn.txt, tara_park_od_wording.mn.txt.
+      Open Qs: her hand-off reader, Cyrillic spellings of her stylists, away message, whether her
+      Дали names Яармаг, 1-р зэрэг/SPECIAL men's prices she can't serve, nail refusal line, Page id.
 - [ ] Final report
 
 ## Open items for the founder (collect here)
