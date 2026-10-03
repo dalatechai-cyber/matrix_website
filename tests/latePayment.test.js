@@ -169,7 +169,7 @@ test('late payment, slot taken meanwhile: salon alerted with the customer, paid 
   assert.equal(body.handled, 'conflict');
   assert.equal(net.telegram.length, 1);
   const alert = net.telegram[0];
-  for (const part of ['Сараа', '99112233', 'Оюунсүрэн', '2035-06-04 14:00', 'Энгийн засалт', '20,000₮', 'inv_2']) {
+  for (const part of ['Сараа', '99112233', 'Oyunaa', '2035-06-04 14:00', 'Энгийн засалт', '20,000₮', 'inv_2']) {
     assert.ok(alert.includes(part), `alert lacks ${part}: ${alert}`);
   }
   const note = cal.inserts[0];
@@ -359,6 +359,6 @@ test('production create-payment gives every invoice a signed callback QPay can s
   assert.equal(res.status, 200);
   const invoiceCall = net.calls.find((c) => c.url.endsWith('/invoice'));
   const cb = invoiceCall.body.callback_url;
-  assert.ok(cb.startsWith('https://www.matrixecosalon.org/api/qpay/late-payment?b=v1.oyunsuren.20350604.1400.f.99112233.'), cb);
+  assert.ok(cb.startsWith('https://www.matrixecosalon.org/api/qpay/late-payment?b=v1.oyunaa.20350604.1400.f.99112233.'), cb);
   assert.ok(cb.length <= 255, `callback is ${cb.length} chars`);
 });

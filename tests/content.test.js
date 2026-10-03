@@ -267,7 +267,7 @@ test('brand: the logo files are the ones supplied, untouched', () => {
 test('branches: Парк Од shows the shared line and placeholders, never Яармаг\'s own details', () => {
   const html = rendered('contact.html');
   const park = html.slice(html.indexOf('id="branch-parkod"'), html.indexOf('</article>', html.indexOf('id="branch-parkod"')));
-  assert.ok(park.includes('Удахгүй нэмэгдэнэ'), 'hours are still to come');
+  assert.ok(park.includes('10:00 – 20:00') && park.includes('11:00 – 19:00'), 'Парк Од hours (Mon–Sat 10–20, Sun 11–19)');
   assert.ok(park.includes('Баянзүрх дүүрэг, 26-р хороо, Парк-Од молл, 4 давхар, 405 тоот'), 'Парк Од address');
   const footer = html.slice(html.indexOf('<footer'));
   assert.ok(footer.includes('Парк-Од молл, 4 давхар, 405 тоот') && !footer.includes('Хаяг удахгүй нэмэгдэнэ'), 'footer address');

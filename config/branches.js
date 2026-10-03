@@ -19,19 +19,33 @@
  * Until then the booking page shows it as «Онлайн захиалга удахгүй нээгдэнэ»
  * and every API refuses it, before Google or QPay is ever called.
  *
- * Яармаг keeps exactly the QPay settings the site has always used. Парк Од has
- * no fallback to them: its account comes only from PARKOD_* variables.
+ * Яармаг keeps exactly the QPay settings the site has always used.
  *
- *   PARKOD_QPAY_USERNAME, PARKOD_QPAY_PASSWORD   QPay API login for Парк Од
- *   PARKOD_QPAY_TERMINAL_ID                       its terminal_id
- *   PARKOD_QPAY_MERCHANT_ID                       its merchant_id
- *   PARKOD_QPAY_BANK_CODE, PARKOD_QPAY_ACCOUNT_NUMBER, PARKOD_QPAY_ACCOUNT_NAME
- *                                                 optional payout account (all three or none)
- *   PARKOD_TELEGRAM_CHAT_ID                       Парк Од's own alert chat (required)
+ * Парк Од is paid into HER OWN merchant and bank account. The site holds one
+ * QPay Quick QR partner login (QPAY_USERNAME / QPAY_PASSWORD, terminal
+ * DALATECH_AI); under that login each salon is a separate merchant
+ * (POST /v2/merchant/company or /merchant/person, see createMerchant.js), and
+ * every invoice names the merchant and the bank account that receives the
+ * payment (`bank_accounts`). So Парк Од needs, all REQUIRED:
+ *
+ *   PARKOD_QPAY_MERCHANT_ID       her merchant id (registered under the login)
+ *   PARKOD_QPAY_BANK_CODE         her bank's code, e.g. 040000
+ *   PARKOD_QPAY_ACCOUNT_NUMBER    her account number
+ *   PARKOD_QPAY_ACCOUNT_NAME      the account holder's name, as the bank has it
+ *   PARKOD_TELEGRAM_CHAT_ID       her own alert chat
+ *
+ * and, only if QPay gives her a login of her own (all three or none):
+ *
+ *   PARKOD_QPAY_USERNAME, PARKOD_QPAY_PASSWORD, PARKOD_QPAY_TERMINAL_ID
+ *
+ * With none of those three, Парк Од's invoices are created through the
+ * shared partner login — still on her merchant id and her bank account.
+ * Nothing of Яармаг's merchant or account is ever used for her: a merchant id
+ * or account number equal to Яармаг's is refused as a misconfiguration.
  */
 
 const data = require('../data/branches.json');
-const { STYLIST_CONFIG } = require('./stylists');
+const { STYLIST_CONFIG, teamOf } = require('./stylists');
 
 const DEFAULT_BRANCH = 'yaarmag';
 const BRANCH_IDS = data.order.filter((id) => data.branches[id]);
@@ -39,6 +53,11 @@ const BRANCH_IDS = data.order.filter((id) => data.branches[id]);
 // The account Яармаг has always been paid into (see api/qpay/create-payment.js
 // and routes/qpay.js). merchantId is deliberately absent: each of those two
 // handlers keeps the merchant it has always used for Яармаг.
+// Яармаг's merchant (api/qpay/create-payment.js invoices under it) and the
+// partner terminal; named here only so Парк Од can be checked against them.
+const YAARMAG_MERCHANT_ID = '17e69f2a-d1a4-4fe6-a5a2-34a649378414';
+const YAARMAG_TERMINAL_ID = 'DALATECH_AI';
+
 const YAARMAG_BANK_ACCOUNTS = [{
   account_bank_code: '040000',
   account_number: '416055415',
@@ -63,7 +82,7 @@ function qpayAccountFor(branchId) {
       branch: 'yaarmag',
       username,
       password,
-      terminalId: 'DALATECH_AI',
+      terminalId: YAARMAG_TERMINAL_ID,
       merchantId: null,
       bankAccounts: YAARMAG_BANK_ACCOUNTS,
       // Always treated as complete, as before this file existed: missing
@@ -73,9 +92,16 @@ function qpayAccountFor(branchId) {
     };
   }
   if (branchId === 'parkod') {
-    const username = env('PARKOD_QPAY_USERNAME');
-    const password = env('PARKOD_QPAY_PASSWORD');
-    const terminalId = env('PARKOD_QPAY_TERMINAL_ID');
+    const ownUsername = env('PARKOD_QPAY_USERNAME');
+    const ownPassword = env('PARKOD_QPAY_PASSWORD');
+    const ownTerminal = env('PARKOD_QPAY_TERMINAL_ID');
+    const ownLoginParts = [ownUsername, ownPassword, ownTerminal].filter(Boolean).length;
+    // Her own login only when all three are set; none set = the shared login.
+    const ownLogin = ownLoginParts === 3;
+    const loginOk = ownLoginParts === 0 || ownLogin;
+    const username = ownLogin ? ownUsername : env('QPAY_USERNAME');
+    const password = ownLogin ? ownPassword : env('QPAY_PASSWORD');
+    const terminalId = ownLogin ? ownTerminal : YAARMAG_TERMINAL_ID;
     const merchantId = env('PARKOD_QPAY_MERCHANT_ID');
     const bankCode = env('PARKOD_QPAY_BANK_CODE');
     const accountNumber = env('PARKOD_QPAY_ACCOUNT_NUMBER');
@@ -83,6 +109,9 @@ function qpayAccountFor(branchId) {
     const bankAccounts = bankCode && accountNumber && accountName
       ? [{ account_bank_code: bankCode, account_number: accountNumber, account_name: accountName, is_default: true }]
       : null;
+    // Never Яармаг's merchant or account, even by a copy-paste in Vercel.
+    const notYaarmag = merchantId !== YAARMAG_MERCHANT_ID && merchantId !== env('QPAY_MERCHANT_ID')
+      && !YAARMAG_BANK_ACCOUNTS.some((a) => a.account_number === accountNumber);
     return {
       branch: 'parkod',
       username,
@@ -90,7 +119,8 @@ function qpayAccountFor(branchId) {
       terminalId,
       merchantId,
       bankAccounts,
-      complete: !!(username && password && terminalId && merchantId),
+      sharedLogin: !ownLogin,
+      complete: !!(loginOk && username && password && terminalId && merchantId && bankAccounts && notYaarmag),
     };
   }
   return null;
@@ -112,12 +142,12 @@ function branchOfStylist(stylistId) {
   return cfg ? normalizeBranchId(cfg.branch) : null;
 }
 
-/** Display-name (Mongolian) stylist ids of a branch, most senior first. */
+/**
+ * Display names of a branch's bookable hairdressers, in team order: current
+ * (not retired) and with a calendar. See config/stylists.js teamOf.
+ */
 function stylistsOf(branchId) {
-  return Object.entries(STYLIST_CONFIG)
-    .filter(([id, cfg]) => !/^[a-z.]+$/.test(id) && cfg.branch === branchId && cfg.calendarId)
-    .sort((a, b) => (b[1].price || 0) - (a[1].price || 0))
-    .map(([id]) => id);
+  return teamOf(branchId).filter((name) => STYLIST_CONFIG[name] && STYLIST_CONFIG[name].calendarId);
 }
 
 function hasWorkHours(info) {
@@ -167,6 +197,10 @@ function workHoursFor(branchId, dateStr) {
 function resolveBookingBranch({ stylistId, branch }) {
   const stylistBranch = branchOfStylist(stylistId);
   if (!stylistBranch) return { ok: false, branch: null, reason: 'unknown-stylist' };
+  const cfg = STYLIST_CONFIG[stylistId];
+  // Retired, or not yet connected to a calendar: nothing new is invoiced.
+  if (cfg.retired) return { ok: false, branch: stylistBranch, reason: 'stylist-retired' };
+  if (!cfg.calendarId) return { ok: false, branch: stylistBranch, reason: 'stylist-not-connected' };
   if (branch != null && branch !== '' && normalizeBranchId(branch) !== stylistBranch) {
     return { ok: false, branch: stylistBranch, reason: 'branch-mismatch' };
   }

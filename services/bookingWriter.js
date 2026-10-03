@@ -1,7 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
-const { STYLIST_CONFIG } = require('../config/stylists');
+const { STYLIST_CONFIG, personOf } = require('../config/stylists');
 const { totalDurationFor } = require('../config/serviceDurations');
 const {
   CUSTOMER_GENDER_LABELS,
@@ -189,7 +189,7 @@ async function outcomeFor(calendar, calendarId, event, built, booking, { amount 
       `${booking.test ? '[ТЕСТ] ' : ''}⚠️ Нэг захиалгад давхар төлбөр орсон`,
       `Үйлчлүүлэгч: ${booking.customerName || '—'}, утас ${booking.customerPhone || '—'}`,
       `Салбар: ${branchNameOf(booking.stylistId) || '—'}`,
-      `Үсчин: ${booking.stylistId}`,
+      `Үсчин: ${personOf(booking.stylistId) || booking.stylistId}`,
       `Цаг: ${formatSalonTime(booking.start).replace(':00 (UTC+8)', '')}`,
       `Давхар төлсөн: ${amount ? `${formatter.format(amount)}₮ ` : ''}(QPay ${invoiceId})`,
       'Цаг нэг л удаа бүртгэгдсэн. Нэг төлбөрийг буцаан олгоно уу.',
@@ -219,7 +219,7 @@ function conflictAlertText({ stylistId, start, customerName, customerPhone, serv
     `${test ? '[ТЕСТ] ' : ''}⚠️ Урьдчилгаа төлсөн үйлчлүүлэгчийн цаг давхцсан`,
     `Үйлчлүүлэгч: ${customerName || '—'}, утас ${customerPhone || '—'}`,
     `Салбар: ${branchNameOf(stylistId) || '—'}`,
-    `Үсчин: ${stylistId}`,
+    `Үсчин: ${personOf(stylistId) || stylistId}`,
     `Сонгосон цаг: ${local}`,
     services ? `Үйлчилгээ: ${Array.isArray(services) ? services.join(', ') : services}` : null,
     amount ? `Урьдчилгаа: ${formatter.format(amount)}₮${invoiceId ? ` (QPay ${invoiceId})` : ''}` : (invoiceId ? `QPay: ${invoiceId}` : null),
@@ -337,7 +337,7 @@ async function alertBookingFailure({ stylistId, start, customerName, customerPho
     `${test ? '[ТЕСТ] ' : ''}⚠️ Урьдчилгаа төлсөн боловч цаг бүртгэж чадсангүй`,
     `Үйлчлүүлэгч: ${customerName || '—'}, утас ${customerPhone || '—'}`,
     `Салбар: ${branchNameOf(stylistId) || '—'}`,
-    `Үсчин: ${stylistId || '—'}`,
+    `Үсчин: ${personOf(stylistId) || stylistId || '—'}`,
     `Сонгосон цаг: ${local}`,
     services ? `Үйлчилгээ: ${Array.isArray(services) ? services.join(', ') : services}` : null,
     amount ? `Урьдчилгаа: ${formatter.format(amount)}₮${invoiceId ? ` (QPay ${invoiceId})` : ''}` : (invoiceId ? `QPay: ${invoiceId}` : null),

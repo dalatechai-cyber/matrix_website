@@ -339,7 +339,7 @@ test('available-slots: a closed date offers no times and explains why', async ()
 test('available-slots: closes the day for every stylist, not just blocked calendars', async () => {
   const app = buildApp('/api/calendar', calendarRouter);
   await withEnv(FUTURE, async () => {
-    for (const stylist of ['Ананд', 'Бадамцэцэг', 'Уянга', 'Отгонжаргал']) {
+    for (const stylist of ['Ананд', 'Бадамцэцэг', 'Уянга', 'Уранчимэг', 'Oyunaa', 'Zaya']) {
       const { status, body } = await request(
         app,
         'GET',

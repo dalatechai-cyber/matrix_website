@@ -567,19 +567,14 @@ test('STYLIST_CONFIG: Отгонжаргал price is 10000 (1-р зэргийн
   assert.equal(STYLIST_CONFIG[OTGONZARGAL_STYLIST_ID_LATIN].price, 10000);
 });
 
-test('available-slots: 200 for Отгонжаргал routes to her calendar', async () => {
-  calendarStub._freebusyError = null;
-  calendarStub._freebusyResult = {
-    data: { calendars: { [OTGONZARGAL_CALENDAR_ID]: { busy: [] } } },
-  };
+test('available-slots: Отгонжаргал is retired (not in the salon\'s list of 2026-10-03) and offers no times', async () => {
   const app = buildApp();
   const { status, body } = await request(app, 'GET', '/api/calendar/available-slots', {
     date: VALID_DATE,
     stylistId: OTGONZARGAL_STYLIST_ID_LATIN,
   });
-  assert.equal(status, 200);
-  assert.equal(body.stylistId, OTGONZARGAL_STYLIST_ID_LATIN);
-  assert.equal(body.availableSlots.length, 10);
+  assert.equal(status, 409);
+  assert.equal(body.reason, 'stylist-retired');
 });
 
 // ---------------------------------------------------------------------------

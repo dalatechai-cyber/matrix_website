@@ -129,6 +129,11 @@ router.get('/available-slots', async (req, res) => {
   if (!readiness.ready) {
     return res.status(409).json({ error: 'Branch is not taking online bookings yet', reason: readiness.reason });
   }
+  // A retired hairdresser, or one whose calendar is not connected yet, offers
+  // no times (config/stylists.js).
+  if (stylist.retired || !stylist.calendarId) {
+    return res.status(409).json({ error: 'Hairdresser is not taking online bookings', reason: stylist.retired ? 'stylist-retired' : 'stylist-not-connected' });
+  }
 
   // The salon is shut salon-wide on this date: offer nothing, whatever the
   // stylist's calendar happens to say. This is deliberately a 200 with an empty

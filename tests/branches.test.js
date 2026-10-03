@@ -75,10 +75,8 @@ const { callbackUrlFor } = require('../services/lateBooking');
 const { publicBranches } = require('../lib/publicBranches');
 const qpayService = require('../services/qpay');
 
-// A Парк Од hairdresser, as one will be added to config/stylists.js.
+// A Парк Од hairdresser's calendar, connected through her PARKOD_CALENDAR_* variable.
 const PARKOD_CAL = 'parkod-calendar@group.calendar.google.com';
-STYLIST_CONFIG['Парк Тест'] = { calendarId: PARKOD_CAL, price: 20000, level: 'Мастер үсчин', gender: 'female', branch: 'parkod' };
-STYLIST_CONFIG.parktest = { calendarId: PARKOD_CAL, price: 20000, level: 'Мастер үсчин', gender: 'female', branch: 'parkod' };
 
 const PARKOD_ENV = {
   PARKOD_QPAY_USERNAME: 'parkod_user',
@@ -89,6 +87,7 @@ const PARKOD_ENV = {
   PARKOD_QPAY_ACCOUNT_NUMBER: '5000123456',
   PARKOD_QPAY_ACCOUNT_NAME: 'Парк Од эзэмшигч',
   PARKOD_TELEGRAM_CHAT_ID: '-100parkod',
+  PARKOD_CALENDAR_SARAA: PARKOD_CAL,
 };
 function connectParkOd() {
   Object.assign(process.env, PARKOD_ENV);
@@ -158,16 +157,16 @@ test('branches: Яармаг is bookable with every current hairdresser; Пар�
   assert.deepEqual(branchReadiness('yaarmag'), { ready: true, reason: 'ok' });
   assert.equal(branchReadiness('parkod').ready, false);
   for (const [id, cfg] of Object.entries(STYLIST_CONFIG)) {
-    if (id === 'Парк Тест' || id === 'parktest') continue;
-    assert.equal(cfg.branch, 'yaarmag', `${id} has no branch`);
+    assert.ok(['yaarmag', 'parkod'].includes(cfg.branch), `${id} has no branch`);
   }
-  assert.equal(stylistsOf('yaarmag').length, 7);
+  assert.deepEqual(stylistsOf('yaarmag'), ['Oyunaa', 'Badamaa', 'Anand', 'Uyanga', 'Zaya', 'Chimgee']);
+  assert.deepEqual(stylistsOf('parkod'), [], 'no Парк Од calendar is connected yet');
 });
 
 test('branches: Парк Од never falls back to Яармаг\'s QPay account', () => {
   const account = qpayAccountFor('parkod');
   assert.equal(account.complete, false);
-  assert.equal(account.username, null);
+  assert.equal(account.sharedLogin, true, 'no own login: the shared partner login');
   assert.equal(account.merchantId, null);
   assert.equal(account.bankAccounts, null);
   connectParkOd();
@@ -182,23 +181,23 @@ test('branches: /api/branches lists each branch\'s hairdressers only, and no cal
   const [yaarmag, parkod] = list;
   assert.equal(parkod.ready, false);
   assert.deepEqual(parkod.stylists, [], 'no hairdressers offered at a branch not yet connected');
-  assert.equal(yaarmag.stylists.length, 7);
+  assert.equal(yaarmag.stylists.length, 6);
   for (const s of yaarmag.stylists) {
     assert.equal(STYLIST_CONFIG[s.id].gender, s.gender, `${s.id} gender differs from the server`);
     assert.equal(STYLIST_CONFIG[s.id].price, s.deposit, `${s.id} deposit differs from the server`);
   }
   assert.ok(!JSON.stringify(list).includes('@group.calendar.google.com'), 'calendar ids stay on the server');
   connectParkOd();
-  assert.deepEqual(publicBranches()[1].stylists.map((s) => s.id), ['Парк Тест']);
-  assert.ok(!publicBranches()[0].stylists.some((s) => s.id === 'Парк Тест'));
+  assert.deepEqual(publicBranches()[1].stylists.map((s) => s.id), ['Saraa']);
+  assert.ok(!publicBranches()[0].stylists.some((s) => s.id === 'Saraa'));
 });
 
 test('not connected: Парк Од gets no times and no invoice on either payment path', async () => {
-  const slots = await request('GET', `/api/calendar/available-slots?date=2035-06-04&stylistId=${encodeURIComponent('Парк Тест')}`);
+  const slots = await request('GET', `/api/calendar/available-slots?date=2035-06-04&stylistId=${'Saraa'}`);
   assert.equal(slots.status, 409);
-  const express409 = await request('POST', '/api/qpay/create-payment', paymentBody('Парк Тест', { branch: 'parkod' }));
+  const express409 = await request('POST', '/api/qpay/create-payment', paymentBody('Saraa', { branch: 'parkod' }));
   assert.equal(express409.status, 409);
-  const standalone = await invokeStandalone(paymentBody('Парк Тест', { branch: 'parkod' }));
+  const standalone = await invokeStandalone(paymentBody('Saraa', { branch: 'parkod' }));
   assert.equal(standalone.status, 409);
   assert.equal(net.calls.length, 0, 'QPay never called');
   assert.equal(cal.freebusy.length, 0, 'no calendar read');
@@ -206,7 +205,7 @@ test('not connected: Парк Од gets no times and no invoice on either paymen
 
 test('mismatch: a page naming the other branch gets no invoice', async () => {
   connectParkOd();
-  for (const [staff, branch] of [['Оюунсүрэн', 'parkod'], ['Парк Тест', 'yaarmag']]) {
+  for (const [staff, branch] of [['Оюунсүрэн', 'parkod'], ['Oyunaa', 'parkod'], ['Saraa', 'yaarmag']]) {
     const r1 = await request('POST', '/api/qpay/create-payment', paymentBody(staff, { branch }));
     assert.equal(r1.status, 409, `${staff} @ ${branch}`);
     assert.equal(r1.body.reason, 'branch-mismatch');
@@ -236,7 +235,7 @@ test('Яармаг: both payment paths use exactly the account they always did',
 
 test('Парк Од connected: invoices, payment checks and times use only its own account and calendar', async () => {
   connectParkOd();
-  const standalone = await invokeStandalone(paymentBody('Парк Тест', { branch: 'parkod' }));
+  const standalone = await invokeStandalone(paymentBody('Saraa', { branch: 'parkod' }));
   assert.equal(standalone.status, 200);
   let inv = invoiceCall();
   assert.equal(inv.body.merchant_id, 'PARKOD_MERCHANT');
@@ -245,7 +244,7 @@ test('Парк Од connected: invoices, payment checks and times use only its o
   assert.equal(tokenCalls()[0].auth, basic('parkod_user', 'parkod_pass'));
 
   net.calls = [];
-  const viaExpress = await request('POST', '/api/qpay/create-payment', paymentBody('Парк Тест', { branch: 'parkod' }));
+  const viaExpress = await request('POST', '/api/qpay/create-payment', paymentBody('Saraa', { branch: 'parkod' }));
   assert.equal(viaExpress.status, 200);
   inv = invoiceCall();
   assert.equal(inv.body.merchant_id, 'PARKOD_MERCHANT');
@@ -258,7 +257,7 @@ test('Парк Од connected: invoices, payment checks and times use only its o
   const checkCall = net.calls.find((c) => c.url.endsWith('/payment/check'));
   assert.equal(checkCall.auth, `Bearer tok:${basic('parkod_user', 'parkod_pass')}`, 'checked with Парк Од\'s token');
 
-  const slots = await request('GET', `/api/calendar/available-slots?date=2035-06-04&stylistId=${encodeURIComponent('Парк Тест')}&branch=parkod`);
+  const slots = await request('GET', `/api/calendar/available-slots?date=2035-06-04&stylistId=${'Saraa'}&branch=parkod`);
   assert.equal(slots.status, 200);
   assert.deepEqual(cal.freebusy, [PARKOD_CAL]);
 });
@@ -266,7 +265,7 @@ test('Парк Од connected: invoices, payment checks and times use only its o
 test('Парк Од: a late QPay callback is checked on Парк Од\'s account and booked on its calendar', async () => {
   connectParkOd();
   const url = callbackUrlFor('https://www.example.mn', {
-    stylistId: 'Парк Тест', date: '2035-06-04', time: '14:00', customerGender: 'female',
+    stylistId: 'Saraa', date: '2035-06-04', time: '14:00', customerGender: 'female',
     customerPhone: '99112233', services: ['Угаалт'], agreedAt: new Date(), amount: 20000,
   });
   assert.ok(url, 'a callback URL can be signed for a Парк Од hairdresser');
@@ -299,7 +298,7 @@ test('readiness: Парк Од needs its own alert chat before it takes bookings
 
 test('/book: no browser booking for a branch not taking online bookings', async () => {
   const r = await request('POST', '/api/calendar/book', {
-    stylistId: 'Парк Тест', startTime: '2035-06-04T14:00:00+08:00', customerPhone: '99112233', customerGender: 'female', invoiceId: 'x',
+    stylistId: 'Saraa', startTime: '2035-06-04T14:00:00+08:00', customerPhone: '99112233', customerGender: 'female', invoiceId: 'x',
   });
   assert.equal(r.status, 409);
   assert.equal(cal.inserts.length, 0);
@@ -312,4 +311,74 @@ test('Яармаг hours: available times keep today\'s opening hours', async ()
   assert.equal(r.body.availableSlots.at(-1), '18:00');
   const wrong = await request('GET', '/api/calendar/available-slots?date=2035-06-03&stylistId=anand&branch=parkod');
   assert.equal(wrong.status, 400);
+});
+
+test('Парк Од on the shared partner login: her merchant and her account, never Яармаг\'s', async () => {
+  connectParkOd();
+  for (const k of ['PARKOD_QPAY_USERNAME', 'PARKOD_QPAY_PASSWORD', 'PARKOD_QPAY_TERMINAL_ID']) delete process.env[k];
+  const account = qpayAccountFor('parkod');
+  assert.equal(account.complete, true);
+  assert.equal(account.sharedLogin, true);
+  for (const send of [invokeStandalone, (b) => request('POST', '/api/qpay/create-payment', b)]) {
+    net.calls = [];
+    qpayService._resetTokenCache();
+    const r = await send(paymentBody('Saraa', { branch: 'parkod' }));
+    assert.equal(r.status, 200);
+    const inv = invoiceCall();
+    assert.equal(inv.body.merchant_id, 'PARKOD_MERCHANT');
+    assert.deepEqual(inv.body.bank_accounts, [{ account_bank_code: '050000', account_number: '5000123456', account_name: 'Парк Од эзэмшигч', is_default: true }]);
+    assert.deepEqual(tokenCalls()[0].body, { terminal_id: 'DALATECH_AI' });
+    assert.equal(tokenCalls()[0].auth, basic('yaarmag_user', 'yaarmag_pass'));
+  }
+});
+
+test('Парк Од: half a login, a missing bank account, or Яармаг\'s merchant or account is refused', () => {
+  connectParkOd();
+  delete process.env.PARKOD_QPAY_TERMINAL_ID;
+  assert.equal(qpayAccountFor('parkod').complete, false, 'two of three login parts');
+  connectParkOd();
+  delete process.env.PARKOD_QPAY_ACCOUNT_NAME;
+  assert.equal(qpayAccountFor('parkod').complete, false, 'no payout account');
+  connectParkOd();
+  process.env.PARKOD_QPAY_MERCHANT_ID = '17e69f2a-d1a4-4fe6-a5a2-34a649378414';
+  assert.equal(qpayAccountFor('parkod').complete, false, 'Яармаг\'s merchant');
+  process.env.PARKOD_QPAY_MERCHANT_ID = 'YAARMAG_ENV_MERCHANT';
+  assert.equal(qpayAccountFor('parkod').complete, false, 'Яармаг\'s merchant from the environment');
+  connectParkOd();
+  process.env.PARKOD_QPAY_ACCOUNT_NUMBER = '416055415';
+  assert.equal(qpayAccountFor('parkod').complete, false, 'Яармаг\'s bank account');
+  assert.deepEqual(branchReadiness('parkod'), { ready: false, reason: 'no-qpay' });
+});
+
+test('stylists: renamed hairdressers keep their calendars; the old names still book the same person', () => {
+  const pairs = [['Oyunaa', 'Оюунсүрэн'], ['Oyunaa', 'oyunsuren'], ['Badamaa', 'Бадамцэцэг'], ['Zaya', 'Батзаяа'], ['Chimgee', 'Уранчимэг'], ['Anand', 'Ананд'], ['Uyanga', 'Уянга']];
+  for (const [now, before] of pairs) {
+    assert.equal(STYLIST_CONFIG[before].calendarId, STYLIST_CONFIG[now].calendarId, before);
+    assert.equal(STYLIST_CONFIG[before].price, STYLIST_CONFIG[now].price, before);
+    assert.equal(STYLIST_CONFIG[before].person, now);
+  }
+  assert.equal(STYLIST_CONFIG.Oyunaa.level, 'SPECIAL үсчин');
+  assert.equal(STYLIST_CONFIG.Oyunaa.price, 20000);
+  assert.equal(STYLIST_CONFIG.Zaya.price, 10000);
+  for (const name of ['Boloroo', 'Saraa', 'Tomoo', 'Bulgaa', 'Enhuush', 'Chimegee', 'Tuchku']) {
+    assert.equal(STYLIST_CONFIG[name].price, 20000, `${name}: every Парк Од deposit is 20,000₮`);
+    assert.equal(STYLIST_CONFIG[name].branch, 'parkod');
+  }
+  assert.deepEqual(Object.keys(STYLIST_CONFIG).filter((k) => STYLIST_CONFIG[k].gender === 'male' && !STYLIST_CONFIG[k].alias && !STYLIST_CONFIG[k].ascii), ['Anand', 'Tuchku']);
+});
+
+test('retired hairdresser: no times and no invoice, but a payment signed before still books her calendar', async () => {
+  assert.ok(!stylistsOf('yaarmag').includes('Отгонжаргал'));
+  const slots = await request('GET', `/api/calendar/available-slots?date=2035-06-04&stylistId=${encodeURIComponent('Отгонжаргал')}`);
+  assert.equal(slots.status, 409);
+  const r = await invokeStandalone(paymentBody('Отгонжаргал'));
+  assert.equal(r.status, 409);
+  assert.equal(r.body.reason, 'stylist-retired');
+  assert.equal(net.calls.length, 0);
+  const url = callbackUrlFor('https://www.example.mn', {
+    stylistId: 'Отгонжаргал', date: '2035-06-04', time: '14:00', customerGender: 'female',
+    customerPhone: '99112233', services: [], agreedAt: new Date(), amount: 10000,
+  });
+  const late = await request('POST', url.slice('https://www.example.mn'.length), { object_id: 'inv_1' });
+  assert.equal(late.body.handled, 'booked');
 });
