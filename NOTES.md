@@ -158,3 +158,12 @@ R2-4. Level-named haircuts: the service decides the level; a stylist of another 
   public search, so it is likely private). The founder fills it in outside the repo.
 - R2-9 docs/PHOTOS.md lists only the 8 photos still shown; IMAGERY drops
   intro-zurag. Those 8 are from the same Matrix-era export — founder decides.
+
+### Round 2 — final status (2026-10-04)
+
+- dala-ai#283 (a5bf883), #284 (approvals folder c76c13a), #285 (59a76e5), #286 (2681997) and
+  matrix_website #83 (this branch), #84 (01d0e3e): drafts, nothing merged, applied or published.
+- Everything the founder still has to approve is in dala-ai `docs/approvals/tara-2026-10-04/`
+  (branch claude/tara-park-od-tenant), with an index.
+- R2-10 Парк Од hand-off alerts reach only the founder's Telegram; nothing tells Boloroo yet
+  (needs her chat). Listed as missing, not built.
