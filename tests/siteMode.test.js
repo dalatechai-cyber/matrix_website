@@ -109,8 +109,8 @@ test('maintenance off (default): every page is the real page', async () => {
   const booking = await request('GET', '/booking.html');
   assert.ok(booking.text.includes('id="booking"'));
   const team = await request('GET', '/team.html');
-  assert.equal(team.status, 301, 'the retired team page sends visitors home');
-  assert.equal(team.headers.location, '/');
+  assert.equal(team.status, 301, 'the retired team page sends visitors to the team section');
+  assert.equal(team.headers.location, '/#team');
 });
 
 test('an unknown .html path is not served from here', async () => {

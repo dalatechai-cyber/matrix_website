@@ -327,3 +327,29 @@ test('TARA LUMI: the name toggles its description, which is in the page without 
   const script = fs.readFileSync(path.join(ROOT, 'assets/site.js'), 'utf8');
   assert.ok(script.includes('[data-disclosure]') && script.includes('panel.hidden = true'));
 });
+
+test('team: «Манай үсчид» shows every current hairdresser of both branches with photo, short name, title and branch', () => {
+  const html = rendered('index.html');
+  const team = html.slice(html.indexOf('id="team"'), html.indexOf('</section>', html.indexOf('id="team"')));
+  const yaarmag = ['Oyunaa', 'Badamaa', 'Anand', 'Uyanga', 'Zaya', 'Chimgee'];
+  const parkod = ['Boloroo', 'Saraa', 'Tomoo', 'Bulgaa', 'Enhuush', 'Chimegee', 'Tuchku'];
+  const names = [...team.matchAll(/<h4 class="team-name">([^<]+)<\/h4>/g)].map((m) => m[1]);
+  assert.deepEqual(names, [...yaarmag, ...parkod]);
+  for (const old of ['Оюунсүрэн', 'Бадамцэцэг', 'Батзаяа', 'Уранчимэг', 'Отгонжаргал', 'Otgonjargal', 'hair salonner', 'стилист']) {
+    assert.ok(!team.includes(old), `team section still says ${old}`);
+  }
+  assert.ok(team.includes('SPECIAL Hair Stylist') && team.includes('Master Hair Stylist'));
+  for (const m of team.matchAll(/src="(\/img\/stylists\/[^"]+)"/g)) {
+    assert.ok(fs.existsSync(path.join(ROOT, m[1])), `${m[1]} missing`);
+  }
+  for (const m of team.matchAll(/srcset="([^"]+)"/g)) {
+    for (const part of m[1].split(',')) assert.ok(fs.existsSync(path.join(ROOT, part.trim().split(' ')[0])), part);
+  }
+  assert.equal((team.match(/class="team-branch">Парк Од салбар</g) || []).length, 7);
+});
+
+test('photos: no 4K originals ship from the site root', () => {
+  for (const f of ['Boloroo.jpg', 'Saraa.jpg', 'Tomoo.jpg', 'Bulgaa.jpg', 'Enhuush.jpg', 'Chimegee.jpg', 'Tuchku.jpg']) {
+    assert.ok(!fs.existsSync(path.join(ROOT, f)), `${f} is still at the root`);
+  }
+});

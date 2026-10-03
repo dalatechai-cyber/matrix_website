@@ -172,7 +172,7 @@
     const rows = [];
     if (state.branch) rows.push(["Салбар", state.branch.name]);
     if (state.services.length) rows.push(["Үйлчилгээ", state.services.join(", ")]);
-    if (state.stylist && state.step >= 4) rows.push(["Үсчин", `${state.stylist.id} (${state.stylist.level})`]);
+    if (state.stylist && state.step >= 4) rows.push(["Үсчин", `${state.stylist.id} (${state.stylist.title || state.stylist.level})`]);
     if (state.date && state.time && state.step >= 5) rows.push(["Цаг", `${longDate(state.date)}, ${state.time}`]);
     if (state.services.length) {
       const m = state.durationMinutes || minutesFor(state.services);
@@ -337,7 +337,7 @@
           face.setAttribute("aria-hidden", "true");
         }
         const body = el("span", "option-body");
-        body.append(el("span", "option-title", s.id), el("span", "option-meta", s.level), el("span", "option-price", `Урьдчилгаа ${money(state.testDeposit || s.deposit)}`));
+        body.append(el("span", "option-title", s.id), el("span", "option-meta", s.title || s.level), el("span", "option-price", `Урьдчилгаа ${money(state.testDeposit || s.deposit)}`));
         label.append(input, face, body);
         return label;
       }));

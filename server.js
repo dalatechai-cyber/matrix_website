@@ -28,7 +28,8 @@ app.use(express.json());
 const RETIRED_PAGES = new Set(['team']);
 app.get(['/', '/:page.html'], (req, res, next) => {
   const page = req.params.page || 'index';
-  if (RETIRED_PAGES.has(page)) return res.redirect(301, '/');
+  // The old team page now lives as the home page's «Манай үсчид» section.
+  if (RETIRED_PAGES.has(page)) return res.redirect(301, page === 'team' ? '/#team' : '/');
   if (!PAGES.includes(page)) return next();
 
   if (typeof req.query.test === 'string') {
