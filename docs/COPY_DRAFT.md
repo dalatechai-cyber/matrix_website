@@ -103,4 +103,6 @@ approved they show as written here; both only appear in rare cases.
 
 Also: «Эрэгтэй засалт — Тайралт том хүн /SPECIAL/» stays on the price page (it
 is on the salon's list) but is not offered for online booking, because no male
-hairdresser is SPECIAL at either branch.
+hairdresser is SPECIAL at either branch (approved 2026-10-04). «Гоёлын засалт
+/эрэгтэй/», printed in the women's section, is offered under «Эрэгтэй засалт»
+in the booking (approved 2026-10-04).
