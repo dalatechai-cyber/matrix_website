@@ -136,6 +136,8 @@ module.exports = async function handler(req, res) {
             acceptedAtSource: consent.source,
         }));
 
+        // Unpaid, the hold deletes itself when the QR runs out (bookingHold.js).
+        hold.releaseWhenExpired();
         return res.status(200).json({ ...invoiceRes.data, hold_expires_at: hold.expiresAt.toISOString() });
 
     } catch (error) {

@@ -9,6 +9,8 @@
  *     («Make changes to events»), each hairdresser's calendar variable and
  *     whether the site can read that calendar, and each branch's readiness.
  *
+ *   GET /api/setup/holds?stylist=Saraa&date=YYYY-MM-DD   (read-only)
+ *
  *   GET /api/setup/prove?stylist=Saraa[&date=YYYY-MM-DD]
  *     Парк Од hairdressers only. Proves, on the real calendar, the path a
  *     booking takes: reads the hairdresser's free times, writes one marked
@@ -168,6 +170,43 @@ router.get('/prove', async (req, res) => {
   }
   const ok = !steps.error && steps.landedInHerCalendar && steps.hourNoLongerOffered && steps.testEventDeleted;
   return res.status(ok ? 200 : 500).json({ ok, ...steps });
+});
+
+/**
+ * GET /api/setup/holds?stylist=Saraa&date=YYYY-MM-DD
+ * Read-only, and deletes nothing (so it can show whether a hold removed
+ * itself): the website holds on that hairdresser's day, and Google's raw busy
+ * time for the day — what Messenger's in-chat booking reads. No names or
+ * phones.
+ */
+router.get('/holds', async (req, res) => {
+  const name = String(req.query.stylist || '');
+  const cfg = STYLIST_CONFIG[name];
+  const date = String(req.query.date || '');
+  if (!cfg || cfg.person !== name) return res.status(400).json({ error: 'stylist must be a hairdresser, by name' });
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'date must be YYYY-MM-DD' });
+  if (!cfg.calendarId) return res.status(409).json({ error: `${name}'s calendar is not connected` });
+  try {
+    const calendar = await getCalendarClient();
+    const timeMin = new Date(`${date}T00:00:00+08:00`).toISOString();
+    const timeMax = new Date(`${date}T23:59:59+08:00`).toISOString();
+    const r = await calendar.events.list({ calendarId: cfg.calendarId, timeMin, timeMax, singleEvents: true, maxResults: 250, privateExtendedProperty: 'taraHold=1' });
+    const fb = await calendar.freebusy.query({ requestBody: { timeMin, timeMax, items: [{ id: cfg.calendarId }] } });
+    const busy = ((fb.data.calendars || {})[cfg.calendarId] || {}).busy || [];
+    return res.json({
+      stylist: name,
+      date,
+      now: new Date().toISOString(),
+      websiteHolds: (r.data.items || []).map((e) => ({
+        start: e.start && e.start.dateTime,
+        end: e.end && e.end.dateTime,
+        expiresAt: ((e.extendedProperties || {}).private || {}).holdExpiresAt || null,
+      })),
+      googleBusy: busy,
+    });
+  } catch (err) {
+    return res.status(500).json({ error: `${(err.response && err.response.status) || ''} ${err.message}`.trim() });
+  }
 });
 
 /**

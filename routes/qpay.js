@@ -225,6 +225,8 @@ router.post('/create-payment', async (req, res) => {
       };
     }
 
+    // Unpaid, the hold deletes itself when the QR runs out (bookingHold.js).
+    hold.releaseWhenExpired();
     return res.status(200).json({ ...result, hold_expires_at: hold.expiresAt.toISOString() });
   } catch (err) {
     console.error('QPay API Error Details:', err.response?.data || err.message);

@@ -8,6 +8,7 @@
     "test": "node --test tests/webhooks.test.js tests/qpay.test.js tests/calendar.test.js tests/closures.test.js tests/content.test.js tests/latePayment.test.js tests/siteMode.test.js tests/branches.test.js tests/holds.test.js tests/setup.test.js"
   },
   "dependencies": {
+    "@vercel/functions": "^2.2.13",
     "axios": "^1.6.0",
     "dotenv": "^17.3.1",
     "express": "^4.18.2",

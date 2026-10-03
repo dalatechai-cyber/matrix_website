@@ -1,8 +1,8 @@
 {
   "version": 2,
   "builds": [
-    { "src": "api/qpay/create-payment.js", "use": "@vercel/node" },
-    { "src": "server.js", "use": "@vercel/node", "config": { "includeFiles": ["*.html", "partials/**"] } },
+    { "src": "api/qpay/create-payment.js", "use": "@vercel/node", "config": { "maxDuration": 400 } },
+    { "src": "server.js", "use": "@vercel/node", "config": { "includeFiles": ["*.html", "partials/**"], "maxDuration": 400 } },
     { "src": "assets/**", "use": "@vercel/static" },
     { "src": "brand/**", "use": "@vercel/static" },
     { "src": "fonts/**", "use": "@vercel/static" },

@@ -362,3 +362,34 @@ test('a level is read however the haircut is spelled, and from serviceName too',
   assert.equal(requiredLevelFor([], 'Эмэгтэй засалт — Тайралт том хүн /SPECIAL/'), 'special', 'an empty list cannot hide serviceName');
   assert.equal(checkLevelMatch({ stylistId: 'Zaya', services: [], serviceName: 'Эмэгтэй засалт — Тайралт том хүн /SPECIAL/' }).reason, 'level-mismatch');
 });
+
+test('release: an unpaid hold deletes itself when its QR runs out — no schedule, no one reading the day', async () => {
+  const { releaseWhenExpired } = require('../services/bookingHold');
+  const { getCalendarClient } = require('../services/googleCalendar');
+  // Both handlers hand the release to Vercel's waitUntil, so the function
+  // lives on after its response until the hold has expired.
+  const kept = [];
+  const ctx = Symbol.for('@vercel/request-context');
+  globalThis[ctx] = { get: () => ({ waitUntil: (p) => kept.push(p) }) };
+  try {
+    for (const [label, send] of PATHS) {
+      const before = kept.length;
+      const r = await send(pay(label === 'standalone' ? '99112233' : '88112233', { time: label === 'standalone' ? '11:00' : '16:00' }));
+      assert.equal(r.status, 200, label);
+      assert.equal(kept.length, before + 1, `${label}: the release outlives the response`);
+    }
+  } finally {
+    delete globalThis[ctx];
+  }
+  const calendar = await getCalendarClient();
+  const noWait = { sleep: async () => {} };
+  const [h] = holds();
+  const at = new Date(h.extendedProperties.private.holdExpiresAt);
+  assert.ok(at - Date.now() > 4 * 60 * 1000 && at - Date.now() <= 5.5 * 60 * 1000, 'the hold lasts the QR (5 min) plus 30 s');
+  assert.equal(await releaseWhenExpired(calendar, CAL, h.id, at, noWait), 'renewed', 'not yet expired (or a new QR moved it): kept');
+  assert.ok(holds().some((x) => x.id === h.id));
+  expire(h.id);
+  assert.equal(await releaseWhenExpired(calendar, CAL, h.id, at, noWait), 'deleted');
+  assert.ok(!holds().some((x) => x.id === h.id), 'gone from the calendar');
+  assert.equal(await releaseWhenExpired(calendar, CAL, h.id, at, noWait), 'gone', 'paid or already removed: nothing to do');
+});

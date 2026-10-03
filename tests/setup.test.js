@@ -178,3 +178,16 @@ test('cleanup-test: removes only the test link\'s booking, nothing else', async 
   process.env.VERCEL_ENV = 'production';
   assert.equal((await get('/api/setup/cleanup-test?stylist=Saraa&date=2035-06-04')).status, 404);
 });
+
+test('holds: lists website holds and Google busy time, deletes nothing; 404 on Production', async () => {
+  const at = (h) => ({ dateTime: new Date(`2035-06-04T${h}:00:00+08:00`).toISOString() });
+  store.events.set('shx1', { id: 'shx1', calendarId: SARAA_CAL, start: at(14), end: at(15), extendedProperties: { private: { taraHold: '1', holdExpiresAt: '2035-06-01T00:00:00Z' } } });
+  const r = await get('/api/setup/holds?stylist=Saraa&date=2035-06-04');
+  assert.equal(r.status, 200);
+  assert.equal(r.body.googleBusy.length, 1);
+  assert.ok(store.events.has('shx1'), 'nothing deleted');
+  assert.ok(!JSON.stringify(r.body).includes('@group.calendar.google.com'));
+  process.env.VERCEL = '1';
+  process.env.VERCEL_ENV = 'production';
+  assert.equal((await get('/api/setup/holds?stylist=Saraa&date=2035-06-04')).status, 404);
+});

@@ -26,10 +26,13 @@ const { STYLIST_CONFIG, personOf } = require('../config/stylists');
  * So two customers can never both reach a QR for one time.
  *
  * Paid: services/bookingWriter.js writes the `qb…` booking and deletes the
- * hold. Unpaid: the hold expires with the QR. Expired holds are deleted when
- * anyone next looks at that day's times, by create-payment, and by the daily
- * sweep (GET /api/calendar/sweep-holds); dala-ai treats an expired `sh` hold as
- * free. A late payment after expiry is still booked if the time is free, or
+ * hold. Unpaid: the hold expires with the QR and the request that placed it
+ * deletes it then (`releaseWhenExpired`, kept alive past the response by
+ * Vercel's waitUntil), so no schedule is needed. If that is ever cut short,
+ * an expired hold is still free everywhere: this site deletes it whenever
+ * anyone looks at that day's times and before any new hold, dala-ai reads an
+ * expired `sh` hold as free, and the daily sweep
+ * (GET /api/calendar/sweep-holds, Production only) removes what is left. A late payment after expiry is still booked if the time is free, or
  * alerted if not (unchanged).
  *
  * The site has no database: the calendar event IS the hold.
@@ -227,6 +230,50 @@ async function releaseHold(calendar, { stylistId, start, phone }) {
   return deleteQuietly(calendar, stylist.calendarId, id);
 }
 
+// Delete a few seconds after the hold's own expiry, so the check below never
+// sees it a moment early.
+const RELEASE_LAG_MS = 5 * 1000;
+// unref: a test run or a local server never waits on it; on Vercel, waitUntil
+// keeps the function alive for it.
+const sleepMs = (ms) => new Promise((resolve) => { const t = setTimeout(resolve, ms); if (t.unref) t.unref(); });
+
+/**
+ * Wait until this hold has expired, then delete it — unless it is gone (paid:
+ * the booking writer removed it) or was renewed (a new QR moved its expiry;
+ * that request waits for the new time). Never throws.
+ * @returns {Promise<'deleted'|'gone'|'renewed'|'failed'>}
+ */
+async function releaseWhenExpired(calendar, calendarId, holdId, expiresAt, { sleep = sleepMs, now = () => new Date() } = {}) {
+  try {
+    const wait = expiresAt.getTime() + RELEASE_LAG_MS - now().getTime();
+    if (wait > 0) await sleep(wait);
+    const ev = await getEvent(calendar, calendarId, holdId);
+    let outcome;
+    if (!ev || ev.status === 'cancelled') outcome = 'gone';
+    else if (!isExpiredWebsiteHold(ev, now())) outcome = 'renewed';
+    else outcome = (await deleteQuietly(calendar, calendarId, holdId)) ? 'deleted' : 'failed';
+    console.log('hold release:', outcome, holdId);
+    return outcome;
+  } catch (err) {
+    console.warn('hold release failed', holdId, err.message || err);
+    return 'failed';
+  }
+}
+
+/**
+ * Keep the serverless function alive after its response until the hold is
+ * released (Vercel waitUntil; maxDuration in vercel.json covers the 5½
+ * minutes). Off Vercel the timer simply runs in the process.
+ */
+function releaseAfterResponse(promise) {
+  try {
+    require('@vercel/functions').waitUntil(promise);
+  } catch (err) {
+    console.warn('hold release: waitUntil unavailable', err.message || err);
+  }
+  return promise;
+}
+
 /** This booking's own hold, if one is on the calendar (expired or not). */
 async function findOwnHold(calendar, { calendarId, start, phone }) {
   const id = holdIdFor(calendarId, start, phone);
@@ -335,11 +382,14 @@ async function holdForPaymentRequest(body, { test = false, client = null } = {})
     return { ok: false, status: 422, payload: { error: REFRESH_MESSAGE, reason: `hold-${result.reason}` } };
   }
   if (!test) countHold(client);
+  const calendarId = STYLIST_CONFIG[stylistId].calendarId;
   return {
     ok: true,
     holdId: result.holdId,
     expiresAt: result.expiresAt,
     release: () => releaseHold(calendar, { stylistId, start, phone }),
+    // Call once the QR exists: deletes the hold when it expires unpaid.
+    releaseWhenExpired: () => releaseAfterResponse(releaseWhenExpired(calendar, calendarId, result.holdId, result.expiresAt)),
   };
 }
 
@@ -354,6 +404,7 @@ module.exports = {
   holdIdFor,
   placeHold,
   releaseHold,
+  releaseWhenExpired,
   findOwnHold,
   othersOverlapping,
   sweepExpiredHolds,
