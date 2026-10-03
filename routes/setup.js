@@ -55,6 +55,10 @@ router.get('/check', async (_req, res) => {
   const out = {
     serviceAccount: (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '').trim() || null,
     shareWith: 'Share each calendar with the service account above: «Make changes to events».',
+    // What the 100₮ test needs on this deployment (names only, never values).
+    testLinkReady: String(process.env.BOOKING_TEST_TOKEN || '').trim().length >= 16,
+    qpayLoginSet: !!(process.env.QPAY_USERNAME && process.env.QPAY_PASSWORD),
+    maintenance: /^(on|true|1|yes)$/i.test(String(process.env.SITE_MAINTENANCE || '').trim()),
     branches: {},
   };
   let calendar = null;
@@ -164,6 +168,43 @@ router.get('/prove', async (req, res) => {
   }
   const ok = !steps.error && steps.landedInHerCalendar && steps.hourNoLongerOffered && steps.testEventDeleted;
   return res.status(ok ? 200 : 500).json({ ok, ...steps });
+});
+
+/**
+ * GET /api/setup/cleanup-test?stylist=Saraa&date=YYYY-MM-DD
+ * Removes the test booking a 100₮ test left in that hairdresser's calendar on
+ * that day: only events the site wrote for the test link (title «ТЕСТ – …»,
+ * id from the booking writer or the hold), never anything else. Lists what it
+ * removed. Works for both branches; on Яармаг's live calendars it touches
+ * nothing but test-link events.
+ */
+router.get('/cleanup-test', async (req, res) => {
+  const name = String(req.query.stylist || '');
+  const cfg = STYLIST_CONFIG[name];
+  const date = String(req.query.date || '');
+  if (!cfg || cfg.person !== name) return res.status(400).json({ error: 'stylist must be a hairdresser, by name' });
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'date must be YYYY-MM-DD' });
+  if (!cfg.calendarId) return res.status(409).json({ error: `${name}'s calendar is not connected` });
+  try {
+    const calendar = await getCalendarClient();
+    const r = await calendar.events.list({
+      calendarId: cfg.calendarId,
+      timeMin: new Date(`${date}T00:00:00+08:00`).toISOString(),
+      timeMax: new Date(`${date}T23:59:59+08:00`).toISOString(),
+      singleEvents: true,
+      maxResults: 250,
+    });
+    const isTestEvent = (e) => /^ТЕСТ\s*[–-]/u.test(String(e.summary || '')) && /^(qb|sh)/.test(String(e.id || ''))
+      || (e.extendedProperties && e.extendedProperties.private && e.extendedProperties.private[TEST_MARK] === '1');
+    const removed = [];
+    for (const e of (r.data.items || []).filter(isTestEvent)) {
+      await calendar.events.delete({ calendarId: cfg.calendarId, eventId: e.id });
+      removed.push({ summary: e.summary, start: e.start && (e.start.dateTime || e.start.date) });
+    }
+    return res.json({ stylist: name, date, removed, kept: (r.data.items || []).length - removed.length });
+  } catch (err) {
+    return res.status(500).json({ error: `${(err.response && err.response.status) || ''} ${err.message}`.trim() });
+  }
 });
 
 module.exports = router;

@@ -65,7 +65,7 @@ Module._load = function (request) {
               store.deleted.push(eventId);
               return { data: {} };
             },
-            list: async () => ({ data: { items: [] } }),
+            list: async ({ calendarId }) => ({ data: { items: [...store.events.values()].filter((e) => e.calendarId === calendarId) } }),
           },
         }),
       },
@@ -162,4 +162,19 @@ test('Production: every setup route is 404', async () => {
   assert.equal((await get('/api/setup/prove?stylist=Saraa')).status, 404);
   process.env.VERCEL_ENV = 'preview';
   assert.equal((await get('/api/setup/check')).status, 200);
+});
+
+test('cleanup-test: removes only the test link\'s booking, nothing else', async () => {
+  const at = (h) => ({ dateTime: new Date(`2035-06-04T${h}:00:00+08:00`).toISOString() });
+  store.events.set('qbtest1', { id: 'qbtest1', calendarId: SARAA_CAL, summary: 'ТЕСТ – 99112233 - Тест', start: at(14), end: at(15) });
+  store.events.set('qbreal1', { id: 'qbreal1', calendarId: SARAA_CAL, summary: '99887766 - Бат', start: at(16), end: at(17) });
+  store.events.set('own1', { id: 'own1', calendarId: SARAA_CAL, summary: 'ТЕСТ – written by hand', start: at(11), end: at(12) });
+  const r = await get('/api/setup/cleanup-test?stylist=Saraa&date=2035-06-04');
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.body.removed.map((e) => e.summary), ['ТЕСТ – 99112233 - Тест']);
+  assert.ok(store.events.has('qbreal1') && store.events.has('own1'), 'a real booking and a hand-made event stay');
+  assert.equal((await get('/api/setup/cleanup-test?stylist=saraa&date=2035-06-04')).status, 400);
+  process.env.VERCEL = '1';
+  process.env.VERCEL_ENV = 'production';
+  assert.equal((await get('/api/setup/cleanup-test?stylist=Saraa&date=2035-06-04')).status, 404);
 });
