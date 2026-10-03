@@ -5,7 +5,7 @@ const { getCalendarClient } = require('../services/googleCalendar');
 const { STYLIST_CONFIG } = require('../config/stylists');
 const { getClosures, findClosure, salonDateOf } = require('../config/closures');
 const { totalDurationFor } = require('../config/serviceDurations');
-const { normalizeCustomerGender, checkGenderMatch } = require('../services/bookingRules');
+const { normalizeCustomerGender, checkGenderMatch, checkLevelMatch } = require('../services/bookingRules');
 const { ensurePaidBooking, alertBookingFailure } = require('../services/bookingWriter');
 const { sweepExpiredHolds } = require('../services/bookingHold');
 
@@ -343,6 +343,13 @@ router.post('/book', async (req, res) => {
     }
   } else {
     console.warn('book: no customer gender recorded for booking with', stylistId);
+  }
+
+  // Same rule as the invoice: a level-named haircut only with that level.
+  const levelCheck = checkLevelMatch({ stylistId, services: selectedServices, serviceName });
+  if (!levelCheck.allowed) {
+    console.error('book: refused level mismatch', stylistId, levelCheck.reason);
+    return res.status(422).json({ error: 'Hairdresser is not of the level this haircut names', reason: levelCheck.reason });
   }
 
   const start = new Date(startTime);

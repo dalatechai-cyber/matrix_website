@@ -844,3 +844,17 @@ test('book: a 4-hour service is written to the calendar as 4 hours', async () =>
   const diffMinutes = (new Date(end.dateTime) - new Date(start.dateTime)) / (60 * 1000);
   assert.equal(diffMinutes, 240, 'a hairdresser booking must honour the real duration');
 });
+
+test('book: an explicit level mismatch is refused, as on the invoice', async () => {
+  calendarStub._insertError = null;
+  calendarStub._lastInsertArg = null;
+  const app = buildApp();
+  const { status, body } = await request(app, 'POST', '/api/calendar/book', {
+    stylistId: VALID_STYLIST_ID, // Anand, Мастер
+    startTime: '2026-03-10T10:00:00Z',
+    selectedServices: ['Эрэгтэй засалт — Тайралт том хүн /SPECIAL/'],
+  });
+  assert.equal(status, 422);
+  assert.equal(body.reason, 'level-mismatch');
+  assert.equal(calendarStub._lastInsertArg, null, 'nothing is written');
+});

@@ -352,3 +352,13 @@ test('level-named haircuts go only to a hairdresser of that level, on both payme
   const free = await standalone(pay('88112233', { staff: 'Zaya', time: '17:00', services: 'Эмэгтэй засалт — Тайралт хүүхэд' }));
   assert.equal(free.status, 200, 'a service without a level goes to any level');
 });
+
+test('a level is read however the haircut is spelled, and from serviceName too', () => {
+  const { requiredLevelFor, checkLevelMatch } = require('../services/bookingRules');
+  assert.equal(requiredLevelFor('Эмэгтэй засалт — Тайралт том хүн (SPECIAL)'), 'special');
+  assert.equal(requiredLevelFor('Эмэгтэй засалт — Тайралт том хүн /1-р  зэрэг/'), 'first');
+  assert.equal(requiredLevelFor('эмэгтэй засалт — тайралт том хүн мастер'), 'master');
+  assert.equal(requiredLevelFor('Эмэгтэй засалт — Тайралт хүүхэд'), null);
+  assert.equal(requiredLevelFor([], 'Эмэгтэй засалт — Тайралт том хүн /SPECIAL/'), 'special', 'an empty list cannot hide serviceName');
+  assert.equal(checkLevelMatch({ stylistId: 'Zaya', services: [], serviceName: 'Эмэгтэй засалт — Тайралт том хүн /SPECIAL/' }).reason, 'level-mismatch');
+});

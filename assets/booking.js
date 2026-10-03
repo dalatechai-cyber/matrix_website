@@ -257,10 +257,13 @@
       group.append(el("legend", "", c.name));
       const grid = el("div", "options options--services");
       c.services.forEach((s) => {
-        // A level-named haircut nobody at this branch holds (e.g. 1-р зэрэг at
-        // Парк Од) is not offered.
+        // A level-named haircut nobody at this branch can take is not offered:
+        // no hairdresser of that level (1-р зэрэг at Парк Од), or none who
+        // serves that section's customers (no man is SPECIAL, so no men's
+        // SPECIAL cut).
         const lv = levelOfService(s.key || s.name);
-        if (lv && state.branch && !state.branch.stylists.some((x) => x.levelKey === lv)) return;
+        const forGender = SECTION_GENDER[c.id];
+        if (lv && state.branch && !state.branch.stylists.some((x) => x.levelKey === lv && (!forGender || x.gender === forGender))) return;
         if (!Array.isArray(s.prices)) {
           grid.append(serviceChoice(s.key, s.name, s.price, s.note));
           return;
@@ -299,6 +302,9 @@
   // Level-named haircuts go only to a hairdresser of that level (the server
   // refuses any other); services/bookingRules.js has the same markers.
   const LEVEL_MARKERS = [[/\/\s*SPECIAL\s*\//iu, "special"], [/\/\s*МАСТЕР\s*\//iu, "master"], [/\/\s*1-р зэрэг\s*\//iu, "first"]];
+  // Sections of the price list whose customers are one gender.
+  const SECTION_GENDER = { women: "female", men: "male" };
+  const LEVEL_NAMES = { special: "SPECIAL", master: "Мастер", first: "1-р зэргийн" };
   function levelOfService(key) {
     const hit = LEVEL_MARKERS.find(([re]) => re.test(String(key).normalize("NFC")));
     return hit ? hit[1] : null;
@@ -332,6 +338,10 @@
     }
     if (!state.gender) {
       wrap.replaceChildren(el("p", "step-hint", "Эхлээд Эмэгтэй эсвэл Эрэгтэй гэдгээ сонгоно уу."));
+    } else if (level === "conflict") {
+      wrap.replaceChildren(el("p", "notice", "Өөр өөр зэргийн үсчний тайралтыг нэг захиалгад хамт сонгох боломжгүй. Үйлчилгээгээ дахин сонгоно уу."));
+    } else if (list.length === 0 && level) {
+      wrap.replaceChildren(el("p", "notice", `Сонгосон тайралтыг ${LEVEL_NAMES[level]} үсчин хийдэг. Энэ салбарт ${GENDER_LABELS[state.gender].toLowerCase()} үйлчлүүлэгчид үйлчлэх ${LEVEL_NAMES[level]} үсчин одоогоор алга. Өөр тайралт сонгох эсвэл салбарын утсаар холбогдоно уу.`));
     } else if (list.length === 0) {
       wrap.replaceChildren(el("p", "notice", `${state.branch.name}-д одоогоор ${GENDER_LABELS[state.gender].toLowerCase()} үйлчлүүлэгчид үйлчлэх үсчин онлайн захиалгад бүртгэгдээгүй байна. Салбарын утсаар холбогдоно уу.`));
     } else {

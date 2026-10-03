@@ -37,7 +37,7 @@ Final report: under 25 lines, plain English (see the brief's last paragraph).
 - Titles (website): «SPECIAL Hair Stylist», «Master Hair Stylist»; propose 1-р зэрэг's.
   Дали Mongolian: «үсчин», never «стилист».
 - Парк Од hours Mon–Sat 10–20, Sun 11–19. Address Баянзүрх дүүрэг, 26-р хороо, Парк-Од молл,
-  4 давхар, 405 тоот. Page profile.php?id=100067391025472. E-mail bolotuyagongor@gmail.com.
+  4 давхар, 405 тоот. Page profile.php?id=100067391025472. E-mail: the founder has it (kept out of the repo).
 - Phones: 76001888 shared; Яармаг also 91005498.
 - Парк Од booking account tarasalon.parkod@gmail.com (being created) + one Gmail per stylist
   sharing her calendar («make changes to events»), like booking@matrixecosalon.org for Яармаг.
@@ -141,3 +141,20 @@ R2-4. Level-named haircuts: the service decides the level; a stylist of another 
 - Workers stopped at an API session limit (~09:20–11:50 UTC); resumed 15:45 UTC.
 - R2-5. Hero/«Бидний тухай»/«Уралдаан ба сургалт» photos are from the same Facebook export as
   the removed gallery: kept, flagged for the founder.
+
+### Round 2 — review fixes (2026-10-04)
+
+- R2-6 Men's «Тайралт том хүн /SPECIAL/» is on the salon's list but no male
+  hairdresser is SPECIAL at either branch, so online booking hides it (price
+  page unchanged). A level cut is offered only if the branch has a hairdresser
+  of that level who serves that section's customers. Two new step-3 notices
+  (level missing, two levels together) are listed for approval in COPY_DRAFT.
+- R2-7 Level check now maps each service to its catalogue entry by the same
+  loose key as durations («(SPECIAL)», double spaces), reads serviceName as well
+  as selectedServices, and /api/calendar/book refuses an explicit level
+  mismatch like a gender mismatch.
+- R2-8 Boloroo's personal e-mail removed from the template, TWO_BRANCHES and
+  NOTES (it remains in git history since ca925df; the repo did not show up in a
+  public search, so it is likely private). The founder fills it in outside the repo.
+- R2-9 docs/PHOTOS.md lists only the 8 photos still shown; IMAGERY drops
+  intro-zurag. Those 8 are from the same Matrix-era export — founder decides.

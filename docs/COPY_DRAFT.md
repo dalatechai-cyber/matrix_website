@@ -90,6 +90,17 @@ Matrix's). It returns only with Tara's own photos.
 
 ## Still waiting for approval
 
-- Nothing new on the website in round 2. A level-named haircut with no
-  matching hairdresser reuses the existing approved notice («…үйлчлэх үсчин
-  онлайн захиалгад бүртгэгдээгүй байна. Салбарын утсаар холбогдоно уу.»).
+Two booking notices, added after the review (step 3, «Үсчин»). Until they are
+approved they show as written here; both only appear in rare cases.
+
+- A level-named haircut with no hairdresser of that level for this customer
+  (e.g. a man picks a women's SPECIAL cut): «Сонгосон тайралтыг SPECIAL үсчин
+  хийдэг. Энэ салбарт эрэгтэй үйлчлүүлэгчид үйлчлэх SPECIAL үсчин одоогоор
+  алга. Өөр тайралт сонгох эсвэл салбарын утсаар холбогдоно уу.» (level and
+  customer filled in).
+- Two haircuts of different levels chosen together: «Өөр өөр зэргийн үсчний
+  тайралтыг нэг захиалгад хамт сонгох боломжгүй. Үйлчилгээгээ дахин сонгоно уу.»
+
+Also: «Эрэгтэй засалт — Тайралт том хүн /SPECIAL/» stays on the price page (it
+is on the salon's list) but is not offered for online booking, because no male
+hairdresser is SPECIAL at either branch.

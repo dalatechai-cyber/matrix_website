@@ -105,16 +105,6 @@ function formatSalonTime(date) {
 }
 
 /**
- * Decide whether a create-payment request may produce an invoice.
- *
- * The site sends `staffName` (the stylist id), `customerGender` and
- * `depositTermsAccepted: true`. A request missing any of them is refused
- * before QPay is ever called, so no invoice or QR exists for it.
- *
- * @param {{ staffName?: string, customerGender?: string, depositTermsAccepted?: unknown }} body
- * @returns {{ allowed: boolean, reason: string, customerGender: string|null }}
- */
-/**
  * Level-named haircuts (founder, 2026-10-04): «Тайралт том хүн /SPECIAL/»,
  * «/МАСТЕР/» and «/1-р зэрэг/» are priced by the hairdresser's level, so each
  * goes only to a hairdresser of that level. The service names come from the
@@ -126,20 +116,47 @@ const LEVEL_MARKERS = [
   [/\/\s*1-р зэрэг\s*\//iu, 'first'],
 ];
 
-/** The level the chosen services require: null (any), a level key, or 'conflict'. */
-function requiredLevelFor(services) {
-  const { parseServices } = require('../config/serviceDurations');
+function levelOfName(name) {
+  const text = String(name || '').normalize('NFC');
+  const hit = LEVEL_MARKERS.find(([re]) => re.test(text));
+  return hit ? hit[1] : null;
+}
+
+// Each catalogue service (and alias) under the same loose key the duration
+// lookup uses, so «… (SPECIAL)» or doubled spaces name the same haircut, and
+// its level is read from the catalogue's own name.
+const LEVEL_BY_KEY = new Map();
+{
+  const { normalizeServiceName } = require('../config/serviceDurations');
+  for (const entry of require('../data/serviceDurations.json').services || []) {
+    if (!entry || !entry.name) continue;
+    const level = levelOfName(entry.name);
+    if (!level) continue;
+    for (const n of [entry.name, ...(entry.aliases || [])]) LEVEL_BY_KEY.set(normalizeServiceName(n), level);
+  }
+}
+
+/**
+ * The level the chosen services require: null (any), a level key, or
+ * 'conflict'. Accepts the forms parseServices does; several values (e.g.
+ * selectedServices and serviceName) are all read, so neither can hide a level.
+ */
+function requiredLevelFor(...values) {
+  const { normalizeServiceName, parseServices } = require('../config/serviceDurations');
   const levels = new Set();
-  for (const name of parseServices(services)) {
-    for (const [re, level] of LEVEL_MARKERS) if (re.test(String(name).normalize('NFC'))) levels.add(level);
+  for (const value of values) {
+    for (const name of parseServices(value)) {
+      const level = LEVEL_BY_KEY.get(normalizeServiceName(name)) || levelOfName(name);
+      if (level) levels.add(level);
+    }
   }
   if (levels.size === 0) return null;
   return levels.size === 1 ? [...levels][0] : 'conflict';
 }
 
 /** Whether the hairdresser's level fits the level-named services chosen. */
-function checkLevelMatch({ stylistId, services }) {
-  const required = requiredLevelFor(services);
+function checkLevelMatch({ stylistId, services, serviceName }) {
+  const required = requiredLevelFor(services, serviceName);
   if (!required) return { allowed: true, reason: 'ok' };
   const cfg = STYLIST_CONFIG[stylistId];
   if (required === 'conflict') return { allowed: false, reason: 'level-conflict' };
@@ -147,13 +164,23 @@ function checkLevelMatch({ stylistId, services }) {
   return { allowed: true, reason: 'ok' };
 }
 
+/**
+ * Decide whether a create-payment request may produce an invoice.
+ *
+ * The site sends `staffName` (the stylist id), `customerGender` and
+ * `depositTermsAccepted: true`. A request missing any of them is refused
+ * before QPay is ever called, so no invoice or QR exists for it.
+ *
+ * @param {{ staffName?: string, customerGender?: string, depositTermsAccepted?: unknown }} body
+ * @returns {{ allowed: boolean, reason: string, customerGender: string|null }}
+ */
 function checkPaymentBookingRules(body) {
   const b = body || {};
   const gender = checkGenderMatch({ stylistId: b.staffName, customerGender: b.customerGender });
   if (!gender.allowed) {
     return { allowed: false, reason: gender.reason, customerGender: gender.customerGender };
   }
-  const level = checkLevelMatch({ stylistId: b.staffName, services: b.selectedServices || b.serviceName || '' });
+  const level = checkLevelMatch({ stylistId: b.staffName, services: b.selectedServices, serviceName: b.serviceName });
   if (!level.allowed) {
     return { allowed: false, reason: level.reason, customerGender: gender.customerGender };
   }

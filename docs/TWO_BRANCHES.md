@@ -61,9 +61,9 @@ fields below come from the repository's own working code and Quick QR SDKs.)
 | Names | surname (овог) and given name (нэр) | company legal name, and owner's surname and given name |
 | Trading name | «Tara Salon Парк Од» (`business_name`) | «Tara Salon Парк Од» (`name`) |
 | Address | Баянзүрх дүүрэг, 26-р хороо, Парк-Од молл, 4 давхар, 405 тоот | same |
-| City / district | Улаанбаатар / Баянзүрх (the script looks up QPay's codes) | same |
+| City / district | QPay's codes for Улаанбаатар and Баянзүрх: list them with step 1 and paste them into the form (the script sends them as typed) | same |
 | Phone | the number QPay may call her on | same |
-| E-mail | bolotuyagongor@gmail.com | same |
+| E-mail | her e-mail (the founder has it; not written in the repo) | same |
 | Bank account | her bank's name, account number, holder name exactly as the bank shows it | the company account |
 | MCC | 7230 (beauty and barber shops), as Яармаг | same |
 
