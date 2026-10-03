@@ -49,7 +49,14 @@ Final report: under 25 lines, plain English (see the brief's last paragraph).
 - [x] T2 env var list (docs/TWO_BRANCHES.md). Nothing set on Preview: no variable has a known
       value yet (merchant id, bank, chat id, calendar ids all still to be created), and the
       Vercel connection cannot even list env vars (403).
-- [ ] T3 Яармаг Дали quality (7 days of chats) — dala-ai
+- [x] T3 dala-ai draft PR https://github.com/dalatechai-cyber/dala-ai/pull/283 (CI green). 315 texts/134
+      chats; ~188/257 replies good, 68 weak (26 already fixed by applied files, 42 possible today).
+      Fixed in code: dye price ask got only the clarifying question (×12) → price rows added;
+      approved line copied with one word changed → hand-off line instead of the row (×4) → certain
+      share 0.9. Biggest: photo/reel + "how much?" → hand-off then silence (34 chats, 26 never got a
+      staff reply) — founder decision (recommend: turn on Tara's media alert now). Drafts:
+      prompt/drafts/tara_quality_2026-10-03.mn.txt (deposit taken off price? loan apps? dye brand?).
+      Report: docs/reports/2026-10-03-tara-dali-quality.md.
 - [ ] T4 names/titles everywhere
 - [x] T5 website: draft PR https://github.com/dalatechai-cyber/matrix_website/pull/83 (base = PR #82
       head). Two review rounds done, all findings fixed (blocker: hold id prefix «wh» invalid in
