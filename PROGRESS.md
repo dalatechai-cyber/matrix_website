@@ -109,6 +109,24 @@ today until the owner approves the switch.
   star on basalt (larger star at 16/32 px); new social preview image.
 - Visual only: text, prices, links, booking flow and branch details unchanged.
 
+## Part 6 — two branches side by side (2026-10-03) ✅ (preview only)
+
+- Stylists by the salon's short Latin names, levels and deposits; Парк Од's
+  seven with photos (4K originals optimised, never upscaled); Отгонжаргал
+  retired (not in the salon's list). Former names kept as aliases.
+- Парк Од: hours, her own QPay merchant and bank account through the shared
+  Quick QR login (or her own), calendars by `PARKOD_CALENDAR_*`; closed until
+  connected. `docs/TWO_BRANCHES.md`: QPay design, the questions for QPay,
+  every variable. `scripts/qpay-merchant.js` registers her merchant (dry run
+  by default).
+- 5-minute hold on both payment paths (`services/bookingHold.js`), so the
+  website and Messenger can never both sell one time; daily sweep cron.
+- The 62 durations are confirmed by the salon.
+- «Манай үсчид» on the home page; booking shows titles.
+- Tests: 209, including a faithful in-memory Google Calendar. Browser walk at
+  390 and 1440 px (local, faked Google and QPay): team, Парк Од booking, two
+  customers racing for one time (the second sent back to the times), paid.
+
 ## Open items for the owner
 
 - New copy, all in one place: `docs/COPY_DRAFT.md`.

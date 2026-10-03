@@ -18,16 +18,52 @@ export lives only on branch `tara-photos` — never merge it or ship it.
 [config/branches.js](config/branches.js) is the rule. Every hairdresser in
 [config/stylists.js](config/stylists.js) has a `branch`; the hairdresser
 decides the branch, and the branch decides the calendar and the QPay account.
-Both create-payment handlers refuse a request that names another branch, or a
-branch not yet connected, before QPay is called. Яармаг keeps exactly its
-original QPay settings. Парк Од uses only `PARKOD_QPAY_*` variables (listed in
-config/branches.js) and has no fallback to Яармаг's. A branch takes online
-bookings only when it has opening hours in `data/branches.json`, at least one
-hairdresser, a complete QPay account and (Парк Од) its own alert chat
-`PARKOD_TELEGRAM_CHAT_ID` — alerts never go to the other owner's chat; until
-then the site shows
-«Онлайн захиалга удахгүй нээгдэнэ». The booking page gets hairdressers from
-`GET /api/branches` — there is no copy in the browser.
+Both create-payment handlers refuse a request that names another branch, a
+branch not yet connected, a retired hairdresser or one without a calendar,
+before QPay is called. Яармаг keeps exactly its original QPay settings.
+
+**QPay, two branches, one login.** The site holds one QPay Quick QR partner
+login (`QPAY_USERNAME`/`QPAY_PASSWORD`, terminal `DALATECH_AI`). Each salon is
+its own merchant under it, and every invoice names the merchant and the bank
+account that receives the money (`bank_accounts`). Парк Од REQUIRES her own
+`PARKOD_QPAY_MERCHANT_ID` and payout account (`PARKOD_QPAY_BANK_CODE`,
+`PARKOD_QPAY_ACCOUNT_NUMBER`, `PARKOD_QPAY_ACCOUNT_NAME`); her own login
+(`PARKOD_QPAY_USERNAME`/`_PASSWORD`/`_TERMINAL_ID`) is optional, all three or
+none. A merchant id or account equal to Яармаг's is refused. Full design and
+what to ask QPay: [docs/TWO_BRANCHES.md](docs/TWO_BRANCHES.md).
+
+A branch takes online bookings only when it has opening hours in
+`data/branches.json`, at least one hairdresser with a calendar, a complete
+QPay account and (Парк Од) its own alert chat `PARKOD_TELEGRAM_CHAT_ID` —
+alerts never go to the other owner's chat; until then the site shows
+«Онлайн захиалга удахгүй нээгдэнэ». Парк Од's calendars come from
+`PARKOD_CALENDAR_<NAME>` (e.g. `PARKOD_CALENDAR_SARAA`): connecting a
+hairdresser is a Vercel variable and a redeploy. The booking page gets
+hairdressers from `GET /api/branches` — there is no copy in the browser.
+
+## Hairdressers: names, levels, the team section
+
+Shown everywhere by the short Latin names the salon chose on 2026-10-03
+(Oyunaa, Badamaa, Uyanga, Zaya, Chimgee, Anand; Boloroo, Saraa, Tomoo, Bulgaa,
+Enhuush, Chimegee, Tuchku), exactly as written. Former names stay accepted as
+aliases so an open page or a signed callback still reaches the same person.
+Levels: SPECIAL and Мастер 20,000₮, 1-р зэрэг 10,000₮ (Яармаг only); English
+titles «SPECIAL Hair Stylist», «Master Hair Stylist», and (proposed, awaiting
+approval) «Senior Hair Stylist» — never «hair salonner». The home page's
+«Манай үсчид» section renders from the same list. Отгонжаргал is retired (not
+in the salon's list): not shown or bookable, kept only for old callbacks.
+
+## The 5-minute hold (website ↔ Messenger)
+
+Before any QR, both create-payment handlers hold the time on the
+hairdresser's calendar ([services/bookingHold.js](services/bookingHold.js)):
+an opaque `wh…` event over the whole appointment, expiring with the QR (+30 s).
+After inserting, it looks again and yields to anything overlapping except a
+hold created after its own. Taken: 409 «taken», no QR. Calendar unreadable:
+no QR. The paid booking replaces the hold; expired holds are deleted when a
+day's times are read and by the daily cron (`/api/calendar/sweep-holds`,
+optional `CRON_SECRET`). dala-ai's in-chat booking holds with `dh…` events on
+the same calendars, so neither side can sell a time the other is holding.
 
 ## Salon closures (holidays)
 
@@ -139,8 +175,9 @@ any `totalDuration` the browser sends — that number decides how much of a
 stylist's day is blocked. An unrecognised service name costs the default
 (60 min), never zero.
 
-Most figures are engineering estimates marked `"confirm": true` and still need
-the salon's sign-off; editing the JSON is the whole change. See
+The current list's 62 figures were confirmed by the salon on 2026-10-03;
+`"confirm": true` remains only on retired entries. Editing the JSON is the
+whole change. See
 **[docs/SERVICE_DURATIONS.md](docs/SERVICE_DURATIONS.md)** for the full rationale
 and what is still open.
 

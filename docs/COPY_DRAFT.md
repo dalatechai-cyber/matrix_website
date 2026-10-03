@@ -73,3 +73,13 @@ the Keune texts) are not repeated here.
 - Menu: Үйлчилгээ ба үнэ · Бүтээл · Бүтээгдэхүүн · Бидний тухай · Салбарууд · Цаг захиалах
 - Footer: Үсний засалт, будаг, хими, арчилгааны мэргэжлийн салон. · Цэс · © 2026 Tara Salon. Бүх эрх хуулиар хамгаалагдсан.
 - Accessibility labels: Үндсэн агуулга руу шилжих · Цэс нээх / Цэс хаах · Зураг томруулж харах · Өмнөх / Дараагийн зураг · Хаах
+
+## Added 2026-10-03 (two branches, team, hold) — drafts for approval
+
+- Home, new section **Манай үсчид** — «Яармаг болон Парк Од салбарын мэргэжлийн үсчид.»
+- Team group link: «Яармаг салбарт цаг захиалах» / «Парк Од салбарт цаг захиалах»
+- Deposit line (home): «Урьдчилгаа төлбөр нь үсчний зэрэглэлээс хамаарна: SPECIAL болон мастер үсчин 20,000₮, 1-р зэргийн үсчин 10,000₮. …» (adds SPECIAL; the rest unchanged)
+- English title for 1-р зэрэг (team section and booking): **Senior Hair Stylist** (proposal; SPECIAL Hair Stylist and Master Hair Stylist are the founder's)
+- Payment step, when the calendar cannot be read: «Уучлаарай, цагийн хуваарийг яг одоо шалгаж чадсангүй. Түр хүлээгээд дахин оролдоно уу.»
+- Payment step, time taken while choosing (reuses the existing renewal line): «Уучлаарай, энэ цаг өөр хүнд захиалагдсан байна. Өөр цаг сонгоно уу.»
+- The QPay e-mail draft in `docs/TWO_BRANCHES.md` (for the founder to send).
