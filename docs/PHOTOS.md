@@ -15,7 +15,13 @@ Chosen from the salon's Facebook export (branch `tara-photos`, `photos-inbox/` �
 
 **The «Бүтээл» gallery was removed on 2026-10-04** (founder: its photos were
 Matrix's) and its 24 photos deleted; it returns only with Tara's own photos.
-The eight above come from the same Matrix-era export and are still shown — the
-founder decides whether they stay until Tara's own photos replace them.
+
+**The eight above stay** (founder, 2026-10-04: keep those with no Matrix name
+or logo — same salon, same people's work). Each was checked at full size on
+2026-10-04 and none shows the Matrix name or logo: the framed sign behind
+`rose-waves` is Mongolian text, the certificates in `training-certificates`
+are a Korean academy's, `competition-asia` shows the Asia Cup Open folder,
+`cutting`'s background is out of focus, and `tools` shows only scissor makers'
+marks. Removed for branding: none.
 
 Not found in the export without the Matrix name or a watermark: a photo of the building, and a group photo of today's team — both still wanted. Men's cuts: only low-resolution or watermarked shots exist, so none are shown.
