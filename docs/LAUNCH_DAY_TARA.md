@@ -195,12 +195,13 @@ the replies:
 *Check:* send a hair photo with no text → the approved photo question comes
 back, and the chat stays with Дали. Then answer «Tara perm, урт» → the price.
 
-`scripts/provision/tara-yarmag-colour-and-treatment-perm-2026-10-04.sql` can
-run at any time: its two rows (women's «Эмчилгээний хими» not offered;
-«өнгө гаргалт» answered with the colour prices) land **disabled**. Its step 2
-switches them on once you approve their wording (dala-ai approvals file 08).
-The price-page replies are gone (your decision, 2026-10-04: neither is a Tara
-service), and the website needs no change for them.
+3. `scripts/provision/tara-yarmag-colour-and-treatment-perm-2026-10-04.sql`
+   (approved 2026-10-04; run it after the price list file, which gives
+   91005498, or it refuses): women's «Эмчилгээний хими» is not offered;
+   «өнгө гаргалт» gets «Манай өнгөний үйлчилгээний үнэ:» with the women's
+   colour prices, or the men's when the customer writes «эрэгтэй». The
+   price-page replies are gone (neither is a Tara service); the website needs
+   no change for them.
 
 ---
 
@@ -260,10 +261,10 @@ sheet id (18 lines, all approved on 2026-10-04). Then run:
 the name check. Also ask «Яармаг салбар хаана байдаг вэ?» → Яармаг's address,
 76001888 and Яармаг's Page, never 91005498.
 
-**C8 — After you approve file 08:** the commented step 9 of
-`tara-park-od-after-onboarding.sql` (the two D-177 rows on), on the same day as
-Яармаг's B5 step 2. *Check:* «ungu gargalt hed ve» → the colour prices and
-76001888, never «not offered»; «emegtei emchilgeenii himi hed ve» → not
+**C8 — Check the D-177 replies** (they land on with the C file, approved
+2026-10-04): «ungu gargalt hed ve» → «Манай өнгөний үйлчилгээний үнэ:», the
+women's colour prices and 76001888, never «not offered»; «eregtei hun ungu
+gargalt» → the men's prices; «emegtei emchilgeenii himi hed ve» → not
 offered, never 189,000₮.
 
 ---
