@@ -61,20 +61,28 @@ router.get('/check', async (_req, res) => {
   try { calendar = await getCalendarClient(); } catch (err) { out.calendarError = err.message; }
   for (const branch of BRANCH_IDS) {
     const stylists = [];
+    const ids = [];
     for (const p of peopleOf(branch)) {
       const calendarId = p.cfg && p.cfg.calendarId;
+      const read = calendar ? await readable(calendar, calendarId) : { ok: false };
       stylists.push({
         name: p.name,
         variable: p.variable,
         set: !!calendarId,
-        readable: calendar ? (await readable(calendar, calendarId)).ok : false,
+        readable: read.ok,
+        calendarName: read.calendarName || null,
+        timeZone: read.timeZone || null,
       });
+      ids.push(calendarId);
     }
+    const setIds = ids.filter(Boolean);
     const account = qpayAccountFor(branch);
     out.branches[branch] = {
       readiness: branchReadiness(branch),
       bankAccountComplete: !!(account && account.complete),
       alertChatSet: !!alertChatFor(branch),
+      // Two hairdressers on one calendar would book over each other.
+      calendarsDistinct: new Set(setIds).size === setIds.length,
       stylists,
     };
   }

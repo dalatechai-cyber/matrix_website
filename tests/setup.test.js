@@ -36,7 +36,7 @@ Module._load = function (request) {
           calendars: {
             get: async ({ calendarId }) => {
               if (!store.shared.has(calendarId)) throw notFound();
-              return { data: { summary: `cal ${calendarId}`, timeZone: 'Asia/Ulaanbaatar' } };
+              return { data: { summary: 'Saraa', timeZone: 'Asia/Ulaanbaatar' } };
             },
           },
           freebusy: {
@@ -123,6 +123,11 @@ test('check: names the service account and each hairdresser\'s calendar variable
   const boloroo = parkod.stylists.find((s) => s.name === 'Boloroo');
   assert.deepEqual([boloroo.set, boloroo.readable], [false, false]);
   assert.deepEqual(parkod.readiness, { ready: true, reason: 'ok' });
+  assert.equal(parkod.calendarsDistinct, true);
+  assert.equal(saraa.timeZone, 'Asia/Ulaanbaatar');
+  process.env.PARKOD_CALENDAR_TOMOO = SARAA_CAL;
+  assert.equal((await get('/api/setup/check')).body.branches.parkod.calendarsDistinct, false, 'two hairdressers on one calendar');
+  delete process.env.PARKOD_CALENDAR_TOMOO;
   assert.equal(r.body.branches.yaarmag.stylists.length, 7);
   assert.ok(r.body.branches.yaarmag.stylists.every((s) => s.variable === null && s.set), 'Яармаг keeps its fixed calendars');
   assert.ok(!JSON.stringify(r.body).includes('@group.calendar.google.com'), 'no calendar ids are shown');
