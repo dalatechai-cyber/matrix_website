@@ -129,3 +129,13 @@ UI/UX work:
 The impeccable skill is the design authority for this project; prefer it over
 generic UI tooling. The `.impeccable/` directory holds its sidecar
 (`design.json`) and live-mode config.
+
+## Guardrails (committed hooks)
+
+`.claude/settings.json` runs `.claude/hooks/guardrails.cjs` before every
+shell command, file write and MCP call, in local and cloud sessions alike. It
+**asks** a person before `supabase db push` (and the Supabase MCP's
+migrations), `npm audit fix --force`, merging into or pushing to `main`, and
+any Vercel Production change; it **refuses** writing the blocked number
+(see the hook) into any file. Tests: `.claude/hooks/guardrails.test.cjs`
+(part of `npm test`). Never weaken or bypass the hook without the founder.
