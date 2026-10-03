@@ -95,15 +95,16 @@ website is live for both branches.**
 **A5 — You: one unpaid QR** (2 minutes of your time, then a 5-minute wait).
 Book any hairdresser a few days ahead, open the QR and do **not** pay. In her
 Google Calendar a «⏳ Түр хадгалсан…» event appears at that time. Close the page.
-*Check:* within 5 minutes the event is gone by itself, and the time is offered
+*Check:* within 6 minutes the event is gone by itself, and the time is offered
 again on the website and in Messenger.
 
 How the hold is released in Production (nothing to schedule):
 - **Main path, every QR:** the payment request that placed the hold stays
   alive after it answers (Vercel `waitUntil`) and deletes the hold 2 s after
-  it expires: 4 min 47 s after the QR was made. It needs no schedule and no
-  variable. The QR shows for 4½ minutes, not 5, because a Vercel function on
-  this plan lives at most 300 s.
+  it expires: 5 min 32 s after the QR was made. It needs no schedule and no
+  variable, but it needs the Pro plan: the payment functions run up to 400 s
+  (`maxDuration` in `api/qpay/create-payment.mjs` and `server.mjs`). On Hobby
+  (300 s) the release would be cut off and only the back-ups below remain.
 - **If that is ever cut short:** an expired hold is free anyway. The website
   deletes it whenever anyone looks at that day's times or books, and Дали
   reads it as free.

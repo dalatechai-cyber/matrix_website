@@ -71,9 +71,11 @@ deposit is deducted from the service price («Урьдчилгаа төлбөр 
 Before any QR, both create-payment handlers hold the time on the
 hairdresser's calendar ([services/bookingHold.js](services/bookingHold.js)):
 an opaque `sh…` event over the whole appointment, expiring with the QR
-(4½ min, +15 s). The request that placed it deletes it at expiry (Vercel
-`waitUntil`; a function lives at most 300 s, which is why the QR is 4½ min,
-not 5) — no schedule needed.
+(5 min, +30 s). The request that placed it deletes it at expiry (Vercel
+`waitUntil`) — no schedule needed. That needs the payment functions to run
+400 s: `maxDuration` is set in `api/qpay/create-payment.mjs` and `server.mjs`,
+the Vercel entries (Vercel reads it only from an ES-module `export const
+config`; `vercel.json` `builds` config is ignored), and needs the Pro plan.
 After inserting, it looks again and yields to anything overlapping except a
 hold placed after its own (a chat hold is one with `dalaBookingState` 'hold'). Taken: 409 «taken», no QR. Calendar unreadable:
 no QR. The paid booking replaces the hold; as back-ups, expired holds are

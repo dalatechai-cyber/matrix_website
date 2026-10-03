@@ -224,3 +224,8 @@ R2-4. Level-named haircuts: the service decides the level; a stylist of another 
 - Founder: women's «Эмчилгээний хими» and «өнгө гаргалт» are not Tara services. Дали's price-page
   replies and «Үнийн хуудас» are dropped (dala-ai D-177, #283 and #284); the website needs no
   change and gains no price. LAUNCH_DAY_TARA.md loses the «two missing prices» blocker.
+- Update (founder: the team is on Pro): the QR and hold are back to 5 minutes (+30 s). Vercel
+  reads a function's `maxDuration` only from an ES-module `export const config` in the entry
+  file — the `builds` config in vercel.json was ignored, which is why 400 s still stopped at 300 s.
+  New entries `api/qpay/create-payment.mjs` and `server.mjs` import the CommonJS handlers and set
+  400 s.

@@ -21,9 +21,9 @@
   "use strict";
 
   // ── Customer-facing wording (owner-approved strings kept verbatim) ────
-  // 4½ minutes: the hold behind it (services/bookingHold.js) must be released
-  // inside a Vercel function's 300 s.
-  const QPAY_QR_VALID_MS = 4.5 * 60 * 1000;
+  // 5 minutes, as Дали's chat says; the hold behind it (services/bookingHold.js)
+  // ends 30 s later and is released by the request that placed it.
+  const QPAY_QR_VALID_MS = 5 * 60 * 1000;
   const SLOT_TAKEN_RENEW_MSG = "Уучлаарай, энэ цаг өөр хүнд захиалагдсан байна. Өөр цаг сонгоно уу.";
   const CALENDAR_ERROR_MSG = "Төлбөр төлөгдсөн ч цаг бүртгэхэд алдаа гарлаа. Бидэнтэй холбогдоно уу.";
   const SLOT_TAKEN_PAID_MSG = "Төлбөр тань амжилттай орсон. Харамсалтай нь сонгосон цаг тань энэ хооронд өөр хүнд захиалагдсан байна. Салоны ажилтан тантай удахгүй холбогдож өөр цаг тохирно.";

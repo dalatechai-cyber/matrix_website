@@ -46,13 +46,13 @@ const CHAT_HOLD_STATE = 'hold';
 const HOLD_FLAG = 'taraHold';
 // The QR's life on the booking page (assets/booking.js QPAY_QR_VALID_MS),
 // plus a margin: the hold is placed a moment BEFORE the invoice, so without it
-// the hold would end a second or two before the QR does. 4½ minutes, not 5:
-// the request that placed the hold deletes it at expiry, and a Vercel function
-// lives at most 300 s (Hobby), so hold + margin + release must end inside that.
-const HOLD_SECONDS = 270;
-const HOLD_GRACE_SECONDS = 15;
-// Leave the function this much of its 300 s for the release itself.
-const FUNCTION_BUDGET_MS = 292 * 1000;
+// the hold would end a second or two before the QR does. The request that
+// placed the hold deletes it at expiry, so the payment functions run up to
+// 400 s (maxDuration in api/qpay/create-payment.mjs and server.mjs; Pro plan).
+const HOLD_SECONDS = 300;
+const HOLD_GRACE_SECONDS = 30;
+// Leave the function this much of its 400 s for the release itself.
+const FUNCTION_BUDGET_MS = 392 * 1000;
 const SALON_TZ_OFFSET = '+08:00';
 
 function holdIdFor(calendarId, start, phone) {
@@ -272,8 +272,8 @@ async function releaseWhenExpired(calendar, calendarId, holdId, expiresAt, { sle
 
 /**
  * Keep the serverless function alive after its response until the hold is
- * released (Vercel waitUntil; maxDuration 300 in vercel.json covers the
- * 4 min 45 s). Off Vercel the timer simply runs in the process.
+ * released (Vercel waitUntil; maxDuration 400 in the .mjs entries covers the
+ * 5½ minutes). Off Vercel the timer simply runs in the process.
  */
 function releaseAfterResponse(promise) {
   try {
