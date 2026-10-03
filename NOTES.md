@@ -57,20 +57,24 @@ Final report: under 25 lines, plain English (see the brief's last paragraph).
       staff reply) — founder decision (recommend: turn on Tara's media alert now). Drafts:
       prompt/drafts/tara_quality_2026-10-03.mn.txt (deposit taken off price? loan apps? dye brand?).
       Report: docs/reports/2026-10-03-tara-dali-quality.md.
-- [ ] T4 names/titles everywhere
+- [x] T4 names/titles: website (#83), Дали data both branches (#284), booking (#285).
 - [x] T5 website: draft PR https://github.com/dalatechai-cyber/matrix_website/pull/83 (base = PR #82
       head). Two review rounds done, all findings fixed (blocker: hold id prefix «wh» invalid in
       Google → now «sh»; tie-break by holdPlacedAt; chat holds = dalaBookingState 'hold'; no
       release of a customer's earlier hold; rate limit 20 placed/10 min). 214 tests. Preview
       checked: /api/branches, real availability identical to production.
-- [ ] T6 dala-ai #280 update
+- [x] T6 dala-ai draft PR https://github.com/dalatechai-cyber/dala-ai/pull/285 (base #280's branch, CI
+      green). 62 services/minutes, names, Парк Од not-connected, per-tenant merchant + payout rows,
+      invoice records its login, sh/dh contract. e2e 251 locally (11 run the website's code).
+      Drafts: booking_ask_agreement (Нөхцөл line removed), booking_ask_variant, button labels.
+      Note: chat serves a level-priced line only at that level; website does not (founder to align).
 - [x] T7 + T4 (Дали data): dala-ai draft PR https://github.com/dalatechai-cyber/dala-ai/pull/284 (CI green).
       Яармаг names SQL (not applied; also switches off Отгонжаргал and the still-active manicurist
       row), Парк Од intake form + after-onboarding SQL, local dry run only; branch gate clean both
       tenants. Drafts: prompt/drafts/tara_stylist_names.mn.txt, tara_park_od_wording.mn.txt.
       Open Qs: her hand-off reader, Cyrillic spellings of her stylists, away message, whether her
       Дали names Яармаг, 1-р зэрэг/SPECIAL men's prices she can't serve, nail refusal line, Page id.
-- [ ] Final report
+- [x] Final report sent 2026-10-03.
 
 ## Open items for the founder (collect here)
 
