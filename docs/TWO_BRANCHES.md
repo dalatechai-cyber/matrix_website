@@ -86,7 +86,7 @@ needs a redeploy. None has a known value yet, so none was set by this round.
 
 | Name | Secret? | Value |
 | --- | --- | --- |
-| `PARKOD_QPAY_BANK_CODE` | no | Her bank's QPay code: Khan Bank is `040000` (as Яармаг's) |
+| `PARKOD_QPAY_BANK_CODE` | no | Her bank's QPay code: Khan Bank is `050000` (`040000` is TDB, Яармаг's bank) |
 | `PARKOD_QPAY_ACCOUNT_NUMBER` | treat as sensitive | Her Khan Bank account number |
 | `PARKOD_QPAY_ACCOUNT_NAME` | treat as sensitive | The account holder's name exactly as Khan Bank shows it |
 | `PARKOD_TELEGRAM_CHAT_ID` | no | The chat her payment alerts go to — for now the founder's own; never Яармаг's |

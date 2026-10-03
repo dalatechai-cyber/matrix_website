@@ -79,7 +79,7 @@ const qpayService = require('../services/qpay');
 const PARKOD_CAL = 'parkod-calendar@group.calendar.google.com';
 
 const PARKOD_ENV = {
-  PARKOD_QPAY_BANK_CODE: '040000',
+  PARKOD_QPAY_BANK_CODE: '050000',
   PARKOD_QPAY_ACCOUNT_NUMBER: '5000123456',
   PARKOD_QPAY_ACCOUNT_NAME: 'Парк Од эзэмшигч',
   PARKOD_TELEGRAM_CHAT_ID: '-100parkod',
@@ -234,7 +234,7 @@ test('Парк Од connected: the same login and merchant as Яармаг, only
   assert.equal(standalone.status, 200);
   let inv = invoiceCall();
   assert.equal(inv.body.merchant_id, '17e69f2a-d1a4-4fe6-a5a2-34a649378414', 'Яармаг\'s merchant, as for Яармаг');
-  assert.deepEqual(inv.body.bank_accounts, [{ account_bank_code: '040000', account_number: '5000123456', account_name: 'Парк Од эзэмшигч', is_default: true }]);
+  assert.deepEqual(inv.body.bank_accounts, [{ account_bank_code: '050000', account_number: '5000123456', account_name: 'Парк Од эзэмшигч', is_default: true }]);
   assert.deepEqual(tokenCalls()[0].body, { terminal_id: 'DALATECH_AI' });
   assert.equal(tokenCalls()[0].auth, basic('yaarmag_user', 'yaarmag_pass'));
 

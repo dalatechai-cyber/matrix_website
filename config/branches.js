@@ -27,7 +27,7 @@
  * bank account her deposits are paid into, which every invoice names in
  * `bank_accounts`. So Парк Од needs, all REQUIRED:
  *
- *   PARKOD_QPAY_BANK_CODE         her bank's QPay code (Khan Bank: 040000)
+ *   PARKOD_QPAY_BANK_CODE         her bank's QPay code (Khan Bank: 050000; 040000 is TDB, Яармаг's bank)
  *   PARKOD_QPAY_ACCOUNT_NUMBER    her account number
  *   PARKOD_QPAY_ACCOUNT_NAME      the account holder's name, as the bank has it
  *   PARKOD_TELEGRAM_CHAT_ID       the chat her payment alerts go to

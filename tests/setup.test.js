@@ -78,7 +78,7 @@ const calendarRouter = require('../routes/calendar');
 const setupRouter = require('../routes/setup');
 
 const PARKOD_ENV = {
-  PARKOD_QPAY_BANK_CODE: '040000',
+  PARKOD_QPAY_BANK_CODE: '050000',
   PARKOD_QPAY_ACCOUNT_NUMBER: '5000123456',
   PARKOD_QPAY_ACCOUNT_NAME: 'Парк Од эзэмшигч',
   PARKOD_TELEGRAM_CHAT_ID: '-100founder',

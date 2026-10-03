@@ -40,7 +40,7 @@ distinct, `testLinkReady: true`.
 Environment Variables → **Production**). Copy each value from its Preview
 entry:
 
-- `PARKOD_QPAY_BANK_CODE` (`040000`), `PARKOD_QPAY_ACCOUNT_NUMBER`,
+- `PARKOD_QPAY_BANK_CODE` (`050000`, Khan Bank), `PARKOD_QPAY_ACCOUNT_NUMBER`,
   `PARKOD_QPAY_ACCOUNT_NAME`;
 - `PARKOD_TELEGRAM_CHAT_ID` (your own chat for now);
 - the seven calendars: `PARKOD_CALENDAR_BOLOROO`, `_SARAA`, `_TOMOO`,

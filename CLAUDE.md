@@ -30,7 +30,7 @@ Quick QR login (`QPAY_USERNAME`/`QPAY_PASSWORD`, terminal `DALATECH_AI`) and
 the same merchant, exactly as Core Language and Matrix do (founder,
 2026-10-04). The only difference is the bank account a deposit is paid into,
 which every invoice names (`bank_accounts`): Парк Од REQUIRES
-`PARKOD_QPAY_BANK_CODE` (Khan Bank `040000`), `PARKOD_QPAY_ACCOUNT_NUMBER` and
+`PARKOD_QPAY_BANK_CODE` (Khan Bank `050000`), `PARKOD_QPAY_ACCOUNT_NUMBER` and
 `PARKOD_QPAY_ACCOUNT_NAME`; Яармаг's account number is refused for her. No
 merchant is registered for her. Proof: a real 100₮ test lands in her account.
 Full design: [docs/TWO_BRANCHES.md](docs/TWO_BRANCHES.md).
