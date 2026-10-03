@@ -110,3 +110,22 @@ Final report: under 25 lines, plain English (see the brief's last paragraph).
 - dala-ai `/home/user/dala-wt/booking` branch `claude/tara-inchat-booking-two-branch` (base
   PR #280's head `claude/happy-pasteur-4gp7gd`) — T6.
 - Shared facts file: scratchpad `round-facts.md` (copy kept in this NOTES "Facts" section).
+
+# Round 2 — 2026-10-04 (founder asleep; answers, decisions and approvals)
+
+Full list: scratchpad `round2-facts.md` (copied below in short). Workers: #283 quality, #284
+names + Парк Од, #285 booking (same worktrees as round 1). I do the website (#83), the
+guardrail PRs (both repos) and the approvals folder.
+
+## Decisions of round 2 (with reasons)
+
+R2-1. Otgonjargal back: website data says 1-р зэргийн үсчин, female, Яармаг, own calendar →
+      hair stylist, bookable, 10,000₮. Display «Otgonjargal» (Latin form of her full name:
+      founder said full name + names Latin everywhere). Old ids stay aliases.
+R2-2. «Бүтээл» gallery removed (page, home section, nav). zurag.html → 301 to /. Hero, «Бидний
+      тухай» and «Уралдаан ба сургалт» photos come from the same Facebook export: kept (not part
+      of the instruction), listed for the founder.
+R2-3. Guardrails PRs on their own branches from main (`claude/guardrails-hooks`), because the
+      founder asked for one PR per repo; #83's branch is not used for them.
+R2-4. Level-named haircuts: the service decides the level; a stylist of another level is
+      neither offered nor invoiced (server refuses).

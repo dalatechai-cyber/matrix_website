@@ -1,337 +1,75 @@
 {
- "_comment": "The salon's own photos (chosen from its Facebook page), shown in «Бүтээл» and on the home page. Every file is a 4:5 crop in img/photos/<slug>-<width>.webp, never upscaled. lib/pages.js renders them.",
- "categories": [
-  {
-   "id": "colour",
-   "label": "Будаг ба өнгө"
-  },
-  {
-   "id": "waves",
-   "label": "Долгио ба хими"
-  },
-  {
-   "id": "styling",
-   "label": "Гоёл ба засалт"
-  },
-  {
-   "id": "salon",
-   "label": "Салон ба уралдаан"
-  }
- ],
- "home": [
-  "lavender-balayage",
-  "brown-balayage",
-  "ash-bob",
-  "before-after-bronde",
-  "sleek-bun",
-  "studio-ombre"
- ],
- "items": [
-  {
-   "slug": "lavender-balayage",
-   "cat": "colour",
-   "alt": "Ягаан саарал өнгийн тодруулгатай урт долгиолсон үс",
-   "widths": [
-    480,
-    800,
-    1200
-   ]
-  },
-  {
-   "slug": "brown-balayage",
-   "cat": "colour",
-   "alt": "Хүрэн үсэнд цайвар тодруулга, долгиолсон хэлбэр",
-   "widths": [
-    480,
-    800,
-    1200
-   ]
-  },
-  {
-   "slug": "ash-bob",
-   "cat": "colour",
-   "alt": "Үнсэн цагаан өнгийн шулуун каре засалт",
-   "widths": [
-    480,
-    800,
-    1200
-   ]
-  },
-  {
-   "slug": "before-after-bronde",
-   "cat": "colour",
-   "alt": "Өмнө ба дараа: хар үснээс шаргал хүрэн долгио",
-   "widths": [
-    480,
-    800,
-    1200
-   ]
-  },
-  {
-   "slug": "studio-ombre",
-   "cat": "colour",
-   "alt": "Бараан үндэстэй, ягаан саарал үзүүртэй омбре",
-   "widths": [
-    480,
-    800,
-    1182
-   ]
-  },
-  {
-   "slug": "ash-waves",
-   "cat": "colour",
-   "alt": "Үнсэн хүрэн тодруулгатай мөрний урттай долгио",
-   "widths": [
-    480,
-    800,
-    1200
-   ]
-  },
-  {
-   "slug": "rose-waves",
-   "cat": "colour",
-   "alt": "Ягаан шаргал өнгийн долгиолсон үс",
-   "widths": [
-    480,
-    800,
-    1200
-   ]
-  },
-  {
-   "slug": "sleek-balayage",
-   "cat": "colour",
-   "alt": "Шулуун үсэнд хийсэн зөөлөн шилжилттэй тодруулга",
-   "widths": [
-    480,
-    800,
-    1017
-   ]
-  },
-  {
-   "slug": "bronde-waves",
-   "cat": "colour",
-   "alt": "Шаргал хүрэн тодруулгатай долгиолсон үс",
-   "widths": [
-    480,
-    800,
-    1200
-   ]
-  },
-  {
-   "slug": "grey-bob-salon",
-   "cat": "colour",
-   "alt": "Саарал өнгийн шулуун засалт",
-   "widths": [
-    480,
-    800,
-    1200
-   ]
-  },
-  {
-   "slug": "studio-brunette",
-   "cat": "colour",
-   "alt": "Гөлгөр шулуун хүрэн үс",
-   "widths": [
-    480,
-    800,
-    1200
-   ]
-  },
-  {
-   "slug": "brown-waves",
-   "cat": "waves",
-   "alt": "Хүрэн өнгийн мөрнөөс доош долгиолсон үс",
-   "widths": [
-    480,
-    800,
-    1200
-   ]
-  },
-  {
-   "slug": "long-perm",
-   "cat": "waves",
-   "alt": "Урт, өтгөн долгиолсон хими",
-   "widths": [
-    480,
-    800,
-    1200
-   ]
-  },
-  {
-   "slug": "highlight-waves",
-   "cat": "waves",
-   "alt": "Хүрэн тодруулгатай урт долгио",
-   "widths": [
-    480,
-    800,
-    1152
-   ]
-  },
-  {
-   "slug": "black-waves",
-   "cat": "waves",
-   "alt": "Хар үсэнд хийсэн долгиолсон хими",
-   "widths": [
-    480,
-    800,
-    1200
-   ]
-  },
-  {
-   "slug": "soft-waves",
-   "cat": "waves",
-   "alt": "Зөөлөн долгиолсон бараан хүрэн үс",
-   "widths": [
-    480,
-    800,
-    1200
-   ]
-  },
-  {
-   "slug": "grey-waves",
-   "cat": "waves",
-   "alt": "Саарал тодруулгатай долгиолсон хими",
-   "widths": [
-    480,
-    800,
-    1200
-   ]
-  },
-  {
-   "slug": "dark-perm",
-   "cat": "waves",
-   "alt": "Бараан өнгийн жижиг долгиотой хими",
-   "widths": [
-    480,
-    800,
-    1200
-   ]
-  },
-  {
-   "slug": "sleek-bun",
-   "cat": "styling",
-   "alt": "Гөлгөр боодол засалт, тайзны гоёл",
-   "widths": [
-    480,
-    800,
-    1116
-   ]
-  },
-  {
-   "slug": "sculpted-updo",
-   "cat": "styling",
-   "alt": "Шаргал үсээр хийсэн хээтэй гоёлын засалт",
-   "widths": [
-    480,
-    720
-   ]
-  },
-  {
-   "slug": "jewel-bun",
-   "cat": "styling",
-   "alt": "Чимэглэлтэй боодол засалт",
-   "widths": [
-    480,
-    720
-   ]
-  },
-  {
-   "slug": "flower-bun",
-   "cat": "styling",
-   "alt": "Улаан цэцэгтэй гөлгөр боодол засалт",
-   "widths": [
-    480,
-    720
-   ]
-  },
-  {
-   "slug": "high-ponytail",
-   "cat": "styling",
-   "alt": "Өндөр гөлгөр сүүлт засалт",
-   "widths": [
-    480,
-    720
-   ]
-  },
-  {
-   "slug": "editorial-lake",
-   "cat": "styling",
-   "alt": "Уран сайхны фото зураг авалтын үс засалт",
-   "widths": [
-    480,
-    800,
-    1152
-   ]
-  },
-  {
-   "slug": "salon-interior",
-   "cat": "salon",
-   "alt": "Салоны ажлын байр: толь, сандал, модон шал",
-   "widths": [
-    480,
-    800,
-    1072
-   ]
-  },
-  {
-   "slug": "competition-asia",
-   "cat": "salon",
-   "alt": "Олон улсын үсчний уралдаан дээр Монгол улсын далбаатай",
-   "widths": [
-    480,
-    800,
-    1200
-   ]
-  },
-  {
-   "slug": "competition-piece",
-   "cat": "salon",
-   "alt": "Олон улсын уралдаанд оролцсон үсний бүтээл",
-   "widths": [
-    480,
-    800,
-    1200
-   ]
-  },
-  {
-   "slug": "training-certificates",
-   "cat": "salon",
-   "alt": "Мэргэжлийн сургалт төгсөж гэрчилгээ авсан нь",
-   "widths": [
-    480,
-    800,
-    1200
-   ]
-  },
-  {
-   "slug": "cutting",
-   "cat": "salon",
-   "alt": "Үс тайрах явц",
-   "widths": [
-    480,
-    800,
-    1057
-   ]
-  },
-  {
-   "slug": "foil-work",
-   "cat": "salon",
-   "alt": "Тодруулга хийх явцын фольг",
-   "widths": [
-    480,
-    800,
-    1200
-   ]
-  },
-  {
-   "slug": "tools",
-   "cat": "salon",
-   "alt": "Үсчний хайч, сам",
-   "widths": [
-    480,
-    800,
-    1200
-   ]
-  }
- ]
+  "_comment": "The salon's photos used as feature images (hero arches, «Бидний тухай», «Уралдаан ба сургалт», page intros): 4:5 WebP crops in img/photos/ at the widths listed, never upscaled. The «Бүтээл» gallery was removed on 2026-10-04 (founder: its photos were Matrix's; it returns only with Tara's own photos), and its photos were deleted from the site.",
+  "items": [
+    {
+      "slug": "rose-waves",
+      "cat": "colour",
+      "alt": "Ягаан шаргал өнгийн долгиолсон үс",
+      "widths": [
+        480,
+        800,
+        1200
+      ]
+    },
+    {
+      "slug": "bronde-waves",
+      "cat": "colour",
+      "alt": "Шаргал хүрэн тодруулгатай долгиолсон үс",
+      "widths": [
+        480,
+        800,
+        1200
+      ]
+    },
+    {
+      "slug": "competition-asia",
+      "cat": "salon",
+      "alt": "Олон улсын үсчний уралдаан дээр Монгол улсын далбаатай",
+      "widths": [
+        480,
+        800,
+        1200
+      ]
+    },
+    {
+      "slug": "competition-piece",
+      "cat": "salon",
+      "alt": "Олон улсын уралдаанд оролцсон үсний бүтээл",
+      "widths": [
+        480,
+        800,
+        1200
+      ]
+    },
+    {
+      "slug": "training-certificates",
+      "cat": "salon",
+      "alt": "Мэргэжлийн сургалт төгсөж гэрчилгээ авсан нь",
+      "widths": [
+        480,
+        800,
+        1200
+      ]
+    },
+    {
+      "slug": "cutting",
+      "cat": "salon",
+      "alt": "Үс тайрах явц",
+      "widths": [
+        480,
+        800,
+        1057
+      ]
+    },
+    {
+      "slug": "tools",
+      "cat": "salon",
+      "alt": "Үсчний хайч, сам",
+      "widths": [
+        480,
+        800,
+        1200
+      ]
+    }
+  ]
 }

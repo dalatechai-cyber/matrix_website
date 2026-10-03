@@ -1,5 +1,5 @@
-/* Tara Salon — shared page behaviour: menu, header, booking bar, gallery
- * lightbox, maps on demand. No dependencies; everything degrades to plain
+/* Tara Salon — shared page behaviour: menu, header, booking bar, maps on
+ * demand. No dependencies; everything degrades to plain
  * links when this file does not load. */
 (function () {
   "use strict";
@@ -62,19 +62,6 @@
     });
   });
 
-  // ── Gallery filter (Бүгд / Эмэгтэй / Эрэгтэй) ─────────────────────────
-  const filterRow = document.querySelector(".filter-row [data-filter]") && document.querySelector(".filter-row");
-  const filterGrid = document.querySelector(".gallery-grid[data-gallery]");
-  if (filterRow && filterGrid) {
-    filterRow.addEventListener("click", (e) => {
-      const chip = e.target.closest("[data-filter]");
-      if (!chip) return;
-      const cat = chip.dataset.filter;
-      filterRow.querySelectorAll("[data-filter]").forEach((c) => c.setAttribute("aria-pressed", c === chip ? "true" : "false"));
-      filterGrid.querySelectorAll("button[data-cat]").forEach((b) => { b.hidden = cat !== "all" && b.dataset.cat !== cat; });
-    });
-  }
-
   // ── Disclosure: a service name that opens its description (TARA LUMI) ─
   // The page arrives open, so the text is there without JavaScript; here it
   // closes, and each toggle eases the height. Closed text is `hidden`, so
@@ -125,58 +112,4 @@
     }
   }
 
-  // ── Gallery lightbox ─────────────────────────────────────────────────
-  const galleries = document.querySelectorAll("[data-gallery]");
-  if (galleries.length) {
-    const box = document.createElement("div");
-    box.className = "lightbox";
-    box.setAttribute("role", "dialog");
-    box.setAttribute("aria-modal", "true");
-    box.setAttribute("aria-label", "Зураг томруулж харах");
-    box.innerHTML =
-      '<button class="lightbox-close" type="button" aria-label="Хаах">✕</button>' +
-      '<button class="lightbox-nav" type="button" data-dir="-1" aria-label="Өмнөх зураг">‹</button>' +
-      '<img alt="" />' +
-      '<button class="lightbox-nav" type="button" data-dir="1" aria-label="Дараагийн зураг">›</button>';
-    document.body.appendChild(box);
-    const img = box.querySelector("img");
-    let items = [];
-    let index = 0;
-    let opener = null;
-
-    const show = (i) => {
-      index = (i + items.length) % items.length;
-      const source = items[index].querySelector("img");
-      img.src = source.dataset.full || source.currentSrc || source.src;
-      img.alt = source.alt;
-    };
-    const close = () => {
-      box.classList.remove("is-open");
-      document.body.classList.remove("nav-locked");
-      if (opener) opener.focus();
-    };
-    box.addEventListener("click", (e) => {
-      const nav = e.target.closest(".lightbox-nav");
-      if (nav) return show(index + Number(nav.dataset.dir));
-      if (e.target === box || e.target.closest(".lightbox-close")) close();
-    });
-    document.addEventListener("keydown", (e) => {
-      if (!box.classList.contains("is-open")) return;
-      if (e.key === "Escape") close();
-      if (e.key === "ArrowRight") show(index + 1);
-      if (e.key === "ArrowLeft") show(index - 1);
-    });
-    galleries.forEach((gallery) => {
-      gallery.addEventListener("click", (e) => {
-        const btn = e.target.closest("button");
-        if (!btn || !gallery.contains(btn)) return;
-        items = Array.from(gallery.querySelectorAll("button")).filter((b) => !b.hidden);
-        opener = btn;
-        show(items.indexOf(btn));
-        box.classList.add("is-open");
-        document.body.classList.add("nav-locked");
-        box.querySelector(".lightbox-close").focus();
-      });
-    });
-  }
 })();

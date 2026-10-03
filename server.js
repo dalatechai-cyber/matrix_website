@@ -25,7 +25,9 @@ app.use(express.json());
  * ?test=<BOOKING_TEST_TOKEN> on any page marks the tester's browser; the
  * token is then dropped from the address bar.
  */
-const RETIRED_PAGES = new Set(['team']);
+// Retired pages: team → the home page's «Манай үсчид»; zurag («Бүтээл», removed
+// 2026-10-04: its photos were Matrix's) → home until Tara's own gallery exists.
+const RETIRED_PAGES = new Set(['team', 'zurag']);
 app.get(['/', '/:page.html'], (req, res, next) => {
   const page = req.params.page || 'index';
   // The old team page now lives as the home page's «Манай үсчид» section.

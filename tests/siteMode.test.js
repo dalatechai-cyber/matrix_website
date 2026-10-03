@@ -90,7 +90,7 @@ async function testCookie() {
   return set.split(';')[0];
 }
 
-const PAGES = ['/', '/index.html', '/services.html', '/zurag.html', '/products.html', '/keune-products.html', '/booking.html', '/contact.html'];
+const PAGES = ['/', '/index.html', '/services.html', '/products.html', '/keune-products.html', '/booking.html', '/contact.html'];
 
 beforeEach(() => {
   delete process.env.SITE_MAINTENANCE;
@@ -111,6 +111,9 @@ test('maintenance off (default): every page is the real page', async () => {
   const team = await request('GET', '/team.html');
   assert.equal(team.status, 301, 'the retired team page sends visitors to the team section');
   assert.equal(team.headers.location, '/#team');
+  const zurag = await request('GET', '/zurag.html');
+  assert.equal(zurag.status, 301, 'the removed gallery sends visitors home');
+  assert.equal(zurag.headers.location, '/');
 });
 
 test('an unknown .html path is not served from here', async () => {

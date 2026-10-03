@@ -36,7 +36,7 @@ function allChoices() {
 
 const LOGO_PNG_SHA = 'af7b2d3e32697b50';
 const LOGO_WEBP_SHA = '741a3955a919349f';
-const PAGES = ['index.html', 'services.html', 'zurag.html', 'products.html', 'keune-products.html', 'booking.html', 'contact.html'];
+const PAGES = ['index.html', 'services.html', 'products.html', 'keune-products.html', 'booking.html', 'contact.html'];
 const { renderPage } = require('../lib/pages');
 /** A page as visitors get it: shared header, footer and branch details included. */
 const rendered = (file) => renderPage(file.replace(/\.html$/, '')) || '';
@@ -277,20 +277,28 @@ test('branches: Парк Од shows the shared line and placeholders, never Яа
   assert.ok(!park.includes('/booking.html?branch=parkod'), 'no booking button before Парк Од is connected');
 });
 
-test('photos: every gallery photo exists at every listed width, and nothing from the Facebook inbox ships', () => {
+test('photos: every feature photo exists at every listed width; the «Бүтээл» gallery and its photos are gone', () => {
   const g = require('../data/gallery.json');
   for (const item of g.items) {
     assert.ok(item.alt && item.alt.length > 5, `${item.slug} needs a description`);
-    assert.ok(g.categories.some((c) => c.id === item.cat), `${item.slug} has an unknown category`);
     for (const w of item.widths) {
       assert.ok(fs.existsSync(path.join(ROOT, `img/photos/${item.slug}-${w}.webp`)), `${item.slug}-${w}.webp missing`);
       assert.ok(w <= 1200, 'no file wider than 1200 px');
     }
   }
-  for (const slug of g.home) assert.ok(g.items.some((i) => i.slug === slug), `home photo ${slug} is not in the gallery`);
+  // Only listed photos ship: nothing left over from the removed gallery.
+  // hero-mauve is the home hero (index.html), not a catalogue entry.
+  const listed = new Set([...g.items.map((i) => i.slug), 'hero-mauve']);
+  for (const f of fs.readdirSync(path.join(ROOT, 'img/photos'))) {
+    assert.ok(listed.has(f.replace(/-\d+\.webp$/, '')), `${f} is not a listed photo`);
+  }
   assert.ok(!fs.existsSync(path.join(ROOT, 'photos-inbox')), 'photos-inbox must not be in the site');
-  const html = rendered('index.html') + rendered('zurag.html');
-  assert.ok(!/Pictures_Page|img\/gallery\//.test(html), 'old low-resolution gallery still referenced');
+  assert.ok(!fs.existsSync(path.join(ROOT, 'zurag.html')), 'the gallery page is removed');
+  for (const page of PAGES) {
+    const html = rendered(page);
+    assert.ok(!html.includes('zurag.html') && !html.includes('data-gallery'), `${page} still links the gallery`);
+    assert.ok(!/Pictures_Page|img\/gallery\//.test(html), 'old low-resolution gallery still referenced');
+  }
 });
 
 test('footer: the maker\'s credit is DalaTech\'s wordmark only, labelled, with tracked link', () => {
