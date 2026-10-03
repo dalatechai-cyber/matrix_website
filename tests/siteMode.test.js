@@ -176,12 +176,14 @@ test('a wrong token, a forged cookie, or a too-short configured token gives no b
   process.env.SITE_MAINTENANCE = 'on';
   const wrong = await request('GET', '/?test=wrong-token-0123456789');
   assert.equal(wrong.status, 302);
-  assert.equal(wrong.headers['set-cookie'], undefined);
+  const wrongSet = [].concat(wrong.headers['set-cookie'] || []).join('\n');
+  assert.ok(!wrongSet.includes(`${TEST_COOKIE}=`), 'no test cookie for a wrong token');
+  assert.match(wrongSet, /mx_test_rejected=1/, 'the page is told the link was wrong');
   const forged = await request('GET', '/', { cookie: `${TEST_COOKIE}=deadbeef` });
   assert.equal(forged.status, 503);
   process.env.BOOKING_TEST_TOKEN = 'short';
   const short = await request('GET', '/?test=short');
-  assert.equal(short.headers['set-cookie'], undefined);
+  assert.ok(![].concat(short.headers['set-cookie'] || []).join('\n').includes(`${TEST_COOKIE}=`));
 });
 
 test('changing BOOKING_TEST_TOKEN invalidates old test cookies', async () => {
@@ -238,6 +240,17 @@ test('/api/site-mode tells only the tester\'s browser it is in test mode', async
   const cookie = await testCookie();
   const t = JSON.parse((await request('GET', '/api/site-mode', { cookie })).text);
   const c = JSON.parse((await request('GET', '/api/site-mode')).text);
-  assert.deepEqual(t, { test: true, testDeposit: 100 });
-  assert.deepEqual(c, { test: false, testDeposit: null });
+  assert.deepEqual(t, { test: true, testDeposit: 100, testLinkRejected: false });
+  assert.deepEqual(c, { test: false, testDeposit: null, testLinkRejected: false });
+  const rejected = JSON.parse((await request('GET', '/api/site-mode', { cookie: 'mx_test_rejected=1' })).text);
+  assert.equal(rejected.testLinkRejected, true);
+});
+
+test('a token whose «+» became a space in the link, or with spaces around it, still opens test mode', async () => {
+  process.env.BOOKING_TEST_TOKEN = 'abc+def/ghi=jklmnop12';
+  for (const q of ['abc+def/ghi=jklmnop12', 'abc%20def/ghi=jklmnop12', encodeURIComponent('abc+def/ghi=jklmnop12'), '%20abc+def/ghi=jklmnop12%20']) {
+    const r = await request('GET', `/?test=${q}`);
+    const set = [].concat(r.headers['set-cookie'] || []).join('\n');
+    assert.ok(set.includes(`${TEST_COOKIE}=`) && !set.includes(`${TEST_COOKIE}=;`), q);
+  }
 });

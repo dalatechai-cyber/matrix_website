@@ -51,9 +51,40 @@ const YAARMAG_TERMINAL_ID = 'DALATECH_AI';
 const YAARMAG_BANK_ACCOUNTS = [{
   account_bank_code: '040000',
   account_number: '416055415',
-  account_name: 'Эрхэмбаатар Оюунсүрэн',
+  // As the bank app shows the payee: capitals, given name first (founder, 2026-10-04).
+  account_name: 'ОЮУНСҮРЭН ЭРХЭМБААТАР',
   is_default: true,
 }];
+
+/**
+ * A payout account as QPay is sent it: the plain account number, or the full
+ * IBAN («MN» + 2 check digits + 16 digits) with no spaces, which the bank app
+ * then shows with the payee's name. Spaces and dashes are dropped; an IBAN must
+ * pass its mod-97 check. Anything else is null (the branch stays closed).
+ */
+function normalizeAccountNumber(raw) {
+  if (!raw) return null;
+  const v = String(raw).replace(/[\s-]/g, '').toUpperCase();
+  if (/^\d{6,20}$/.test(v)) return v;
+  if (/^MN\d{18}$/.test(v) && ibanValid(v)) return v;
+  return null;
+}
+
+function ibanValid(iban) {
+  const moved = iban.slice(4) + iban.slice(0, 4);
+  const digits = moved.replace(/[A-Z]/g, (c) => String(c.charCodeAt(0) - 55));
+  let rem = 0;
+  for (const d of digits) rem = (rem * 10 + Number(d)) % 97;
+  return rem === 1;
+}
+
+/** Whether two account numbers name one account (an IBAN ends with the account number). */
+function sameAccount(a, b) {
+  const x = String(a || '').replace(/\D/g, '').replace(/^0+/, '');
+  const y = String(b || '').replace(/\D/g, '').replace(/^0+/, '');
+  if (!x || !y) return false;
+  return x === y || x.endsWith(y) || y.endsWith(x);
+}
 
 function env(name) {
   const v = process.env[name];
@@ -83,13 +114,13 @@ function qpayAccountFor(branchId) {
   }
   if (branchId === 'parkod') {
     const bankCode = env('PARKOD_QPAY_BANK_CODE');
-    const accountNumber = env('PARKOD_QPAY_ACCOUNT_NUMBER');
+    const accountNumber = normalizeAccountNumber(env('PARKOD_QPAY_ACCOUNT_NUMBER'));
     const accountName = env('PARKOD_QPAY_ACCOUNT_NAME');
     const bankAccounts = bankCode && accountNumber && accountName
       ? [{ account_bank_code: bankCode, account_number: accountNumber, account_name: accountName, is_default: true }]
       : null;
     // Never Яармаг's account, even by a copy-paste in Vercel.
-    const notYaarmag = !YAARMAG_BANK_ACCOUNTS.some((a) => a.account_number === accountNumber);
+    const notYaarmag = !YAARMAG_BANK_ACCOUNTS.some((a) => sameAccount(a.account_number, accountNumber));
     return {
       ...qpayAccountFor('yaarmag'),
       branch: 'parkod',
@@ -196,6 +227,8 @@ module.exports = {
   DEFAULT_BRANCH,
   BRANCH_IDS,
   qpayAccountFor,
+  normalizeAccountNumber,
+  sameAccount,
   normalizeBranchId,
   branchInfo,
   branchOfStylist,

@@ -185,3 +185,20 @@ R2-4. Level-named haircuts: the service decides the level; a stylist of another 
 - R3-5 Alerts: Парк Од's payment alerts go to PARKOD_TELEGRAM_CHAT_ID — for now the
   founder's own chat; Boloroo checks Messenger herself. Nothing built for owner
   alerts. R2-10 is closed.
+
+## 2026-10-04 — round 4: test link, payee names, 7-day date row
+
+- R4-1 Test link: a token that did not match failed silently (the page asked
+  the full price). Now the match tolerates a «+» read as a space and stray
+  spaces, and a rejected link leaves a short-lived marker so the booking page
+  says «ТЕСТ холбоос буруу байна…». The cookie belongs to the address opened:
+  book on the same address. Preview-only `/api/setup/test-cookie` lets the 100₮
+  QR be proved without the token's value.
+- R4-2 Payee names, as the bank app shows them: Яармаг «ОЮУНСҮРЭН ЭРХЭМБААТАР»
+  (code; account number unchanged); Парк Од from PARKOD_QPAY_ACCOUNT_NAME
+  («БОЛОРТУЯА ГОНГОР»). PARKOD_QPAY_ACCOUNT_NUMBER accepts her full IBAN
+  (MN + 18 digits, mod-97 checked, spaces dropped) or a plain number; Яармаг's
+  account is refused in either form. Яармаг's invoice still sends her plain
+  number; whether QPay accepts an IBAN there is shown by the first 100₮ test.
+- R4-3 Booking date row: the next 7 days only, in one row with no sideways
+  scrolling (phone and desktop); today reads «Өнөө» on phones.

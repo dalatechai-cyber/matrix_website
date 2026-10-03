@@ -286,7 +286,7 @@ test('Яармаг\'s invoice is exactly what it always was (plus nothing)', asy
     currency: 'MNT',
     description: 'Сараа - 99112233',
     mcc_code: '7230',
-    bank_accounts: [{ account_bank_code: '040000', account_number: '416055415', account_name: 'Эрхэмбаатар Оюунсүрэн', is_default: true }],
+    bank_accounts: [{ account_bank_code: '040000', account_number: '416055415', account_name: 'ОЮУНСҮРЭН ЭРХЭМБААТАР', is_default: true }],
   });
   assert.ok(cb.startsWith('https://www.example.mn/api/qpay/late-payment?b=v1.oyunaa.'));
   const token = qpay.calls.find((c) => c.url.endsWith('/auth/token'));

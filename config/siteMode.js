@@ -45,10 +45,16 @@ function safeEqual(a, b) {
   return x.length === y.length && crypto.timingSafeEqual(x, y);
 }
 
-/** Whether `candidate` is the configured test token. */
+/**
+ * Whether `candidate` is the configured test token. Forgiving of how a token
+ * travels in a link: surrounding spaces, and a «+» that a query string turns
+ * into a space (a base64 token has «+»), still match.
+ */
 function isTestToken(candidate) {
   const t = testToken();
-  return !!(t && candidate && safeEqual(candidate, t));
+  if (!t || typeof candidate !== 'string' || !candidate) return false;
+  const c = candidate.trim();
+  return [c, c.replace(/ /g, '+')].some((x) => safeEqual(x, t));
 }
 
 function readCookie(req, name) {
@@ -85,6 +91,20 @@ function depositFor(req, stylistId) {
 
 function testCookieHeader() {
   return `${TEST_COOKIE}=${testCookieValue()}; Path=/; Max-Age=${12 * 3600}; HttpOnly; Secure; SameSite=Lax`;
+}
+
+// A test link whose token did not match leaves this short-lived marker, so
+// the booking page can say so instead of silently charging the real deposit.
+const TEST_REJECTED_COOKIE = 'mx_test_rejected';
+function testRejectedCookieHeader() {
+  return `${TEST_REJECTED_COOKIE}=1; Path=/; Max-Age=600; HttpOnly; Secure; SameSite=Lax`;
+}
+function clearTestRejectedCookieHeader() {
+  return `${TEST_REJECTED_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`;
+}
+/** Whether this browser just opened a test link with a wrong token. */
+function testLinkRejected(req) {
+  return !isTestRequest(req) && readCookie(req, TEST_REJECTED_COOKIE) === '1';
 }
 
 function escapeHtml(s) {
@@ -136,6 +156,9 @@ function maintenancePage() {
 }
 
 module.exports = {
+  testRejectedCookieHeader,
+  clearTestRejectedCookieHeader,
+  testLinkRejected,
   MAINTENANCE_MESSAGE,
   MESSENGER_URL,
   TEST_COOKIE,

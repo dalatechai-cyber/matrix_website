@@ -6,6 +6,7 @@ const path = require('path');
 const express = require('express');
 const {
   blockedByMaintenance, isTestToken, isTestRequest, testCookieHeader, maintenancePage, TEST_DEPOSIT_MNT,
+  testRejectedCookieHeader, clearTestRejectedCookieHeader, testLinkRejected,
 } = require('./config/siteMode');
 const webhookRouter = require('./routes/webhooks');
 const qpayRouter = require('./routes/qpay');
@@ -36,7 +37,9 @@ app.get(['/', '/:page.html'], (req, res, next) => {
   if (!PAGES.includes(page)) return next();
 
   if (typeof req.query.test === 'string') {
-    if (isTestToken(req.query.test)) res.setHeader('Set-Cookie', testCookieHeader());
+    res.setHeader('Set-Cookie', isTestToken(req.query.test)
+      ? [testCookieHeader(), clearTestRejectedCookieHeader()]
+      : [testRejectedCookieHeader()]);
     res.setHeader('Cache-Control', 'no-store');
     // Drop only the token; keep e.g. ?branch=yaarmag.
     const rest = new URLSearchParams(req.originalUrl.split('?')[1] || '');
@@ -76,7 +79,7 @@ function pageOrigin(req) {
 app.get('/api/site-mode', (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   const test = isTestRequest(req);
-  return res.json({ test, testDeposit: test ? TEST_DEPOSIT_MNT : null });
+  return res.json({ test, testDeposit: test ? TEST_DEPOSIT_MNT : null, testLinkRejected: testLinkRejected(req) });
 });
 
 /**

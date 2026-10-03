@@ -27,7 +27,7 @@
   const SLOT_TAKEN_PAID_MSG = "Төлбөр тань амжилттай орсон. Харамсалтай нь сонгосон цаг тань энэ хооронд өөр хүнд захиалагдсан байна. Салоны ажилтан тантай удахгүй холбогдож өөр цаг тохирно.";
   const GENDER_LABELS = { female: "Эмэгтэй", male: "Эрэгтэй" };
   const WEEKDAYS = ["Ням", "Дав", "Мяг", "Лха", "Пүр", "Баа", "Бям"];
-  const DAYS_SHOWN = 14;
+  const DAYS_SHOWN = 7; // one week: the row fits without sideways scrolling
 
   const $ = (id) => document.getElementById(id);
   const mnt = new Intl.NumberFormat("en-US");
@@ -408,13 +408,19 @@
   function renderDays() {
     const strip = $("day-strip");
     const today = salonToday();
-    const days = Array.from({ length: DAYS_SHOWN }, (_, i) => addDays(today, i));
-    if (!days.includes(state.date)) days.unshift(state.date);
+    // The coming week; a chosen date beyond it (a closure's reopening day)
+    // starts its own week, so the row is always exactly seven days.
+    const last = addDays(today, DAYS_SHOWN - 1);
+    const first = state.date && state.date > last ? state.date : today;
+    const days = Array.from({ length: DAYS_SHOWN }, (_, i) => addDays(first, i));
     strip.replaceChildren(...days.map((ymd) => {
       const b = el("button", "day");
       b.type = "button";
       const { weekday, date } = dayLabel(ymd);
-      b.append(el("span", "day-w", ymd === today ? "Өнөөдөр" : weekday), el("span", "day-d", date));
+      const w = el("span", "day-w");
+      if (ymd === today) w.append(el("span", "day-w-long", "Өнөөдөр"), el("span", "day-w-short", "Өнөө"));
+      else w.textContent = weekday;
+      b.append(w, el("span", "day-d", date));
       const closure = closureFor(ymd);
       if (closure) {
         b.classList.add("is-closed");
@@ -433,8 +439,6 @@
       });
       return b;
     }));
-    const current = strip.querySelector('[aria-pressed="true"]');
-    if (current) current.scrollIntoView({ block: "nearest", inline: "center" });
   }
 
   function renderClosure(closure) {
@@ -896,6 +900,12 @@
       if (state.step === 4) { renderDays(); loadSlots(); }
     }).catch(() => {});
     getJSON("/api/site-mode", { cache: "no-store" }).then((r) => {
+      if (r.ok && r.data.testLinkRejected) {
+        const banner = $("test-banner");
+        banner.textContent = "ТЕСТ холбоос буруу байна: урьдчилгаа жинхэнэ үнээрээ. Холбоосоо шалгаад дахин нээнэ үү.";
+        banner.hidden = false;
+        return;
+      }
       if (!r.ok || !r.data.test) return;
       state.testDeposit = r.data.testDeposit || 100;
       const banner = $("test-banner");

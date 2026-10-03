@@ -102,7 +102,7 @@ function get(path) {
       http.get({ port: server.address().port, path }, (res) => {
         let data = '';
         res.on('data', (c) => { data += c; });
-        res.on('end', () => { server.close(); resolve({ status: res.statusCode, body: JSON.parse(data) }); });
+        res.on('end', () => { server.close(); resolve({ status: res.statusCode, headers: res.headers, body: JSON.parse(data) }); });
       }).on('error', (e) => { server.close(); reject(e); });
     });
   });
@@ -177,4 +177,26 @@ test('cleanup-test: removes only the test link\'s booking, nothing else', async 
   process.env.VERCEL = '1';
   process.env.VERCEL_ENV = 'production';
   assert.equal((await get('/api/setup/cleanup-test?stylist=Saraa&date=2035-06-04')).status, 404);
+});
+
+test('test-cookie: gives the signed 100₮ test cookie on a preview, never on Production', async () => {
+  const { isTestRequest, depositFor } = require('../config/siteMode');
+  delete process.env.BOOKING_TEST_TOKEN;
+  assert.equal((await get('/api/setup/test-cookie')).status, 409, 'no token, no cookie');
+  process.env.BOOKING_TEST_TOKEN = 'preview-test-token-0123456789';
+  process.env.VERCEL = '1';
+  process.env.VERCEL_ENV = 'preview';
+  const r = await get('/api/setup/test-cookie');
+  assert.equal(r.status, 200);
+  const cookie = r.headers['set-cookie'].find((c) => c.startsWith('mx_test='));
+  assert.ok(cookie, 'sets mx_test');
+  const req = { headers: { cookie: cookie.split(';')[0] } };
+  assert.equal(isTestRequest(req), true);
+  assert.equal(depositFor(req, 'Saraa'), 100);
+  assert.equal(depositFor({ headers: {} }, 'Saraa'), 20000);
+  process.env.VERCEL_ENV = 'production';
+  const prod = await get('/api/setup/test-cookie');
+  assert.equal(prod.status, 404);
+  assert.equal(prod.headers['set-cookie'], undefined);
+  delete process.env.BOOKING_TEST_TOKEN;
 });

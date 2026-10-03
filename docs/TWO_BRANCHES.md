@@ -1,7 +1,9 @@
 # Two branches, two bank accounts: QPay, calendars and what to set
 
 Written 2026-10-03. Яармаг's booking and payments are unchanged byte for byte
-(a test checks the invoice body). Парк Од is built, tested and switched off: it
+(a test checks the invoice body), except the payee name: since 2026-10-04 her
+invoice names «ОЮУНСҮРЭН ЭРХЭМБААТАР» (capitals, given name first, as the
+founder asked), with the same bank and account number. Парк Од is built, tested and switched off: it
 opens by itself once the variables below exist and the site is redeployed.
 
 ## How booking and QPay work today
@@ -87,8 +89,8 @@ needs a redeploy. None has a known value yet, so none was set by this round.
 | Name | Secret? | Value |
 | --- | --- | --- |
 | `PARKOD_QPAY_BANK_CODE` | no | Her bank's QPay code: Khan Bank is `050000` (`040000` is TDB, Яармаг's bank) |
-| `PARKOD_QPAY_ACCOUNT_NUMBER` | treat as sensitive | Her Khan Bank account number |
-| `PARKOD_QPAY_ACCOUNT_NAME` | treat as sensitive | The account holder's name exactly as Khan Bank shows it |
+| `PARKOD_QPAY_ACCOUNT_NUMBER` | treat as sensitive | Her Khan Bank account as a full IBAN, `MN` + 18 digits, no spaces (spaces are dropped; a wrong check digit is refused). A plain account number is also accepted |
+| `PARKOD_QPAY_ACCOUNT_NAME` | treat as sensitive | The payee name the bank app shows, in Mongolian capitals: `БОЛОРТУЯА ГОНГОР` |
 | `PARKOD_TELEGRAM_CHAT_ID` | no | The chat her payment alerts go to — for now the founder's own; never Яармаг's |
 | `PARKOD_CALENDAR_BOLOROO`, `_SARAA`, `_TOMOO`, `_BULGAA`, `_ENHUUSH`, `_CHIMEGEE`, `_TUCHKU` | no | Each calendar's «Calendar ID» (Google Calendar → Settings → Integrate calendar), after it is shared with tarasalon.parkod@gmail.com AND the site's service account (the address in `GOOGLE_SERVICE_ACCOUNT_EMAIL`), both «Make changes to events» |
 | `CRON_SECRET` | yes | Any random 32+ characters. Turns on the daily hold sweep (Vercel Cron sends it); without it the sweep is off and expired holds are cleared only when a day's times are read |

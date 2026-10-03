@@ -40,8 +40,15 @@ distinct, `testLinkReady: true`.
 Environment Variables → **Production**). Copy each value from its Preview
 entry:
 
-- `PARKOD_QPAY_BANK_CODE` (`050000`, Khan Bank), `PARKOD_QPAY_ACCOUNT_NUMBER`,
-  `PARKOD_QPAY_ACCOUNT_NAME`;
+- Парк Од's bank account, exactly as on Preview:
+  - `PARKOD_QPAY_BANK_CODE` = `050000` (Khan Bank);
+  - `PARKOD_QPAY_ACCOUNT_NUMBER` = her full IBAN, `MN` + 18 digits, no spaces
+    (spaces are dropped if pasted; a wrong check digit is refused and Парк Од
+    stays closed);
+  - `PARKOD_QPAY_ACCOUNT_NAME` = `БОЛОРТУЯА ГОНГОР`.
+
+  Яармаг's payee name («ОЮУНСҮРЭН ЭРХЭМБААТАР») and account number live in
+  the code (`config/branches.js`); there is no variable to set for her.
 - `PARKOD_TELEGRAM_CHAT_ID` (your own chat for now);
 - the seven calendars: `PARKOD_CALENDAR_BOLOROO`, `_SARAA`, `_TOMOO`,
   `_BULGAA`, `_ENHUUSH`, `_CHIMEGEE`, `_TUCHKU`;
@@ -371,20 +378,34 @@ test cookie belongs to one domain). *Check (Claude):* the Vercel logs show
    - Production: `https://www.matrixecosalon.org/?test=<token>`
 
    The browser now carries the test cookie: the deposit is 100₮, and the
-   booking is titled «ТЕСТ».
+   booking is titled «ТЕСТ». Three things break it:
+   - **A different address.** The cookie belongs to the address you opened.
+     Book on that same address: a link from Vercel's deployment list
+     (`matrix-website-<hash>-….vercel.app`) is a different address from the
+     branch link above, and `matrixecosalon.org` is different from
+     `www.matrixecosalon.org`.
+   - **A token that doesn't match.** Copy it from Vercel exactly; a token made
+     with `openssl rand -hex 16` has no characters that links change. If the
+     token is wrong, the booking page now says so in a red line at the top
+     («ТЕСТ холбоос буруу байна…») instead of quietly asking the full price.
+   - **A token changed without a redeploy.** Variables take effect only after
+     a redeploy.
 2. **Book:**
    On the booking page (`/booking.html`):
    - Парк Од: Парк Од → service «Үйлчилгээ — Үс оношлогоо
      зөвлөгөө» → Эмэгтэй → **Saraa**.
    - Яармаг: Яармаг → the same service → Эмэгтэй → **Uyanga**.
-3. **Pick a time:** a weekday at least a week ahead, at **19:00** (the last
-   slot), so no real customer is turned away while the test sits there. Enter
+3. **Pick a time:** the last day in the date row (it shows the next 7 days),
+   at **19:00** (the last slot), so no real customer is turned away while the
+   test sits there. Enter
    your name and phone, tick the deposit terms, and the QR shows **100₮**.
 4. **Pay from your bank app.** The page confirms within seconds. On Preview,
    QPay's callback can't reach the preview (Vercel login), so keep the page
    open until it confirms. Production has no such limit.
 5. **Check:**
    - one «ТЕСТ – <phone> - …» event at 19:00 in Saraa's (or Uyanga's) calendar;
+   - before paying, your bank app names the payee «БОЛОРТУЯА ГОНГОР» with her
+     IBAN (Яармаг: «ОЮУНСҮРЭН ЭРХЭМБААТАР» with hers);
    - Boloroo sees +100₮ in her Khan Bank account (Яармаг: Яармаг's account),
      with your name and phone as the description.
 6. **Clean up:** tell Claude the stylist and the date. Claude opens
@@ -395,4 +416,4 @@ test cookie belongs to one domain). *Check (Claude):* the Vercel logs show
 
 A fresh Яармаг test is worth it once, because this release changed the payment
 path (the hold, the level and gender rules, the bank account per branch). Its
-invoice body is unchanged.
+invoice body is unchanged except the payee name, now «ОЮУНСҮРЭН ЭРХЭМБААТАР».

@@ -386,3 +386,36 @@ test('a retired hairdresser gets no times and no invoice', async () => {
     delete STYLIST_CONFIG['Retired Test'];
   }
 });
+
+// A Mongolian IBAN for a given 16-digit bank+account part, with real check digits.
+function mnIban(rest16) {
+  const { normalizeAccountNumber } = require('../config/branches');
+  for (let c = 0; c < 100; c += 1) {
+    const iban = `MN${String(c).padStart(2, '0')}${rest16}`;
+    if (normalizeAccountNumber(iban) === iban) return iban;
+  }
+  throw new Error('no check digits');
+}
+
+test('Парк Од: her IBAN is sent as one MN… string with no spaces; a bad IBAN or Яармаг\'s keeps her closed', async () => {
+  const { normalizeAccountNumber } = require('../config/branches');
+  const iban = mnIban('0005005135357509');
+  assert.equal(normalizeAccountNumber(`${iban.slice(0, 4)} ${iban.slice(4, 8)} ${iban.slice(8)}`), iban, 'spaces dropped');
+  assert.equal(normalizeAccountNumber(iban.slice(0, 2) + (iban[2] === '9' ? '0' : String(Number(iban[2]) + 1)) + iban.slice(3)), null, 'a mistyped check digit is refused');
+  assert.equal(normalizeAccountNumber('5135 357 509'), '5135357509', 'a plain account number still works');
+  connectParkOd();
+  process.env.PARKOD_QPAY_ACCOUNT_NUMBER = iban.match(/.{1,4}/g).join(' ');
+  process.env.PARKOD_QPAY_ACCOUNT_NAME = 'БОЛОРТУЯА ГОНГОР';
+  const r = await invokeStandalone(paymentBody('Saraa', { branch: 'parkod' }));
+  assert.equal(r.status, 200);
+  assert.deepEqual(invoiceCall().body.bank_accounts, [{ account_bank_code: '050000', account_number: iban, account_name: 'БОЛОРТУЯА ГОНГОР', is_default: true }]);
+  process.env.PARKOD_QPAY_ACCOUNT_NUMBER = mnIban('0004000416055415');
+  assert.equal(qpayAccountFor('parkod').complete, false, 'Яармаг\'s account written as an IBAN is refused');
+  process.env.PARKOD_QPAY_ACCOUNT_NUMBER = 'MN00 not an account';
+  assert.equal(qpayAccountFor('parkod').complete, false);
+});
+
+test('Яармаг\'s payee name is in capitals, given name first; her account number is unchanged', () => {
+  const y = qpayAccountFor('yaarmag').bankAccounts[0];
+  assert.deepEqual([y.account_bank_code, y.account_number, y.account_name], ['040000', '416055415', 'ОЮУНСҮРЭН ЭРХЭМБААТАР']);
+});
