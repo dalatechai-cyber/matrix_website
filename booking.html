@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="mn">
+  <head>
+    <!-- @head -->
+    <title>Цаг захиалах — Tara Salon</title>
+    <meta name="description" content="Tara Salon-д онлайнаар цаг захиалах: салбар, үйлчилгээ, үсчин, цагаа сонгоод QPay-ээр урьдчилгаа төлнө." />
+    <meta property="og:title" content="Цаг захиалах — Tara Salon" />
+    <meta property="og:description" content="Салбар, үйлчилгээ, үсчин, цагаа сонгоод QPay-ээр урьдчилгаа төлнө." />
+    <meta property="og:url" content="{{origin}}/booking.html" />
+    <link rel="canonical" href="{{origin}}/booking.html" />
+    <link rel="stylesheet" href="/assets/booking.css?v={{v}}" />
+  </head>
+  <body class="booking-page">
+    <!-- @header -->
+
+    <main id="main">
+      <section class="booking" id="booking" aria-labelledby="booking-title">
+        <div class="container booking-shell">
+          <div class="booking-top">
+            <h1 class="h2" id="booking-title">Цаг захиалах</h1>
+            <p class="test-banner" id="test-banner" hidden></p>
+            <ol class="stepper" id="stepper" aria-label="Захиалгын алхам">
+              <li data-step="1"><button type="button" disabled><span class="n">1</span><span class="t">Салбар</span></button></li>
+              <li data-step="2"><button type="button" disabled><span class="n">2</span><span class="t">Үйлчилгээ</span></button></li>
+              <li data-step="3"><button type="button" disabled><span class="n">3</span><span class="t">Үсчин</span></button></li>
+              <li data-step="4"><button type="button" disabled><span class="n">4</span><span class="t">Өдөр, цаг</span></button></li>
+              <li data-step="5"><button type="button" disabled><span class="n">5</span><span class="t">Мэдээлэл</span></button></li>
+              <li data-step="6"><button type="button" disabled><span class="n">6</span><span class="t">Төлбөр</span></button></li>
+            </ol>
+          </div>
+
+          <div class="booking-grid">
+            <div class="booking-main">
+              <noscript><p class="notice">Цаг захиалахад хөтчийн JavaScript шаардлагатай. Эсвэл салбарын утсаар захиална уу.</p></noscript>
+              <p class="booking-loading" id="booking-loading">Уншиж байна…</p>
+              <p class="notice notice--error" id="booking-fatal" role="alert" hidden></p>
+
+              <!-- 1. Branch -->
+              <section class="step" data-step="1" hidden aria-labelledby="s1-title">
+                <h2 class="step-title" id="s1-title" tabindex="-1">Салбараа сонгоно уу</h2>
+                <div class="options options--branches" id="branch-options" role="radiogroup" aria-labelledby="s1-title"></div>
+              </section>
+
+              <!-- 2. Services -->
+              <section class="step" data-step="2" hidden aria-labelledby="s2-title">
+                <h2 class="step-title" id="s2-title" tabindex="-1">Үйлчилгээгээ сонгоно уу</h2>
+                <p class="step-hint">Нэг эсвэл хэд хэдэн үйлчилгээ сонгож болно. Сонгосон үйлчилгээний хугацаанд багтах цагийг л санал болгоно.</p>
+                <div id="service-options"></div>
+              </section>
+
+              <!-- 3. Stylist -->
+              <section class="step" data-step="3" hidden aria-labelledby="s3-title">
+                <h2 class="step-title" id="s3-title" tabindex="-1">Үсчнээ сонгоно уу</h2>
+                <fieldset class="gender-field">
+                  <legend>Үйлчлүүлэгч:</legend>
+                  <label class="seg"><input type="radio" name="customer-gender" value="female" /><span>Эмэгтэй</span></label>
+                  <label class="seg"><input type="radio" name="customer-gender" value="male" /><span>Эрэгтэй</span></label>
+                </fieldset>
+                <p class="step-hint">Эмэгтэй үйлчлүүлэгчид эмэгтэй үсчин, эрэгтэй үйлчлүүлэгчид эрэгтэй үсчин үйлчилнэ.</p>
+                <div class="options options--stylists" id="stylist-options" role="radiogroup" aria-labelledby="s3-title" aria-live="polite"></div>
+              </section>
+
+              <!-- 4. Date and time -->
+              <section class="step" data-step="4" hidden aria-labelledby="s4-title">
+                <h2 class="step-title" id="s4-title" tabindex="-1">Өдөр, цагаа сонгоно уу</h2>
+                <div class="days" id="day-strip" role="group" aria-label="Өдөр"></div>
+                <div class="slots" id="slots" aria-live="polite"></div>
+              </section>
+
+              <!-- 5. Details and deposit -->
+              <section class="step" data-step="5" hidden aria-labelledby="s5-title">
+                <h2 class="step-title" id="s5-title" tabindex="-1">Мэдээллээ оруулна уу</h2>
+                <div class="fields">
+                  <label class="field">
+                    <span>Нэр</span>
+                    <input type="text" id="customer-name" autocomplete="name" required />
+                  </label>
+                  <label class="field">
+                    <span>Утасны дугаар</span>
+                    <input type="tel" id="customer-phone" autocomplete="tel" inputmode="tel" required />
+                    <small class="field-error" id="phone-error" hidden>Утасны дугаараа бүтэн оруулна уу (8 оронтой).</small>
+                  </label>
+                </div>
+                <div class="deposit-box">
+                  <p class="deposit-line">Урьдчилгаа төлбөр: <strong id="deposit-amount"></strong></p>
+                  <p class="deposit-note">Урьдчилгаа төлбөр үйлчилгээний үнээс хасагдана.</p>
+                  <label class="deposit-terms">
+                    <input type="checkbox" id="deposit-terms" autocomplete="off" />
+                    <span>Урьдчилгаа төлбөр нь цагаа цуцалсан эсвэл ирээгүй тохиолдолд буцаан олгогдохгүй гэдгийг ойлгож, зөвшөөрч байна.</span>
+                  </label>
+                </div>
+                <p class="notice notice--error" id="pay-error" role="alert" hidden></p>
+              </section>
+
+              <!-- 6. QPay -->
+              <section class="step" data-step="6" hidden aria-labelledby="s6-title">
+                <h2 class="step-title" id="s6-title" tabindex="-1">QPay-ээр төлөх</h2>
+                <div id="qpay-panel">
+                  <p class="step-hint" id="qpay-status">QR код үүсгэж байна…</p>
+                  <div class="qr-layout">
+                    <div class="qr-box">
+                      <div id="qpay-qr-wrapper"><img id="qpay-qr-img" alt="" width="240" height="240" /></div>
+                      <p class="qr-countdown" id="qpay-countdown" aria-live="off"></p>
+                      <div class="qr-expired" id="qpay-expired" hidden>
+                        <p>QR кодын хугацаа дууслаа. Шинэ QR код авах бол доорх товчийг дарна уу.</p>
+                        <button type="button" class="btn btn--primary" id="qpay-renew-btn">Шинэ QR код авах</button>
+                      </div>
+                    </div>
+                    <div class="qr-side">
+                      <p class="qr-amount">Төлөх дүн: <strong id="qpay-amount"></strong></p>
+                      <p class="step-hint">Банкны аппаараа QR кодыг уншуулна уу. Утаснаасаа захиалж байгаа бол доорх банкаа сонгоно уу.</p>
+                      <div class="bank-links" id="qpay-bank-buttons"></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="booking-result" id="booking-result" hidden tabindex="-1"></div>
+              </section>
+
+              <div class="step-actions" id="step-actions">
+                <button type="button" class="btn btn--outline" id="back-btn">Буцах</button>
+                <button type="button" class="btn btn--primary" id="next-btn">Үргэлжлүүлэх</button>
+              </div>
+            </div>
+
+            <aside class="booking-summary" id="booking-summary" aria-label="Таны захиалга" hidden>
+              <h2>Таны захиалга</h2>
+              <dl id="summary-list"></dl>
+            </aside>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- @footer -->
+    <script src="/assets/site.js?v={{v}}" defer></script>
+    <script src="/assets/booking.js?v={{v}}" defer></script>
+  </body>
+</html>

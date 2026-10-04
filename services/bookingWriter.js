@@ -1,7 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
-const { STYLIST_CONFIG } = require('../config/stylists');
+const { STYLIST_CONFIG, personOf } = require('../config/stylists');
 const { totalDurationFor } = require('../config/serviceDurations');
 const {
   CUSTOMER_GENDER_LABELS,
@@ -11,6 +11,13 @@ const {
   formatSalonTime,
 } = require('./bookingRules');
 const { sendSalonAlert } = require('./telegram');
+const { branchOfStylist, branchInfo } = require('../config/branches');
+
+/** «Яармаг салбар» for a hairdresser, for alerts and the calendar record. */
+function branchNameOf(stylistId) {
+  const info = branchInfo(branchOfStylist(stylistId));
+  return info ? info.name : null;
+}
 
 /**
  * Puts a paid appointment on the stylist's calendar — the one place both
@@ -84,10 +91,12 @@ function buildBookingEvent({
   const gender = normalizeCustomerGender(customerGender);
 
   const lines = [];
+  const branchName = branchNameOf(stylistId);
   if (test) lines.push('ТЕСТ — test booking made through the test link (100₮ test deposit). Not a real customer.');
   if (customerName) lines.push(`Name: ${customerName}`);
   if (customerPhone) lines.push(`Phone: ${customerPhone}`);
   if (customerEmail) lines.push(`Email: ${customerEmail}`);
+  if (branchName) lines.push(`Branch: ${branchName}`);
   lines.push(`Price: ${stylist.price} MNT (${stylist.level})`);
   // Written out so the stylist can see the length the slot was reserved for,
   // and spot a service whose configured duration does not match reality.
@@ -179,11 +188,12 @@ async function outcomeFor(calendar, calendarId, event, built, booking, { amount 
     await sendSalonAlert([
       `${booking.test ? '[ТЕСТ] ' : ''}⚠️ Нэг захиалгад давхар төлбөр орсон`,
       `Үйлчлүүлэгч: ${booking.customerName || '—'}, утас ${booking.customerPhone || '—'}`,
-      `Үсчин: ${booking.stylistId}`,
+      `Салбар: ${branchNameOf(booking.stylistId) || '—'}`,
+      `Үсчин: ${personOf(booking.stylistId) || booking.stylistId}`,
       `Цаг: ${formatSalonTime(booking.start).replace(':00 (UTC+8)', '')}`,
       `Давхар төлсөн: ${amount ? `${formatter.format(amount)}₮ ` : ''}(QPay ${invoiceId})`,
       'Цаг нэг л удаа бүртгэгдсэн. Нэг төлбөрийг буцаан олгоно уу.',
-    ].join('\n'));
+    ].join('\n'), { branch: branchOfStylist(booking.stylistId) });
   }
   return { status: isNote ? 'conflict' : 'already-booked', eventId: event.id, durationMinutes: built.durationMinutes };
 }
@@ -208,13 +218,26 @@ function conflictAlertText({ stylistId, start, customerName, customerPhone, serv
   return [
     `${test ? '[ТЕСТ] ' : ''}⚠️ Урьдчилгаа төлсөн үйлчлүүлэгчийн цаг давхцсан`,
     `Үйлчлүүлэгч: ${customerName || '—'}, утас ${customerPhone || '—'}`,
-    `Үсчин: ${stylistId}`,
+    `Салбар: ${branchNameOf(stylistId) || '—'}`,
+    `Үсчин: ${personOf(stylistId) || stylistId}`,
     `Сонгосон цаг: ${local}`,
     services ? `Үйлчилгээ: ${Array.isArray(services) ? services.join(', ') : services}` : null,
     amount ? `Урьдчилгаа: ${formatter.format(amount)}₮${invoiceId ? ` (QPay ${invoiceId})` : ''}` : (invoiceId ? `QPay: ${invoiceId}` : null),
     late ? 'Төлбөр QR нээгдсэнээс хойш удаж орсон тул энэ хооронд цаг өөр хүнд захиалагдсан.' : 'Төлбөр орох үед энэ цаг өөр захиалгатай болсон байсан.',
     'Үйлчлүүлэгчтэй холбогдож өөр цаг тохирно уу.',
   ].filter(Boolean).join('\n');
+}
+
+/** Delete this booking's 5-minute hold, if any. Never throws. */
+async function releaseOwnHold(calendar, calendarId, booking) {
+  try {
+    const { holdIdFor } = require('./bookingHold');
+    const id = holdIdFor(calendarId, booking.start, booking.customerPhone);
+    if (id) await calendar.events.delete({ calendarId, eventId: id });
+  } catch (err) {
+    const code = err && (err.code || (err.response && err.response.status));
+    if (code !== 404 && code !== 410) console.warn('Could not release the booking\'s hold:', err.message || err);
+  }
 }
 
 /**
@@ -244,9 +267,26 @@ async function ensurePaidBooking(calendar, booking, { late = false, amount = nul
   // Already written for this booking (by the other path, a retried call, or
   // an earlier invoice for the same booking).
   const existing = await settle();
-  if (existing) return existing;
+  if (existing) {
+    await releaseOwnHold(calendar, calendarId, booking);
+    return existing;
+  }
 
-  if (await slotIsBusy(calendar, calendarId, booking.start, end)) {
+  // The customer's own 5-minute hold (services/bookingHold.js) covers this
+  // very time; it must not read as someone else's booking. With a hold on the
+  // calendar, only OTHER events count; without one (an older invoice, or the
+  // hold already swept), the calendar's busy time decides, as before.
+  const { findOwnHold, othersOverlapping } = require('./bookingHold');
+  const ownHold = await findOwnHold(calendar, { calendarId, start: booking.start, phone: booking.customerPhone });
+  if (!ownHold) {
+    // Someone else's expired hold is free time: clear it before freebusy reads it.
+    const { sweepExpiredHolds } = require('./bookingHold');
+    await sweepExpiredHolds(calendar, [calendarId], { from: booking.start, to: end });
+  }
+  const busy = ownHold
+    ? (await othersOverlapping(calendar, calendarId, booking.start, end, [ownHold.id, ...lookupIds])).length > 0
+    : await slotIsBusy(calendar, calendarId, booking.start, end);
+  if (busy) {
     // Busy may be this very booking, written by the other path a moment ago
     // (the browser and QPay's callback usually arrive together).
     const raced = await settle();
@@ -276,8 +316,10 @@ async function ensurePaidBooking(calendar, booking, { late = false, amount = nul
       }
       console.error('Could not write the paid-but-conflicting note to the calendar:', err.message || err);
     }
+    await releaseOwnHold(calendar, calendarId, booking);
     console.error('PAID booking conflicts with an existing appointment:', booking.stylistId, booking.start.toISOString(), invoiceId);
-    await sendSalonAlert(conflictAlertText({ ...booking, start: booking.start, amount, invoiceId, late }));
+    await sendSalonAlert(conflictAlertText({ ...booking, start: booking.start, amount, invoiceId, late }),
+      { branch: branchOfStylist(booking.stylistId) });
     return { status: 'conflict', eventId, durationMinutes: built.durationMinutes };
   }
 
@@ -286,11 +328,13 @@ async function ensurePaidBooking(calendar, booking, { late = false, amount = nul
     const response = await calendar.events.insert({ calendarId, requestBody });
     console.log('Calendar booking created:', response.data.id, 'for stylist', booking.stylistId,
       `(${built.durationMinutes} min)`, late ? '[from QPay callback]' : '');
+    // The booking now holds the time; the hold is no longer needed.
+    await releaseOwnHold(calendar, calendarId, booking);
     return { status: 'booked', eventId: response.data.id, durationMinutes: built.durationMinutes };
   } catch (err) {
     if (eventId && isConflictError(err)) {
       const other = await settle();
-      if (other) return other;
+      if (other) { await releaseOwnHold(calendar, calendarId, booking); return other; }
       return { status: 'already-booked', eventId, durationMinutes: built.durationMinutes };
     }
     throw err;
@@ -324,13 +368,14 @@ async function alertBookingFailure({ stylistId, start, customerName, customerPho
   return sendSalonAlert([
     `${test ? '[ТЕСТ] ' : ''}⚠️ Урьдчилгаа төлсөн боловч цаг бүртгэж чадсангүй`,
     `Үйлчлүүлэгч: ${customerName || '—'}, утас ${customerPhone || '—'}`,
-    `Үсчин: ${stylistId || '—'}`,
+    `Салбар: ${branchNameOf(stylistId) || '—'}`,
+    `Үсчин: ${personOf(stylistId) || stylistId || '—'}`,
     `Сонгосон цаг: ${local}`,
     services ? `Үйлчилгээ: ${Array.isArray(services) ? services.join(', ') : services}` : null,
     amount ? `Урьдчилгаа: ${formatter.format(amount)}₮${invoiceId ? ` (QPay ${invoiceId})` : ''}` : (invoiceId ? `QPay: ${invoiceId}` : null),
     `Шалтгаан: ${String(error || 'тодорхойгүй').slice(0, 200)}`,
     'Үйлчлүүлэгчтэй холбогдож цагийг гараар бүртгэнэ үү.',
-  ].filter(Boolean).join('\n'));
+  ].filter(Boolean).join('\n'), { branch: branchOfStylist(stylistId) });
 }
 
 module.exports = {

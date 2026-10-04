@@ -1,0 +1,23 @@
+diff --git a/data/branches.json b/data/branches.json
+index ae7ccbe..ad4898f 100644
+--- a/data/branches.json
++++ b/data/branches.json
+@@ -6,15 +6,15 @@
+       "id": "yaarmag",
+       "name": "Яармаг салбар",
+       "short": "Яармаг",
+-      "address": "Яармагийн Номин Хайпермаркетын баруун талд",
++      "address": "Хан-Уул дүүрэг, 24-р хороо, Наадамчдын зам гудамж, VIP Center 2 давхар",
+       "phones": ["76001888", "91005498"],
+       "hoursText": [
+         { "days": "Даваа – Бямба", "time": "10:00 – 20:00" },
+         { "days": "Ням", "time": "11:00 – 19:00" }
+       ],
+       "workHours": { "weekday": [10, 20], "sunday": [11, 19] },
+-      "mapUrl": "https://maps.app.goo.gl/1X9q6weeFyHgXVpKA",
+-      "mapEmbedQuery": "Номин Яармаг",
++      "mapUrl": null,
++      "mapEmbedQuery": null,
+       "facebook": "https://www.facebook.com/profile.php?id=100067872726164",
+       "messenger": "https://m.me/100067872726164"
+     },

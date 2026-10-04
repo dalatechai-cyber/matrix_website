@@ -1,0 +1,75 @@
+{
+  "_comment": "The salon's photos used as feature images (hero arches, «Бидний тухай», «Уралдаан ба сургалт», page intros): 4:5 WebP crops in img/photos/ at the widths listed, never upscaled. The «Бүтээл» gallery was removed on 2026-10-04 (founder: its photos were Matrix's; it returns only with Tara's own photos), and its photos were deleted from the site.",
+  "items": [
+    {
+      "slug": "rose-waves",
+      "cat": "colour",
+      "alt": "Ягаан шаргал өнгийн долгиолсон үс",
+      "widths": [
+        480,
+        800,
+        1200
+      ]
+    },
+    {
+      "slug": "bronde-waves",
+      "cat": "colour",
+      "alt": "Шаргал хүрэн тодруулгатай долгиолсон үс",
+      "widths": [
+        480,
+        800,
+        1200
+      ]
+    },
+    {
+      "slug": "competition-asia",
+      "cat": "salon",
+      "alt": "Олон улсын үсчний уралдаан дээр Монгол улсын далбаатай",
+      "widths": [
+        480,
+        800,
+        1200
+      ]
+    },
+    {
+      "slug": "competition-piece",
+      "cat": "salon",
+      "alt": "Олон улсын уралдаанд оролцсон үсний бүтээл",
+      "widths": [
+        480,
+        800,
+        1200
+      ]
+    },
+    {
+      "slug": "training-certificates",
+      "cat": "salon",
+      "alt": "Мэргэжлийн сургалт төгсөж гэрчилгээ авсан нь",
+      "widths": [
+        480,
+        800,
+        1200
+      ]
+    },
+    {
+      "slug": "cutting",
+      "cat": "salon",
+      "alt": "Үс тайрах явц",
+      "widths": [
+        480,
+        800,
+        1057
+      ]
+    },
+    {
+      "slug": "tools",
+      "cat": "salon",
+      "alt": "Үсчний хайч, сам",
+      "widths": [
+        480,
+        800,
+        1200
+      ]
+    }
+  ]
+}

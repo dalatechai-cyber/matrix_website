@@ -13,7 +13,7 @@
  * comes from here.
  *
  * Matching is deliberately forgiving: the booking checkboxes, the price list
- * (data/pricing.json) and the salon's own spelling differ in punctuation and in
+ * (data/services.json) and the salon's own spelling differ in punctuation and in
  * ё/е, so names are normalised and each service may carry aliases.
  */
 
@@ -26,7 +26,7 @@ const DEFAULT_MINUTES =
 
 /**
  * Canonicalise a service name for comparison.
- * Mirrors normalizeServiceName() in script.js: case, ё/е and whitespace are not
+ * Mirrored by normalizeName() in assets/booking.js: case, ё/е and whitespace are not
  * meaningful. Slashes and parentheses are also flattened so "Будаг/угны",
  * "Будаг (Уг)" and "Будаг / угны" all reduce to the same key.
  *

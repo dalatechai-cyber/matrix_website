@@ -6,8 +6,8 @@ brand
 
 ## Users
 
-Beauty and hair clients in Ulaanbaatar, Mongolia — the Yaarmag district around
-the salon (near Nomin Hypermarket). Mongolian-speaking, browsing mostly on
+Beauty and hair clients in Ulaanbaatar, Mongolia — around Tara Salon's two
+branches, Яармаг (next to Nomin Hypermarket) and Парк Од. Mongolian-speaking, browsing mostly on
 phones, often mid-decision: comparing where to get their hair or colour
 work done and weighing quality against price. They arrive wanting reassurance
 that the work is professional and the environment is clean and eco-conscious,
@@ -16,8 +16,9 @@ then a frictionless way to see prices, view real results, and book a time
 
 ## Product Purpose
 
-The online home of Matrix Eco Salon. It exists to present the salon as the
-premium, eco-conscious choice in the area — showing services and transparent
+The online home of Tara Salon (formerly Matrix Eco Salon), two branches with
+the same brand and prices. It exists to present the salon as the premium
+choice in the area — showing services and transparent
 pricing, the stylists and their real work (gallery), and the eco/retail product
 lines — and to convert that interest into booked, pre-paid appointments.
 Success looks like: a visitor trusts the salon on sight, understands what they'll
@@ -25,7 +26,7 @@ get and what it costs, and books without friction.
 
 ## Brand Personality
 
-Eco, modern, premium. Calm confidence rather than hard sell. Clean and
+Modern, premium, confident. Formal Mongolian, calm confidence rather than hard sell. Clean and
 contemporary; sustainability-forward without lecturing. Voice is
 warm-professional and understated — a boutique that lets craft and results speak.
 
@@ -33,7 +34,7 @@ warm-professional and understated — a boutique that lets craft and results spe
 
 - **Generic templated salon sites** — cookie-cutter Wix/Squarespace beauty
   templates with stock heroes and the same carousel every salon uses. The site
-  must feel specific to Matrix, not swappable.
+  must feel specific to Tara, not swappable.
 - **Loud, flashy, neon** — high-saturation, glossy, busy, attention-grabbing
   design. It fights the calm eco-premium tone and reads cheap.
 - Not discount- or coupon-driven; prestige is the pitch, not price-slashing.
@@ -48,8 +49,10 @@ warm-professional and understated — a boutique that lets craft and results spe
   honesty, not badges shouting for attention.
 - **Protect the booking path.** Browse → decide → book → pay is the money path;
   it stays obvious and frictionless on every page and every screen size.
-- **One salon, one system.** All six pages read as the same premium place —
-  shared palette, type, motion, and components; consistency is the brand.
+- **One salon, one system.** Every page, both branches, reads as the same
+  premium place — shared palette, type, motion, and components.
+- **Branches never cross.** A booking at one branch reaches only its own
+  calendars and QPay account.
 
 ## Accessibility & Inclusion
 

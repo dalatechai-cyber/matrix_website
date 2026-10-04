@@ -5,6 +5,7 @@ const { createInvoice, checkPayment, getInvoice, getPayment, isPaidCheck } = req
 const { getCalendarClient } = require('../services/googleCalendar');
 const { STYLIST_CONFIG } = require('../config/stylists');
 const { checkPaymentRequest } = require('../services/closureGuard');
+const { holdForPaymentRequest, clientOf } = require('../services/bookingHold');
 const { checkPaymentBookingRules, consentTime, REFRESH_MESSAGE } = require('../services/bookingRules');
 const { callbackUrlForPayment, publicOrigin, decodeCallback } = require('../services/lateBooking');
 const { ensurePaidBooking, alertBookingFailure, hasBookingForPhone } = require('../services/bookingWriter');
@@ -13,6 +14,9 @@ const { findClosure } = require('../config/closures');
 const { totalDurationFor } = require('../config/serviceDurations');
 
 const { blockedByMaintenance, MAINTENANCE_MESSAGE, depositFor, isTestRequest } = require('../config/siteMode');
+const { resolveBookingBranch, qpayAccountFor, normalizeBranchId, branchOfStylist, DEFAULT_BRANCH } = require('../config/branches');
+
+const BRANCH_NOT_READY_MESSAGE = 'Энэ салбарт онлайн захиалга хараахан нээгдээгүй байна. Салбарын утсаар холбогдоно уу.';
 
 const router = express.Router();
 
@@ -121,6 +125,7 @@ async function createCalendarEventForInvoice(invoiceId) {
  * Returns: { invoice_id: string, qr_image: <Base64 string>, urls: [ { name, link }, ... ] }
  */
 router.post('/create-payment', async (req, res) => {
+  const startedAt = new Date(); // the hold's release must fit in this function's time
   const { name, phone, amount, description, staffName, selectedServices, serviceName } = req.body || {};
 
   // Maintenance: no new invoices (payments already made are still honoured).
@@ -156,6 +161,22 @@ router.post('/create-payment', async (req, res) => {
     return res.status(422).json({ error: REFRESH_MESSAGE, reason: rulesCheck.reason });
   }
 
+  // Same as the standalone handler: the hairdresser decides the branch, the
+  // branch decides the QPay account; no invoice for a branch not yet connected.
+  const branchCheck = resolveBookingBranch({ stylistId: staffName, branch: req.body.branch });
+  if (!branchCheck.ok) {
+    console.warn('Blocked QPay invoice by branch:', branchCheck.reason, staffName);
+    return res.status(409).json({ error: BRANCH_NOT_READY_MESSAGE, reason: branchCheck.reason });
+  }
+  const account = qpayAccountFor(branchCheck.branch);
+
+  // Same 5-minute hold as the standalone handler (services/bookingHold.js).
+  const hold = await holdForPaymentRequest(req.body || {}, { test: isTestRequest(req), client: clientOf(req), startedAt });
+  if (!hold.ok) {
+    console.warn('Blocked QPay invoice by hold:', hold.payload.reason, staffName);
+    return res.status(hold.status).json(hold.payload);
+  }
+
   try {
     const consent = consentTime(req.body.depositTermsAcceptedAt);
     // The signed late-payment callback (services/lateBooking.js), as in the
@@ -165,10 +186,11 @@ router.post('/create-payment', async (req, res) => {
     // the tester's signed cookie (config/siteMode.js).
     const sentAmount = Number(String(amount).replace(/[^0-9]/g, ''));
     if (!sentAmount || isNaN(sentAmount)) {
+      await hold.release();
       return res.status(400).json({ error: 'amount must be a valid positive number' });
     }
     const cleanAmount = depositFor(req, staffName);
-    if (!cleanAmount) return res.status(422).json({ error: 'Unknown stylist' });
+    if (!cleanAmount) { await hold.release(); return res.status(422).json({ error: 'Unknown stylist' }); }
     const callbackUrl = callbackUrlForPayment(publicOrigin(req), req.body, { agreedAt: consent.at, amount: cleanAmount, test: isTestRequest(req) })
       || `${process.env.BASE_URL || 'https://mydomain.com'}/api/qpay/webhook`;
     // The QPay invoice description shows only the customer name and phone.
@@ -177,19 +199,15 @@ router.post('/create-payment', async (req, res) => {
     // QPay enforces a 255-character limit on the description field.
     const cleanDescription = `${name || 'Үйлчлүүлэгч'} - ${phone || 'Утасгүй'}`.substring(0, 255);
 
-    const bankAccountsPayload = [{
-      account_bank_code: '040000',
-      account_number: '416055415',
-      account_name: 'Эрхэмбаатар Оюунсүрэн',
-      is_default: true,
-    }];
-
-    const result = await createInvoice({ amount: cleanAmount, description: cleanDescription, callbackUrl, bankAccounts: bankAccountsPayload });
+    const result = await createInvoice({
+      amount: cleanAmount, description: cleanDescription, callbackUrl, bankAccounts: account.bankAccounts, account,
+    });
 
     // Track this invoice as PENDING so the polling endpoint can report its status.
     // Store the full booking description for calendar event creation on payment.
     console.log('Deposit terms accepted:', JSON.stringify({
       invoice_id: result.invoice_id,
+      branch: branchCheck.branch,
       staffName,
       customerGender: rulesCheck.customerGender,
       bookingDate: req.body.bookingDate,
@@ -208,9 +226,12 @@ router.post('/create-payment', async (req, res) => {
       };
     }
 
-    return res.status(200).json(result);
+    // Unpaid, the hold deletes itself when the QR runs out (bookingHold.js).
+    hold.releaseWhenExpired();
+    return res.status(200).json({ ...result, hold_expires_at: hold.expiresAt.toISOString() });
   } catch (err) {
     console.error('QPay API Error Details:', err.response?.data || err.message);
+    await hold.release();
     return res.status(502).json({
       error: 'Failed to create QPay invoice',
       details: err.message || String(err),
@@ -281,6 +302,10 @@ router.post('/webhook', async (req, res) => {
  */
 router.post('/check-payment', async (req, res) => {
   const { invoice_id } = req.body || {};
+  // Asked of the QPay account the invoice was created on. A page from before
+  // branches existed sends no branch: that is Яармаг, the only branch then.
+  const branch = req.body && req.body.branch != null ? normalizeBranchId(req.body.branch) : DEFAULT_BRANCH;
+  if (!branch) return res.status(400).json({ error: 'unknown branch' });
 
   if (!invoice_id) {
     return res.status(400).json({ error: 'invoice_id is required' });
@@ -300,7 +325,7 @@ router.post('/check-payment', async (req, res) => {
 
   // Call QPay API directly to get real-time payment status
   try {
-    const qpayData = await checkPayment(invoice_id);
+    const qpayData = await checkPayment(invoice_id, qpayAccountFor(branch));
     // QPay v2 /payment/check reports payment in `rows[].payment_status` (the
     // shape script.js has always checked for) and may carry no top-level
     // `invoice_status` at all. Reading only the latter would answer UNKNOWN
@@ -352,6 +377,23 @@ router.all('/late-payment', async (req, res) => {
     return res.status(403).json({ error: 'invalid callback' });
   }
 
+  // The signed booking names the hairdresser, and so the branch whose QPay
+  // account the invoice is on.
+  const branch = branchOfStylist(booking.stylistId);
+  if (!branch) {
+    // A hairdresser with no branch cannot be checked against any account;
+    // never guess one. A person has to look.
+    console.error('late-payment: hairdresser has no branch', booking.stylistId);
+    await sendSalonAlert([
+      '⚠️ QPay-с төлбөрийн мэдэгдэл ирсэн боловч үсчний салбар тодорхойгүй',
+      `Утас: ${booking.customerPhone || '—'}, үсчин ${booking.stylistId}, ${booking.date} ${booking.time}`,
+      'QPay дээр төлбөрийг шалгаад, төлөгдсөн бол цагийг гараар бүртгэнэ үү.',
+    ].join('\n'));
+    return res.status(200).json({ received: true, handled: 'alerted-no-branch' });
+  }
+  const account = qpayAccountFor(branch);
+  const alertOpts = { branch };
+
   const body = req.body && typeof req.body === 'object' ? req.body : {};
   const pick = (...vals) => vals.map((v) => (v == null ? '' : String(v).trim())).find(Boolean) || null;
   let invoiceId = pick(body.object_id, body.invoice_id, body.id, req.query.object_id, req.query.invoice_id);
@@ -364,7 +406,7 @@ router.all('/late-payment', async (req, res) => {
   // QPay may name only the payment; its record names the invoice.
   if (!invoiceId && paymentId) {
     try {
-      const payment = await getPayment(paymentId);
+      const payment = await getPayment(paymentId, account);
       invoiceId = pick(payment && payment.object_id, payment && payment.invoice_id);
     } catch (err) {
       console.warn('late-payment: payment lookup failed', paymentId, err.message || err);
@@ -390,13 +432,13 @@ router.all('/late-payment', async (req, res) => {
       '⚠️ QPay-с төлбөрийн мэдэгдэл ирсэн боловч нэхэмжлэлийн дугаар алга',
       `Утас: ${booking.customerPhone || '—'}, үсчин ${booking.stylistId}, ${booking.date} ${booking.time}`,
       'QPay дээр төлбөрийг шалгаад, төлөгдсөн бол цагийг гараар бүртгэнэ үү.',
-    ].join('\n'));
+    ].join('\n'), alertOpts);
     return res.status(200).json({ received: true, handled: 'alerted-no-invoice-id' });
   }
 
   let paid;
   try {
-    paid = isPaidCheck(await checkPayment(invoiceId));
+    paid = isPaidCheck(await checkPayment(invoiceId, account));
   } catch (err) {
     console.error('late-payment: could not confirm payment with QPay', invoiceId, err.message || err);
     // Let QPay retry; a person checks meanwhile in case it never does.
@@ -404,7 +446,7 @@ router.all('/late-payment', async (req, res) => {
       '⚠️ QPay-н төлбөрийг баталгаажуулж чадсангүй (дахин оролдоно)',
       `QPay ${invoiceId}; утас ${booking.customerPhone || '—'}, үсчин ${booking.stylistId}, ${booking.date} ${booking.time}`,
       'Төлөгдсөн эсэхийг QPay дээр шалгана уу.',
-    ].join('\n'));
+    ].join('\n'), alertOpts);
     return res.status(502).json({ error: 'payment check failed' });
   }
   if (!paid) return res.status(200).json({ received: true, handled: 'not-paid' });
@@ -412,7 +454,7 @@ router.all('/late-payment', async (req, res) => {
   // Name and phone as written on the invoice; the phone must match the token.
   let customerName = null;
   try {
-    const invoice = await getInvoice(invoiceId);
+    const invoice = await getInvoice(invoiceId, account);
     const desc = String((invoice && (invoice.invoice_description || invoice.description)) || '');
     const digits = desc.replace(/\D/g, '');
     if (booking.customerPhone && digits && !digits.includes(booking.customerPhone)) {

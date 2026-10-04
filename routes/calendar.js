@@ -5,10 +5,12 @@ const { getCalendarClient } = require('../services/googleCalendar');
 const { STYLIST_CONFIG } = require('../config/stylists');
 const { getClosures, findClosure, salonDateOf } = require('../config/closures');
 const { totalDurationFor } = require('../config/serviceDurations');
-const { normalizeCustomerGender, checkGenderMatch } = require('../services/bookingRules');
+const { normalizeCustomerGender, checkGenderMatch, checkLevelMatch } = require('../services/bookingRules');
 const { ensurePaidBooking, alertBookingFailure } = require('../services/bookingWriter');
+const { sweepExpiredHolds } = require('../services/bookingHold');
 
 const { blockedByMaintenance, MAINTENANCE_MESSAGE, isTestRequest } = require('../config/siteMode');
+const { branchOfStylist, branchReadiness, workHoursFor, normalizeBranchId } = require('../config/branches');
 
 const router = express.Router();
 
@@ -118,6 +120,22 @@ router.get('/available-slots', async (req, res) => {
     return res.status(400).json({ error: `Unknown stylistId "${stylistId}"` });
   }
 
+  // Times are offered only at the hairdresser's own branch, and only once
+  // that branch takes online bookings (config/branches.js).
+  const branch = branchOfStylist(stylistId);
+  if (req.query.branch != null && req.query.branch !== '' && normalizeBranchId(req.query.branch) !== branch) {
+    return res.status(400).json({ error: 'Hairdresser does not work at this branch' });
+  }
+  const readiness = branchReadiness(branch);
+  if (!readiness.ready) {
+    return res.status(409).json({ error: 'Branch is not taking online bookings yet', reason: readiness.reason });
+  }
+  // A retired hairdresser, or one whose calendar is not connected yet, offers
+  // no times (config/stylists.js).
+  if (stylist.retired || !stylist.calendarId) {
+    return res.status(409).json({ error: 'Hairdresser is not taking online bookings', reason: stylist.retired ? 'stylist-retired' : 'stylist-not-connected' });
+  }
+
   // The salon is shut salon-wide on this date: offer nothing, whatever the
   // stylist's calendar happens to say. This is deliberately a 200 with an empty
   // list rather than an error — the booking UI falls back to showing full
@@ -127,7 +145,9 @@ router.get('/available-slots', async (req, res) => {
     return res.status(200).json({ date, stylistId, availableSlots: [], closure });
   }
 
-  const { workStartHour, workEndHour } = getWorkHours(date);
+  // The branch's own opening hours; Яармаг's are the ones getWorkHours has
+  // always used.
+  const { workStartHour, workEndHour } = workHoursFor(branch, date) || getWorkHours(date);
   const { minutes: durationMinutes, unknown } = resolveDurationMinutes({
     services,
     // No services named: keep the stylist's usual slot length, so an older
@@ -144,6 +164,13 @@ router.get('/available-slots', async (req, res) => {
 
   try {
     const calendar = await getCalendarClient();
+    // A website hold whose QR ran out is free: delete it before reading busy
+    // time, so the time is offered again at once (services/bookingHold.js).
+    try {
+      await sweepExpiredHolds(calendar, [stylist.calendarId], { from: new Date(timeMin), to: new Date(timeMax) });
+    } catch (err) {
+      console.warn('available-slots: could not clear expired holds', err.message || err);
+    }
     const freebusyResponse = await calendar.freebusy.query({
       requestBody: {
         timeMin,
@@ -213,6 +240,35 @@ router.get('/available-slots', async (req, res) => {
 });
 
 /**
+ * GET /api/calendar/sweep-holds
+ *
+ * Deletes website holds whose QR has run out, on every connected calendar
+ * (every hold written in the last three days, whatever its day). Run daily by Vercel Cron
+ * (vercel.json); expired holds are also cleared whenever a day's times are
+ * read, so this is housekeeping, not what frees a time. Served only with
+ * CRON_SECRET (Vercel Cron sends it); without it the sweep is off.
+ */
+router.get('/sweep-holds', async (req, res) => {
+  // Only Vercel Cron (which sends CRON_SECRET). Without the secret the sweep
+  // is off; expired holds are still cleared whenever a day is read.
+  const secret = process.env.CRON_SECRET;
+  if (!secret || req.headers.authorization !== `Bearer ${secret}`) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+  const calendarIds = [...new Set(Object.values(STYLIST_CONFIG).map((c) => c.calendarId).filter(Boolean))];
+  const now = new Date();
+  try {
+    const calendar = await getCalendarClient();
+    const deleted = await sweepExpiredHolds(calendar, calendarIds, { updatedSince: new Date(now.getTime() - 3 * 86400000), now });
+    console.log('sweep-holds: deleted', deleted, 'expired hold(s) on', calendarIds.length, 'calendar(s)');
+    return res.status(200).json({ deleted, calendars: calendarIds.length });
+  } catch (err) {
+    console.error('sweep-holds failed:', err.message || err);
+    return res.status(500).json({ error: 'sweep failed' });
+  }
+});
+
+/**
  * POST /api/calendar/book
  *
  * Creates a Google Calendar event for the specified stylist.
@@ -263,6 +319,21 @@ router.post('/book', async (req, res) => {
     });
   }
 
+  // The calendar is the hairdresser's, so the booking lands at their branch
+  // whatever the page said; a disagreement is logged for a person to look at.
+  const stylistBranch = branchOfStylist(stylistId);
+  if (req.body.branch && normalizeBranchId(req.body.branch) !== stylistBranch) {
+    console.error('book: page named branch', req.body.branch, 'but', stylistId, 'works at', stylistBranch);
+  }
+  // A branch not taking online bookings has issued no invoice from this site,
+  // so no browser can legitimately arrive here for it. (A payment QPay
+  // confirms is still booked by /api/qpay/late-payment.)
+  const readiness = branchReadiness(stylistBranch);
+  if (!readiness.ready) {
+    console.error('book: refused, branch not taking online bookings', stylistBranch, readiness.reason, stylistId);
+    return res.status(409).json({ error: 'Branch is not taking online bookings yet', reason: readiness.reason });
+  }
+
   const gender = normalizeCustomerGender(customerGender);
   if (gender) {
     const genderCheck = checkGenderMatch({ stylistId, customerGender: gender });
@@ -272,6 +343,13 @@ router.post('/book', async (req, res) => {
     }
   } else {
     console.warn('book: no customer gender recorded for booking with', stylistId);
+  }
+
+  // Same rule as the invoice: a level-named haircut only with that level.
+  const levelCheck = checkLevelMatch({ stylistId, services: selectedServices, serviceName });
+  if (!levelCheck.allowed) {
+    console.error('book: refused level mismatch', stylistId, levelCheck.reason);
+    return res.status(422).json({ error: 'Hairdresser is not of the level this haircut names', reason: levelCheck.reason });
   }
 
   const start = new Date(startTime);

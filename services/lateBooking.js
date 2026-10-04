@@ -1,7 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
-const { STYLIST_CONFIG } = require('../config/stylists');
+const { STYLIST_CONFIG, personOf, asciiOf } = require('../config/stylists');
 const catalogue = require('../data/serviceDurations.json');
 const { normalizeServiceName, parseServices, totalDurationFor } = require('../config/serviceDurations');
 const { normalizeCustomerGender } = require('./bookingRules');
@@ -40,20 +40,17 @@ function sign(token, key) {
   return crypto.createHmac('sha256', key).update(token).digest('hex').slice(0, 32);
 }
 
-/** ASCII alias of a stylist (config/stylists.js keeps one per hairdresser). */
+/** ASCII id of a stylist (config/stylists.js keeps one per hairdresser). */
 function asciiIdFor(stylistId) {
-  const cfg = STYLIST_CONFIG[stylistId];
-  if (!cfg) return null;
-  if (/^[a-z.]+$/.test(stylistId)) return stylistId;
-  const alias = Object.keys(STYLIST_CONFIG).find((k) => /^[a-z.]+$/.test(k) && STYLIST_CONFIG[k].calendarId === cfg.calendarId);
-  return alias || null;
+  return asciiOf(stylistId);
 }
 
-/** The display (Mongolian) name for an ASCII alias. */
+/**
+ * The display name for an ASCII id — including a former name's ASCII form
+ * («oyunsuren»), so a callback signed before the rename reaches the same person.
+ */
 function displayIdFor(asciiId) {
-  const cfg = STYLIST_CONFIG[asciiId];
-  if (!cfg) return null;
-  return Object.keys(STYLIST_CONFIG).find((k) => !/^[a-z.]+$/.test(k) && STYLIST_CONFIG[k].calendarId === cfg.calendarId) || asciiId;
+  return STYLIST_CONFIG[asciiId] ? personOf(asciiId) : null;
 }
 
 /**
@@ -127,7 +124,7 @@ function decodeCallback(b, h) {
 }
 
 /**
- * The booking description the site sends with every payment (script.js):
+ * The booking description the site sends with every payment (assets/booking.js):
  *   "Matrix Eco: {stylistId} - {date} {time} - {name} - {phone}"
  */
 function parseBookingDescription(description) {

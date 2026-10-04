@@ -1,14 +1,15 @@
 {
-  "name": "matrix-salon-backend",
+  "name": "tara-salon-site",
   "version": "1.0.0",
-  "description": "Matrix Salon backend server with payment webhook and Google Calendar integration",
+  "description": "Tara Salon website: pages, booking, QPay and Google Calendar",
   "main": "server.js",
   "scripts": {
     "pretest": "node --test .claude/hooks/guardrails.test.cjs",
     "start": "node server.js",
-    "test": "node --test tests/webhooks.test.js tests/qpay.test.js tests/calendar.test.js tests/closures.test.js tests/content.test.js tests/latePayment.test.js tests/siteMode.test.js"
+    "test": "node --test tests/webhooks.test.js tests/qpay.test.js tests/calendar.test.js tests/closures.test.js tests/content.test.js tests/latePayment.test.js tests/siteMode.test.js tests/branches.test.js tests/holds.test.js tests/setup.test.js"
   },
   "dependencies": {
+    "@vercel/functions": "^2.2.13",
     "axios": "^1.6.0",
     "dotenv": "^17.3.1",
     "express": "^4.18.2",

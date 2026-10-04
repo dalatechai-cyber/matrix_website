@@ -567,18 +567,15 @@ test('STYLIST_CONFIG: Отгонжаргал price is 10000 (1-р зэргийн
   assert.equal(STYLIST_CONFIG[OTGONZARGAL_STYLIST_ID_LATIN].price, 10000);
 });
 
-test('available-slots: 200 for Отгонжаргал routes to her calendar', async () => {
+test('available-slots: Otgonjargal (old id otgonzargal) offers times on her own calendar again', async () => {
   calendarStub._freebusyError = null;
-  calendarStub._freebusyResult = {
-    data: { calendars: { [OTGONZARGAL_CALENDAR_ID]: { busy: [] } } },
-  };
+  calendarStub._freebusyResult = { data: { calendars: { [OTGONZARGAL_CALENDAR_ID]: { busy: [] } } } };
   const app = buildApp();
   const { status, body } = await request(app, 'GET', '/api/calendar/available-slots', {
     date: VALID_DATE,
     stylistId: OTGONZARGAL_STYLIST_ID_LATIN,
   });
   assert.equal(status, 200);
-  assert.equal(body.stylistId, OTGONZARGAL_STYLIST_ID_LATIN);
   assert.equal(body.availableSlots.length, 10);
 });
 
@@ -846,4 +843,18 @@ test('book: a 4-hour service is written to the calendar as 4 hours', async () =>
   const { start, end } = calendarStub._lastInsertArg.requestBody;
   const diffMinutes = (new Date(end.dateTime) - new Date(start.dateTime)) / (60 * 1000);
   assert.equal(diffMinutes, 240, 'a hairdresser booking must honour the real duration');
+});
+
+test('book: an explicit level mismatch is refused, as on the invoice', async () => {
+  calendarStub._insertError = null;
+  calendarStub._lastInsertArg = null;
+  const app = buildApp();
+  const { status, body } = await request(app, 'POST', '/api/calendar/book', {
+    stylistId: VALID_STYLIST_ID, // Anand, Мастер
+    startTime: '2026-03-10T10:00:00Z',
+    selectedServices: ['Эрэгтэй засалт — Тайралт том хүн /SPECIAL/'],
+  });
+  assert.equal(status, 422);
+  assert.equal(body.reason, 'level-mismatch');
+  assert.equal(calendarStub._lastInsertArg, null, 'nothing is written');
 });

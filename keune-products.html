@@ -1,84 +1,64 @@
 <!doctype html>
 <html lang="mn">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Keune Бүтээгдэхүүн | Matrix Eco Salon</title>
-    <link rel="icon" href="favicon.jpg" type="image/jpeg" />
-    <link rel="stylesheet" href="styles.css" />
+    <!-- @head -->
+    <title>Keune бүтээгдэхүүн — Tara Salon</title>
+    <meta name="description" content="Keune мэргэжлийн үс арчилгааны бүтээгдэхүүн." />
+    <meta property="og:title" content="Keune бүтээгдэхүүн — Tara Salon" />
+    <meta property="og:description" content="Keune мэргэжлийн үс арчилгааны бүтээгдэхүүн." />
+    <meta property="og:url" content="{{origin}}/keune-products.html" />
+    <link rel="canonical" href="{{origin}}/keune-products.html" />
   </head>
   <body>
-    <header class="site-header">
-      <div class="container header-content">
-        <div class="brand">
-          <img src="logo.png" alt="Matrix Eco Salon" class="brand-mark" />
-          <div>
-            <div class="brand-name">Matrix Eco Salon</div>
-            <div class="brand-tagline">Эко орчин • Орчин үеийн хэв маяг</div>
-          </div>
-        </div>
-        <nav class="nav">
-          <a href="index.html">Бидний тухай</a>
-          <a href="team.html#team">Манай Баг</a>
-          <a href="services.html#services">Үйлчилгээ ба үнэ</a>
-          <a href="zurag.html">Зураг</a>
-          <div class="nav-dropdown">
-            <span class="nav-dropdown-label">Бүтээгдэхүүн <span class="nav-dropdown-arrow">▼</span></span>
-            <div class="nav-dropdown-menu">
-              <a href="products.html#products">Amos</a>
-              <a href="keune-products.html">Keune</a>
-            </div>
-          </div>
-          <a href="index.html#contact">Холбоо барих</a>
-          <a class="nav-book-link" href="index.html#booking">Цаг захиалах</a>
-        </nav>
-        <button class="nav-toggle" aria-label="Цэс нээх" aria-expanded="false">&#9776;</button>
-        <a class="primary-btn" href="index.html#booking">Цаг захиалах</a>
-      </div>
-    </header>
+    <!-- @header -->
 
-    <main>
-      <!-- Brand Hero -->
-      <section class="section keune-hero">
+    <main id="main">
+      <section class="page-intro page-intro--media">
+        <div class="container page-intro-grid">
+          <div class="page-intro-copy">
+            <h1 class="display">Keune Бүтээгдэхүүн</h1>
+            <p class="lead">Голланд улсад 1922 оноос хойш үйлдвэрлэгдсэн мэргэжлийн үс арчилгааны дээд зэрэглэлийн бүтээгдэхүүн.</p>
+            <nav class="hero-actions" aria-label="Брэнд" style="margin-top:1.75rem">
+              <a class="btn btn--outline" href="/products.html">Amos</a>
+              <a class="btn btn--primary" href="/keune-products.html" aria-current="page">Keune</a>
+            </nav>
+          </div>
+          <!-- @image:intro-keune eager -->
+        </div>
+      </section>
+
+      <section class="section" style="padding-top:2.5rem">
         <div class="container">
-          <div class="pill">Keune • Premium Hair Care</div>
-          <h2>Keune Бүтээгдэхүүн</h2>
-          <p>Голланд улсад 1922 оноос хойш үйлдвэрлэгдсэн мэргэжлийн үс арчилгааны дээд зэрэглэлийн бүтээгдэхүүн.</p>
           <div class="keune-brand-strip">
-            <img src="Keune/about1.jpeg" alt="Keune Brand" class="keune-brand-img" />
-            <img src="Keune/about2.jpeg" alt="Keune Products" class="keune-brand-img" />
-            <img src="Keune/about3.jpeg" alt="Keune Quality" class="keune-brand-img" />
+            <img src="/Keune/about1.jpeg" alt="Keune брэндийн танилцуулга" class="keune-brand-img" loading="lazy" />
+            <img src="/Keune/about2.jpeg" alt="Keune бүтээгдэхүүний танилцуулга" class="keune-brand-img" loading="lazy" />
+            <img src="/Keune/about3.jpeg" alt="Keune чанарын танилцуулга" class="keune-brand-img" loading="lazy" />
           </div>
         </div>
       </section>
 
-      <!-- Product Cards -->
-      <section class="section">
+      <section class="section section--sand">
         <div class="container">
-          <div class="section-title">
-            <h2>Бүтээгдэхүүний шугам</h2>
-            <p>Таны үсний хэрэгцээнд тохирсон 12 төрлийн бүтээгдэхүүн</p>
+          <div class="section-head">
+            <h2 class="h2">Бүтээгдэхүүний шугам</h2>
+            <p class="lead">Таны үсний хэрэгцээнд тохирсон 12 төрлийн бүтээгдэхүүн</p>
           </div>
-          <div id="keune-filters" class="products-filters"></div>
-          <div id="keune-grid" class="keune-grid"></div>
+          <div id="keune-filters" class="products-filters" role="group" aria-label="Ангилал"></div>
+          <div id="keune-grid" class="keune-grid" aria-live="polite"></div>
         </div>
       </section>
 
-      <!-- Overall Products Poster -->
       <section class="section keune-poster">
         <div class="container">
-          <h3>Бүтээгдэхүүний ерөнхий танилцуулга</h3>
-          <img src="Keune/overallKeuneProducts.png" alt="Keune бүтээгдэхүүний танилцуулга" loading="lazy" />
+          <h2 class="h2">Бүтээгдэхүүний ерөнхий танилцуулга</h2>
+          <img src="/Keune/overallKeuneProducts.png" alt="Keune бүтээгдэхүүний танилцуулга" loading="lazy" />
         </div>
       </section>
     </main>
 
-    <footer class="footer">
-      <div class="container">
-        <p>© 2026 Matrix Eco Salon. Бүх эрх хуулиар хамгаалагдсан. Гүйцэтгэсэн <a href="https://dalatech.online" target="_blank" style="color: var(--accent); text-decoration: none;">DalaTech</a></p>
-      </div>
-    </footer>
-
-    <script src="script.js"></script>
+    <!-- @footer -->
+    <div class="book-bar" aria-hidden="true"><a class="btn btn--primary btn--block" href="/booking.html" tabindex="-1">Цаг захиалах</a></div>
+    <script src="/assets/site.js?v={{v}}" defer></script>
+    <script src="/assets/products.js?v={{v}}" defer></script>
   </body>
 </html>

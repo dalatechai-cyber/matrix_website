@@ -1,6 +1,7 @@
 'use strict';
 
 const axios = require('axios');
+const { alertChatFor } = require('../config/branches');
 
 /**
  * Send an alert to the salon's Telegram chat.
@@ -14,13 +15,15 @@ const axios = require('axios');
  * caller's own durable record (the calendar note) still exists.
  *
  * @param {string} text  Plain text, sent as-is
+ * @param {{ branch?: string }} [opts]  the branch the alert is about
  * @returns {Promise<boolean>} whether Telegram accepted it
  */
-async function sendSalonAlert(text) {
+async function sendSalonAlert(text, { branch } = {}) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
+  // Each branch's alerts go only to its own chat (config/branches.js).
+  const chatId = alertChatFor(branch || 'yaarmag');
   if (!token || !chatId) {
-    console.error('SALON ALERT NOT SENT — TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID not configured:\n' + text);
+    console.error(`SALON ALERT NOT SENT — TELEGRAM_BOT_TOKEN / chat for branch "${branch || 'yaarmag'}" not configured:\n` + text);
     return false;
   }
   try {

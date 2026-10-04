@@ -1,35 +1,37 @@
 {
   "version": 2,
   "builds": [
-    { "src": "api/qpay/create-payment.js", "use": "@vercel/node" },
-    { "src": "server.js", "use": "@vercel/node", "config": { "includeFiles": ["*.html"] } },
-    { "src": "*.css", "use": "@vercel/static" },
-    { "src": "script.js", "use": "@vercel/static" },
-    { "src": "logo.png", "use": "@vercel/static" },
-    { "src": "favicon.jpg", "use": "@vercel/static" },
+    { "src": "api/qpay/create-payment.mjs", "use": "@vercel/node" },
+    { "src": "server.mjs", "use": "@vercel/node", "config": { "includeFiles": ["*.html", "partials/**"] } },
+    { "src": "assets/**", "use": "@vercel/static" },
+    { "src": "brand/**", "use": "@vercel/static" },
+    { "src": "fonts/**", "use": "@vercel/static" },
+    { "src": "img/**", "use": "@vercel/static" },
+    { "src": "favicon.ico", "use": "@vercel/static" },
+    { "src": "site.webmanifest", "use": "@vercel/static" },
     { "src": "Products/**", "use": "@vercel/static" },
-    { "src": "files/**", "use": "@vercel/static" },
-    { "src": "hairstylist_pic/**", "use": "@vercel/static" },
     { "src": "Keune/**", "use": "@vercel/static" },
-    { "src": "Pictures_Page/**", "use": "@vercel/static" },
     { "src": "data/**", "use": "@vercel/static" }
   ],
   "rewrites": [
     {
       "source": "/",
-      "destination": "/server.js"
+      "destination": "/server.mjs"
     },
     {
-      "source": "/(index|services|team|zurag|products|keune-products).html",
-      "destination": "/server.js"
+      "source": "/(index|services|team|zurag|products|keune-products|booking|contact).html",
+      "destination": "/server.mjs"
     },
     {
       "source": "/api/qpay/create-payment",
-      "destination": "/api/qpay/create-payment.js"
+      "destination": "/api/qpay/create-payment.mjs"
     },
     {
       "source": "/api/(.*)",
-      "destination": "/server.js"
+      "destination": "/server.mjs"
     }
+  ],
+  "crons": [
+    { "path": "/api/calendar/sweep-holds", "schedule": "0 20 * * *" }
   ]
 }
