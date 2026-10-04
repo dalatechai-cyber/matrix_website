@@ -41,7 +41,7 @@ const { renderPage } = require('../lib/pages');
 /** A page as visitors get it: shared header, footer and branch details included. */
 const rendered = (file) => renderPage(file.replace(/\.html$/, '')) || '';
 const RETIRED_NUMBER = /7741[^0-9]{0,2}7777/;
-const CURRENT_NUMBERS = ['76001888', '91005498'];
+const CURRENT_NUMBERS = ['76001888', '91005498', '99076874'];
 const RETIRED_YAARMAG_NUMBER = /8090[^0-9]{0,2}5498/;
 
 test('contact: the retired booking number appears on no page', () => {
@@ -57,7 +57,7 @@ test('contact: the retired booking number appears on no page', () => {
   }
 });
 
-test('contact: both current numbers are shown, and both are dialable', () => {
+test('contact: every current number is shown and dialable (Яармаг 76001888, 91005498; Парк Од 99076874)', () => {
   const html = rendered('index.html');
   for (const number of CURRENT_NUMBERS) {
     // Displayed (the site groups as "+976 7600 1888") and tappable on a phone.
@@ -268,18 +268,24 @@ test('brand: the logo files are the ones supplied, untouched', () => {
   assert.equal(sha('brand/tara-salon-logo-2000.webp'), LOGO_WEBP_SHA);
 });
 
-test('branches: Парк Од shows the shared line and placeholders, never Яармаг\'s own details', () => {
+test('branches: Парк Од shows her own number 99076874, never Яармаг\'s numbers or details', () => {
   const html = rendered('contact.html');
   const park = html.slice(html.indexOf('id="branch-parkod"'), html.indexOf('</article>', html.indexOf('id="branch-parkod"')));
   assert.ok(park.includes('10:00 – 20:00') && park.includes('11:00 – 19:00'), 'Парк Од hours (Mon–Sat 10–20, Sun 11–19)');
   assert.ok(park.includes('Баянзүрх дүүрэг, 26-р хороо, Парк-Од молл, 4 давхар, 405 тоот'), 'Парк Од address');
   const footer = html.slice(html.indexOf('<footer'));
   assert.ok(footer.includes('Парк-Од молл, 4 давхар, 405 тоот') && !footer.includes('Хаяг удахгүй нэмэгдэнэ'), 'footer address');
-  // 76001888 is the shared main line of both branches; 91005498 is Яармаг's own.
-  assert.ok(park.includes('tel:+97676001888'), 'Парк Од must show the shared main line');
-  assert.ok(!park.includes('9100') && !park.includes('8090') && !park.includes('Номин'), 'Яармаг details on Парк Од');
+  // Founder, 2026-10-04: Парк Од's only number is 99076874; 76001888 and 91005498 are Яармаг's.
+  assert.ok(park.includes('tel:+97699076874') && park.includes('+976 9907 6874'), 'Парк Од must show her own number');
+  assert.ok(!park.includes('7600') && !park.includes('9100') && !park.includes('8090') && !park.includes('Номин'), 'Яармаг details on Парк Од');
   assert.ok(!park.includes('/booking.html?branch=parkod'), 'no booking button before Парк Од is connected');
-  assert.match(park, /Онлайн захиалга удахгүй нээгдэнэ\. <a href="tel:\+97676001888">/, 'the notice carries her phone, tappable');
+  assert.match(park, /Онлайн захиалга удахгүй нээгдэнэ\. <a href="tel:\+97699076874">/, 'the notice carries her phone, tappable');
+  const yaarmag = html.slice(html.indexOf('id="branch-yaarmag"'), html.indexOf('</article>', html.indexOf('id="branch-yaarmag"')));
+  assert.ok(yaarmag.includes('tel:+97676001888') && yaarmag.includes('tel:+97691005498') && !yaarmag.includes('9907'), 'Яармаг keeps her two numbers only');
+  // The footer and the team section: each branch with its own numbers.
+  const team = rendered('index.html');
+  const parkTeam = team.slice(team.indexOf('id="team-parkod"'), team.indexOf('</ul>', team.indexOf('id="team-parkod"')));
+  assert.ok(parkTeam.includes('tel:+97699076874') && !parkTeam.includes('7600'), 'Парк Од\'s team offers her phone while online booking is off');
 });
 
 test('photos: every feature photo exists at every listed width; the «Бүтээл» gallery and its photos are gone', () => {

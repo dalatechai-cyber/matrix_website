@@ -161,13 +161,18 @@ editor, `select version, name from supabase_migrations.schema_migrations order
 by version desc limit 3;` lists `0084_prompt_blocks_seed`,
 `0083_photo_reel_question`, `0082_booking`.
 
-**B3 — You: Яармаг's SQL** (Supabase → SQL editor). Run each file once, in
+**B3 — You: Яармаг's SQL** (Supabase → SQL editor). First merge dala-ai #287
+(D-178, phones; Claude merges on your «go») and `git pull`. Run each file once, in
 this order. Each one refuses a second run:
 
 1. `scripts/provision/tara-yarmag-stylist-names-2026-10-03.sql` (Latin names,
    «Үсчдийн нэр», Otgonjargal).
 2. `scripts/provision/tara-yarmag-answers-2026-10-04.sql` (deposit deducted,
    loan apps, dye brand, the hand-off line).
+3. `scripts/provision/tara-yarmag-branch-phones-2026-10-04.sql` (D-178,
+   dala-ai #287: «Салбарууд» gives Яармаг 76001888, 91005498 and Парк Од
+   99076874, «нийтлэг утас» gone; `park_od_branch` gives 99076874). It refuses
+   to run before file 1. Then publish at once (B4).
 
 **B4 — You: publish Яармаг at once** (your Mac, set up as in «Your Mac» at
 the end of this page):
@@ -197,6 +202,7 @@ the replies:
   авдаггүй.»
 - «Ямар будаг хэрэглэдэг вэ?» → the 76001888 hand-off line.
 - «Оюунаа» → the answer uses Oyunaa.
+- «Парк Од салбарын утас?» → Парк Од's address, «Утас: 99076874» and her Page.
 
 **B5 — You: photo and reel question** (SQL editor, no republish needed):
 
@@ -270,11 +276,11 @@ sheet id (18 lines, all approved on 2026-10-04). Then run:
 
 *Check:* message her Page with the four checks from B4, but with «Болороо» for
 the name check. Also ask «Яармаг салбар хаана байдаг вэ?» → Яармаг's address,
-76001888 and Яармаг's Page, never 91005498.
+76001888, 91005498 and Яармаг's Page; her own lines give 99076874 only.
 
 **C8 — Check the D-177 replies** (they land on with the C file, approved
 2026-10-04): «ungu gargalt hed ve» → «Манай өнгөний үйлчилгээний үнэ:», the
-women's colour prices and 76001888, never «not offered»; «eregtei hun ungu
+women's colour prices and 99076874, never «not offered»; «eregtei hun ungu
 gargalt» → the men's prices; «emegtei emchilgeenii himi hed ve» → not
 offered, never 189,000₮.
 
@@ -499,7 +505,8 @@ If the last step fails, send `/tmp/dala-dryrun.txt` to Claude.
 
 Парк Од's website booking is **off** (founder, 2026-10-04) until her
 hairdressers' Gmail calendars are ready: the booking page and her branch card
-show «Онлайн захиалга удахгүй нээгдэнэ.» with 76001888 (tappable); her team,
+show «Онлайн захиалга удахгүй нээгдэнэ.» with 99076874, her only number
+(tappable; founder 2026-10-04); her team section offers the same number; her team,
 branch details and prices stay. Her calendars, QPay account and alert chat
 stay configured. **To open it:** Vercel → matrix-website → Settings →
 Environment Variables → Production → add `PARKOD_BOOKING` = `on` → Redeploy.
