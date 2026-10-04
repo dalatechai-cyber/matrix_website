@@ -279,6 +279,7 @@ test('branches: Парк Од shows the shared line and placeholders, never Яа
   assert.ok(park.includes('tel:+97676001888'), 'Парк Од must show the shared main line');
   assert.ok(!park.includes('9100') && !park.includes('8090') && !park.includes('Номин'), 'Яармаг details on Парк Од');
   assert.ok(!park.includes('/booking.html?branch=parkod'), 'no booking button before Парк Од is connected');
+  assert.match(park, /Онлайн захиалга удахгүй нээгдэнэ\. <a href="tel:\+97676001888">/, 'the notice carries her phone, tappable');
 });
 
 test('photos: every feature photo exists at every listed width; the «Бүтээл» gallery and its photos are gone', () => {
