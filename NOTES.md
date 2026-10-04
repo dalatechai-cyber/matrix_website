@@ -1,3 +1,81 @@
+# HAND-OFF — read this first (written 2026-10-04, end of session)
+
+A new session remembers nothing. Start here, then read, in this order:
+`CLAUDE.md` (the rules of this repo), `docs/LAUNCH_DAY_TARA.md` (every launch step; sections C,
+D, E and «Парк Од's online booking switch»), `docs/TWO_BRANCHES.md` (calendars and QPay never
+cross), and dala-ai's `NOTES.md` hand-off (its own top section). Before any UI work:
+`PRODUCT.md` and `DESIGN.md`. Everything below the hand-off in this file is the older round
+log: some of it was true only on the day it was written (for example «nothing goes live»).
+`docs/STATUS.md` dates from 2026-09-04.
+
+## Live today (main `5994aaf`, www.matrixecosalon.org)
+
+- The Tara site: six pages, both branches, the salon's 1 October price list.
+- Яармаг takes online bookings: 7 hairdressers, QPay deposit, 5-minute hold, the paid-late
+  callback, Telegram alerts, and the daily `sweep-holds` cron at 20:00 UTC (CRON_SECRET is set;
+  the founder's manual run on 2026-10-04 answered 200).
+- Парк Од is shown with her team and prices, but booking is closed: «Онлайн захиалга удахгүй
+  нээгдэнэ.» with 99076874. Checked 2026-10-04: `/api/branches` gives Яармаг `ready: true`
+  (7) and Парк Од `ready: false`; `/api/health` 200.
+- The guardrails hook (`.claude/hooks/guardrails.cjs`) runs in every session.
+
+## Switched off, and how each is switched on (the founder does every Vercel step)
+
+- **Парк Од's online booking:** Vercel → matrix-website → Settings → Environment Variables →
+  Production → `PARKOD_BOOKING` = `on` → Redeploy. Check after: `/api/branches` shows Парк Од
+  `ready: true` with 7 hairdressers, and the booking page offers them.
+- **Maintenance** (`SITE_MAINTENANCE=on`) and **salon closures** (`SALON_CLOSURE_*`): off; see
+  `CLAUDE.md`. Any change takes effect only after a Redeploy.
+
+## Known weak spots
+
+- Claude sessions cannot list Vercel variables (403). Only `/api/branches` tells whether a branch
+  is complete. «ready» needs hours, a hairdresser with a calendar, a full QPay account, her own
+  alert chat and the switch. Парк Од's calendars, bank account and alert chat were set by the
+  founder; Claude has not seen them. The first real check is Monday's `ready: true`.
+- The hold's self-release needs the Pro plan's 400 s functions (`maxDuration` in the `.mjs`
+  entries). If the plan or those entries change, holds stay until the next read or the cron.
+- That QPay calls the callback again after a failed answer is assumed, never confirmed.
+- The 8 photos still shown are from the Matrix-era Facebook export (the founder kept them, R3-4).
+  Branch `tara-photos` must never be merged.
+
+## What comes next, in the founder's order
+
+1. **Monday 2026-10-05: Парк Од's website booking.** The founder sets `PARKOD_BOOKING=on` and
+   redeploys. The new session then confirms it on the live site: `/api/branches` (`ready:
+   true`, 7), the booking page lists her hairdressers and offers times, no errors in
+   Production's log. Make no payment and do not call the QPay callback. Whenever a branch's
+   website booking is switched on or off, dala-ai's per-branch setting (D-180) must follow,
+   once that setting exists. It does not exist yet, so on Monday nothing changes in dala-ai.
+2. **Part 2: Парк Од's Дали**, as soon as the founder is admin of her Page (dala-ai; section C).
+3. **In-chat booking:** test mode first, then live (dala-ai; section D). D-180's per-branch
+   setting is built there. Wordings (a) and (b) of the «not available» page are first looked at
+   on a deployed page then.
+4. **The domain tarasalon.org** (section E and `docs/DOMAIN_MOVE.md`). Keep `/api/*` on the old
+   domain unredirected for 30 days.
+5. **Monthly billing for both branches** (dala-ai), once the founder gives the start date.
+6. **Яармаг's move in November:** `docs/pending/YAARMAG_MOVE.md` (a ready patch for the new
+   address). The date is not set.
+
+## Never without the founder's go
+
+- Merging, or pushing to `main` (the hook asks first).
+- Any Vercel Production change: variables, Redeploy, `--prod`, promote, rollback, alias, domains.
+- `supabase db push`: never, not even with a go. Supabase migrations or data-changing SQL only
+  on an explicit go, one at a time, with a read-back.
+- Paid model runs of any kind (`--with-model`, bake-offs).
+- Real payments; calling the QPay callback on Production (it sends the founder a false alert).
+- Messages to a live Facebook Page or Messenger; Namecheap or DNS changes; `npm audit fix --force`.
+- Writing or changing customer-facing Mongolian text without approval: propose, do not invent.
+  Never invent prices, levels, names or rules. Never print or log a secret value.
+
+## Left as found (not this session's)
+
+Draft PRs #46 and #47 (Copilot, March 2026); older `claude/*` and `copilot/*` branches from
+earlier sessions. This session's branches are all merged; its temporary branches are deleted.
+
+---
+
 # NOTES — Tara two-branch round (started 2026-10-03)
 
 Resume point after a context reset. Keep current. Founder is away; never wait for him.
