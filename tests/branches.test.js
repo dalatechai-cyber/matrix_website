@@ -79,6 +79,7 @@ const qpayService = require('../services/qpay');
 const PARKOD_CAL = 'parkod-calendar@group.calendar.google.com';
 
 const PARKOD_ENV = {
+  PARKOD_BOOKING: 'on',
   PARKOD_QPAY_BANK_CODE: '050000',
   PARKOD_QPAY_ACCOUNT_NUMBER: '5000123456',
   PARKOD_QPAY_ACCOUNT_NAME: 'Парк Од эзэмшигч',
@@ -435,4 +436,25 @@ test('no deposit anywhere is below 10,000₮: 20,000₮ SPECIAL and Мастер
   const shown = Object.values(publicBranches()).flatMap((b) => b.stylists || []);
   assert.ok(shown.length > 0);
   for (const s of shown) assert.ok(s.deposit >= 10000, `${s.id}: page deposit ${s.deposit}₮ is below 10,000₮`);
+});
+
+test('switch: Парк Од fully connected but PARKOD_BOOKING not «on» — no times, no invoice; Яармаг unaffected', async () => {
+  const { branchReadiness, onlineBookingOpen } = require('../config/branches');
+  connectParkOd();
+  for (const off of [undefined, '', 'off', 'no']) {
+    if (off === undefined) delete process.env.PARKOD_BOOKING; else process.env.PARKOD_BOOKING = off;
+    assert.deepEqual(branchReadiness('parkod'), { ready: false, reason: 'booking-off' }, String(off));
+    assert.equal(onlineBookingOpen('yaarmag'), true);
+  }
+  assert.equal(branchReadiness('yaarmag').ready, true);
+  const slots = await request('GET', '/api/calendar/available-slots?date=2035-06-04&stylistId=Saraa');
+  assert.equal(slots.status, 409);
+  assert.equal((await request('POST', '/api/qpay/create-payment', paymentBody('Saraa', { branch: 'parkod' }))).status, 409);
+  assert.equal((await invokeStandalone(paymentBody('Saraa', { branch: 'parkod' }))).status, 409);
+  assert.equal(net.calls.length, 0, 'QPay never called');
+  const park = require('../lib/publicBranches').publicBranches().find((b) => b.id === 'parkod');
+  assert.equal(park.ready, false);
+  assert.deepEqual(park.phones, ['76001888'], 'the booking page shows her phone instead');
+  process.env.PARKOD_BOOKING = 'on';
+  assert.equal(branchReadiness('parkod').ready, true, 'on again without a code change');
 });

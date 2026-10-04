@@ -165,9 +165,21 @@ function hasWorkHours(info) {
  * Whether a branch can take an online booking right now, and if not, why.
  * @returns {{ ready: boolean, reason: string }}
  */
+/**
+ * Парк Од's online booking switch (founder, 2026-10-04: off until her
+ * hairdressers' calendars are ready). Closed unless PARKOD_BOOKING=on in
+ * Vercel, then a redeploy; no code change. Her calendars, QPay account and
+ * alert chat stay configured either way. Яармаг has no switch.
+ */
+function onlineBookingOpen(branchId) {
+  if (branchId !== 'parkod') return true;
+  return /^(on|true|1|yes)$/i.test(String(process.env.PARKOD_BOOKING || '').trim());
+}
+
 function branchReadiness(branchId) {
   const info = branchInfo(branchId);
   if (!info) return { ready: false, reason: 'unknown-branch' };
+  if (!onlineBookingOpen(branchId)) return { ready: false, reason: 'booking-off' };
   if (!hasWorkHours(info)) return { ready: false, reason: 'no-hours' };
   if (stylistsOf(branchId).length === 0) return { ready: false, reason: 'no-stylists' };
   const account = qpayAccountFor(branchId);
@@ -227,6 +239,7 @@ module.exports = {
   DEFAULT_BRANCH,
   BRANCH_IDS,
   qpayAccountFor,
+  onlineBookingOpen,
   normalizeAccountNumber,
   sameAccount,
   normalizeBranchId,

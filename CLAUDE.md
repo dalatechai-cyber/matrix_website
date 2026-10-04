@@ -40,8 +40,11 @@ Full design: [docs/TWO_BRANCHES.md](docs/TWO_BRANCHES.md).
 A branch takes online bookings only when it has opening hours in
 `data/branches.json`, at least one hairdresser with a calendar, a complete
 QPay account and (Парк Од) its own alert chat `PARKOD_TELEGRAM_CHAT_ID` —
-alerts never go to the other owner's chat; until then the site shows
-«Онлайн захиалга удахгүй нээгдэнэ». Парк Од's calendars come from
+alerts never go to the other owner's chat — and (Парк Од) the switch
+`PARKOD_BOOKING=on` (closed by default: off since 2026-10-04 until her
+hairdressers' calendars are ready; set it in Vercel and redeploy to open).
+Until then the site shows «Онлайн захиалга удахгүй нээгдэнэ.» with the
+branch's phone, tappable. Парк Од's calendars come from
 `PARKOD_CALENDAR_<NAME>` (e.g. `PARKOD_CALENDAR_SARAA`): connecting a
 hairdresser is a Vercel variable and a redeploy. The booking page gets
 hairdressers from `GET /api/branches` — there is no copy in the browser.

@@ -492,3 +492,16 @@ cd ~/dalatech/dala-ai && node -e 'const [a,b]=process.versions.node.split(".").m
 ```
 
 If the last step fails, send `/tmp/dala-dryrun.txt` to Claude.
+
+---
+
+## Парк Од's online booking switch (2026-10-04)
+
+Парк Од's website booking is **off** (founder, 2026-10-04) until her
+hairdressers' Gmail calendars are ready: the booking page and her branch card
+show «Онлайн захиалга удахгүй нээгдэнэ.» with 76001888 (tappable); her team,
+branch details and prices stay. Her calendars, QPay account and alert chat
+stay configured. **To open it:** Vercel → matrix-website → Settings →
+Environment Variables → Production → add `PARKOD_BOOKING` = `on` → Redeploy.
+*Check:* `/api/branches` shows Парк Од `ready: true`, and the booking page
+offers her hairdressers.

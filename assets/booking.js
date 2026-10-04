@@ -207,7 +207,18 @@
       if (Array.isArray(b.hoursText) && b.hoursText.length) {
         body.append(el("span", "option-meta", b.hoursText.map((h) => `${h.days}: ${h.time}`).join("; ")));
       }
-      if (!b.ready) body.append(el("span", "option-note", "Онлайн захиалга удахгүй нээгдэнэ."));
+      if (!b.ready) {
+        // The branch's own phone, tappable, so a customer can still book by calling.
+        const note = el("span", "option-note", "Онлайн захиалга удахгүй нээгдэнэ.");
+        (Array.isArray(b.phones) ? b.phones : []).forEach((p) => {
+          const d = String(p).replace(/\D/g, "");
+          if (!d) return;
+          const a = el("a", "option-phone", d);
+          a.href = `tel:+976${d}`;
+          note.append(" ", a);
+        });
+        body.append(note);
+      }
       label.append(input, body);
       return label;
     }));
