@@ -1,5 +1,5 @@
 {
-  "_comment": "Public facts for each Tara Salon branch — the one source for the pages (rendered by lib/pages.js), the footer and the booking page. Money and calendar settings are NOT here: they live server-side in config/branches.js. A null field is a placeholder still to be supplied by the salon; the pages show it as «удахгүй нэмэгдэнэ», never as an invented value. workHours are opening/closing hours (24h) and decide which start times booking offers.",
+  "_comment": "Public facts for each Tara Salon branch — the one source for the pages (rendered by lib/pages.js), the footer and the booking page. Money and calendar settings are NOT here: they live server-side in config/branches.js. 76001888 is the shared main line of both branches. A null field is a placeholder still to be supplied by the salon; the pages show it as «удахгүй нэмэгдэнэ», never as an invented value. workHours are opening/closing hours (24h) and decide which start times booking offers.",
   "order": ["yaarmag", "parkod"],
   "branches": {
     "yaarmag": {
@@ -7,7 +7,7 @@
       "name": "Яармаг салбар",
       "short": "Яармаг",
       "address": "Яармагийн Номин Хайпермаркетын баруун талд",
-      "phones": ["76001888", "80905498"],
+      "phones": ["76001888", "91005498"],
       "hoursText": [
         { "days": "Даваа – Бямба", "time": "10:00 – 20:00" },
         { "days": "Ням", "time": "11:00 – 19:00" }
@@ -22,13 +22,16 @@
       "id": "parkod",
       "name": "Парк Од салбар",
       "short": "Парк Од",
-      "address": null,
-      "phones": [],
-      "hoursText": null,
-      "workHours": null,
+      "address": "Баянзүрх дүүрэг, 26-р хороо, Парк-Од молл, 4 давхар, 405 тоот",
+      "phones": ["76001888"],
+      "hoursText": [
+        { "days": "Даваа – Бямба", "time": "10:00 – 20:00" },
+        { "days": "Ням", "time": "11:00 – 19:00" }
+      ],
+      "workHours": { "weekday": [10, 20], "sunday": [11, 19] },
       "mapUrl": null,
       "mapEmbedQuery": null,
-      "facebook": null,
+      "facebook": "https://www.facebook.com/profile.php?id=100067391025472",
       "messenger": null
     }
   }

@@ -2,13 +2,15 @@
 <header class="site-header">
   <div class="container header-inner">
     <a class="brand" href="/" aria-label="Tara Salon — нүүр хуудас">
-      <img src="/brand/tara-salon-logo.svg" alt="Tara Salon" width="78" height="46" />
+      <picture>
+        <source type="image/webp" srcset="/brand/tara-salon-logo-240.webp 240w, /brand/tara-salon-logo-480.webp 480w" sizes="104px" />
+        <img src="/brand/tara-salon-logo-240.png" srcset="/brand/tara-salon-logo-240.png 240w, /brand/tara-salon-logo-480.png 480w" sizes="104px" alt="Tara Salon" width="240" height="130" />
+      </picture>
     </a>
     <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="Цэс нээх"><span></span></button>
     <nav class="nav" id="site-nav" aria-label="Үндсэн цэс">
       <ul>
         <li><a href="/services.html" data-nav="services">Үйлчилгээ ба үнэ</a></li>
-        <li><a href="/zurag.html" data-nav="zurag">Бүтээл</a></li>
         <li><a href="/products.html" data-nav="products">Бүтээгдэхүүн</a></li>
         <li><a href="/#about" data-nav="about">Бидний тухай</a></li>
         <li><a href="/contact.html" data-nav="contact">Салбарууд</a></li>

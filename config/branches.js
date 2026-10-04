@@ -3,8 +3,8 @@
 /**
  * Tara Salon's branches — Яармаг and Парк Од. Same brand and prices, separate
  * owners: each branch books into its OWN stylists' Google Calendars and is
- * paid into its OWN QPay merchant. Nothing here may let one branch's booking
- * reach the other's calendar or QPay account.
+ * paid into its OWN bank account. Nothing here may let one branch's booking
+ * reach the other's calendar or bank account.
  *
  * Public facts (address, phones, hours) live in data/branches.json, shared
  * with the pages. This file adds what only the server may know: the QPay
@@ -19,32 +19,72 @@
  * Until then the booking page shows it as «Онлайн захиалга удахгүй нээгдэнэ»
  * and every API refuses it, before Google or QPay is ever called.
  *
- * Яармаг keeps exactly the QPay settings the site has always used. Парк Од has
- * no fallback to them: its account comes only from PARKOD_* variables.
+ * Яармаг keeps exactly the QPay settings the site has always used.
  *
- *   PARKOD_QPAY_USERNAME, PARKOD_QPAY_PASSWORD   QPay API login for Парк Од
- *   PARKOD_QPAY_TERMINAL_ID                       its terminal_id
- *   PARKOD_QPAY_MERCHANT_ID                       its merchant_id
- *   PARKOD_QPAY_BANK_CODE, PARKOD_QPAY_ACCOUNT_NUMBER, PARKOD_QPAY_ACCOUNT_NAME
- *                                                 optional payout account (all three or none)
- *   PARKOD_TELEGRAM_CHAT_ID                       Парк Од's own alert chat (required)
+ * Парк Од uses the SAME QPay as Яармаг (founder, 2026-10-04): the same Quick
+ * QR login (QPAY_USERNAME / QPAY_PASSWORD, terminal DALATECH_AI) and the same
+ * merchant, exactly as Core Language and Matrix do. The ONLY difference is the
+ * bank account her deposits are paid into, which every invoice names in
+ * `bank_accounts`. So Парк Од needs, all REQUIRED:
+ *
+ *   PARKOD_QPAY_BANK_CODE         her bank's QPay code (Khan Bank: 050000; 040000 is TDB, Яармаг's bank)
+ *   PARKOD_QPAY_ACCOUNT_NUMBER    her account number
+ *   PARKOD_QPAY_ACCOUNT_NAME      the account holder's name, as the bank has it
+ *   PARKOD_TELEGRAM_CHAT_ID       the chat her payment alerts go to
+ *
+ * Яармаг's account number is refused for her, so a copy-paste in Vercel can
+ * never send her deposits to Яармаг.
  */
 
 const data = require('../data/branches.json');
-const { STYLIST_CONFIG } = require('./stylists');
+const { STYLIST_CONFIG, teamOf } = require('./stylists');
 
 const DEFAULT_BRANCH = 'yaarmag';
 const BRANCH_IDS = data.order.filter((id) => data.branches[id]);
 
-// The account Яармаг has always been paid into (see api/qpay/create-payment.js
-// and routes/qpay.js). merchantId is deliberately absent: each of those two
-// handlers keeps the merchant it has always used for Яармаг.
+// The partner terminal, and the account Яармаг has always been paid into (see
+// api/qpay/create-payment.js and routes/qpay.js). merchantId is deliberately
+// absent: each of those two handlers keeps the merchant it has always used,
+// for both branches.
+const YAARMAG_TERMINAL_ID = 'DALATECH_AI';
+
 const YAARMAG_BANK_ACCOUNTS = [{
   account_bank_code: '040000',
   account_number: '416055415',
-  account_name: 'Эрхэмбаатар Оюунсүрэн',
+  // As the bank app shows the payee: capitals, given name first (founder, 2026-10-04).
+  account_name: 'ОЮУНСҮРЭН ЭРХЭМБААТАР',
   is_default: true,
 }];
+
+/**
+ * A payout account as QPay is sent it: the plain account number, or the full
+ * IBAN («MN» + 2 check digits + 16 digits) with no spaces, which the bank app
+ * then shows with the payee's name. Spaces and dashes are dropped; an IBAN must
+ * pass its mod-97 check. Anything else is null (the branch stays closed).
+ */
+function normalizeAccountNumber(raw) {
+  if (!raw) return null;
+  const v = String(raw).replace(/[\s-]/g, '').toUpperCase();
+  if (/^\d{6,20}$/.test(v)) return v;
+  if (/^MN\d{18}$/.test(v) && ibanValid(v)) return v;
+  return null;
+}
+
+function ibanValid(iban) {
+  const moved = iban.slice(4) + iban.slice(0, 4);
+  const digits = moved.replace(/[A-Z]/g, (c) => String(c.charCodeAt(0) - 55));
+  let rem = 0;
+  for (const d of digits) rem = (rem * 10 + Number(d)) % 97;
+  return rem === 1;
+}
+
+/** Whether two account numbers name one account (an IBAN ends with the account number). */
+function sameAccount(a, b) {
+  const x = String(a || '').replace(/\D/g, '').replace(/^0+/, '');
+  const y = String(b || '').replace(/\D/g, '').replace(/^0+/, '');
+  if (!x || !y) return false;
+  return x === y || x.endsWith(y) || y.endsWith(x);
+}
 
 function env(name) {
   const v = process.env[name];
@@ -63,7 +103,7 @@ function qpayAccountFor(branchId) {
       branch: 'yaarmag',
       username,
       password,
-      terminalId: 'DALATECH_AI',
+      terminalId: YAARMAG_TERMINAL_ID,
       merchantId: null,
       bankAccounts: YAARMAG_BANK_ACCOUNTS,
       // Always treated as complete, as before this file existed: missing
@@ -73,24 +113,19 @@ function qpayAccountFor(branchId) {
     };
   }
   if (branchId === 'parkod') {
-    const username = env('PARKOD_QPAY_USERNAME');
-    const password = env('PARKOD_QPAY_PASSWORD');
-    const terminalId = env('PARKOD_QPAY_TERMINAL_ID');
-    const merchantId = env('PARKOD_QPAY_MERCHANT_ID');
     const bankCode = env('PARKOD_QPAY_BANK_CODE');
-    const accountNumber = env('PARKOD_QPAY_ACCOUNT_NUMBER');
+    const accountNumber = normalizeAccountNumber(env('PARKOD_QPAY_ACCOUNT_NUMBER'));
     const accountName = env('PARKOD_QPAY_ACCOUNT_NAME');
     const bankAccounts = bankCode && accountNumber && accountName
       ? [{ account_bank_code: bankCode, account_number: accountNumber, account_name: accountName, is_default: true }]
       : null;
+    // Never Яармаг's account, even by a copy-paste in Vercel.
+    const notYaarmag = !YAARMAG_BANK_ACCOUNTS.some((a) => sameAccount(a.account_number, accountNumber));
     return {
+      ...qpayAccountFor('yaarmag'),
       branch: 'parkod',
-      username,
-      password,
-      terminalId,
-      merchantId,
       bankAccounts,
-      complete: !!(username && password && terminalId && merchantId),
+      complete: !!(bankAccounts && notYaarmag),
     };
   }
   return null;
@@ -112,12 +147,12 @@ function branchOfStylist(stylistId) {
   return cfg ? normalizeBranchId(cfg.branch) : null;
 }
 
-/** Display-name (Mongolian) stylist ids of a branch, most senior first. */
+/**
+ * Display names of a branch's bookable hairdressers, in team order: current
+ * (not retired) and with a calendar. See config/stylists.js teamOf.
+ */
 function stylistsOf(branchId) {
-  return Object.entries(STYLIST_CONFIG)
-    .filter(([id, cfg]) => !/^[a-z.]+$/.test(id) && cfg.branch === branchId && cfg.calendarId)
-    .sort((a, b) => (b[1].price || 0) - (a[1].price || 0))
-    .map(([id]) => id);
+  return teamOf(branchId).filter((name) => STYLIST_CONFIG[name] && STYLIST_CONFIG[name].calendarId);
 }
 
 function hasWorkHours(info) {
@@ -167,6 +202,10 @@ function workHoursFor(branchId, dateStr) {
 function resolveBookingBranch({ stylistId, branch }) {
   const stylistBranch = branchOfStylist(stylistId);
   if (!stylistBranch) return { ok: false, branch: null, reason: 'unknown-stylist' };
+  const cfg = STYLIST_CONFIG[stylistId];
+  // Retired, or not yet connected to a calendar: nothing new is invoiced.
+  if (cfg.retired) return { ok: false, branch: stylistBranch, reason: 'stylist-retired' };
+  if (!cfg.calendarId) return { ok: false, branch: stylistBranch, reason: 'stylist-not-connected' };
   if (branch != null && branch !== '' && normalizeBranchId(branch) !== stylistBranch) {
     return { ok: false, branch: stylistBranch, reason: 'branch-mismatch' };
   }
@@ -188,6 +227,8 @@ module.exports = {
   DEFAULT_BRANCH,
   BRANCH_IDS,
   qpayAccountFor,
+  normalizeAccountNumber,
+  sameAccount,
   normalizeBranchId,
   branchInfo,
   branchOfStylist,

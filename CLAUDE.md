@@ -2,32 +2,87 @@
 
 Multi-page site for **Tara Salon** (Ulaanbaatar, Mongolia; formerly Matrix Eco
 Salon) with two branches — **Яармаг** and **Парк Од** — same brand and prices,
-separate owners. Seven pages — `index`, `services` (price list), `zurag`
-(gallery), `products` (Amos), `keune-products`, `booking`, `contact` — served by
+separate owners. Six pages — `index`, `services` (price list), `products`
+(Amos), `keune-products`, `booking`, `contact` — served by
 `server.js`, which assembles them with `lib/pages.js` (shared `partials/`,
 branch details from `data/branches.json`). Styles and scripts live in
 `assets/`, logos in `brand/`, fonts in `fonts/`. An Express API (`routes/`)
 handles QPay payments and Google Calendar booking. Content is Mongolian
 (Cyrillic). `PROGRESS.md` tracks the rebuild. Photos: `data/gallery.json` lists
-the salon's own photos (4:5 WebP crops in `img/photos/`, never upscaled);
-`docs/PHOTOS.md` says where each came from and why it was chosen. The Facebook
-export lives only on branch `tara-photos` — never merge it or ship it.
+the feature photos (4:5 WebP crops in `img/photos/`, never upscaled);
+`docs/PHOTOS.md` says where each came from. The «Бүтээл» gallery was removed on
+2026-10-04 (its photos were Matrix's; `/zurag.html` forwards home) and returns
+only with Tara's own photos. The Facebook export lives only on branch
+`tara-photos` — never merge it or ship it. The site moves to **tarasalon.org**
+(Namecheap) later: `docs/DOMAIN_MOVE.md`; until then it is matrixecosalon.org.
 
 ## Branches: calendars and QPay never cross
 
 [config/branches.js](config/branches.js) is the rule. Every hairdresser in
 [config/stylists.js](config/stylists.js) has a `branch`; the hairdresser
 decides the branch, and the branch decides the calendar and the QPay account.
-Both create-payment handlers refuse a request that names another branch, or a
-branch not yet connected, before QPay is called. Яармаг keeps exactly its
-original QPay settings. Парк Од uses only `PARKOD_QPAY_*` variables (listed in
-config/branches.js) and has no fallback to Яармаг's. A branch takes online
-bookings only when it has opening hours in `data/branches.json`, at least one
-hairdresser, a complete QPay account and (Парк Од) its own alert chat
-`PARKOD_TELEGRAM_CHAT_ID` — alerts never go to the other owner's chat; until
-then the site shows
-«Онлайн захиалга удахгүй нээгдэнэ». The booking page gets hairdressers from
-`GET /api/branches` — there is no copy in the browser.
+Both create-payment handlers refuse a request that names another branch, a
+branch not yet connected, a retired hairdresser or one without a calendar,
+before QPay is called. Яармаг keeps exactly its original QPay settings.
+
+**QPay, two branches, one merchant.** Both branches use the site's one QPay
+Quick QR login (`QPAY_USERNAME`/`QPAY_PASSWORD`, terminal `DALATECH_AI`) and
+the same merchant, exactly as Core Language and Matrix do (founder,
+2026-10-04). The only difference is the bank account a deposit is paid into,
+which every invoice names (`bank_accounts`): Парк Од REQUIRES
+`PARKOD_QPAY_BANK_CODE` (Khan Bank `050000`), `PARKOD_QPAY_ACCOUNT_NUMBER`
+(her full IBAN, `MN…`, checksum-validated) and `PARKOD_QPAY_ACCOUNT_NAME`
+(«БОЛОРТУЯА ГОНГОР»); Яармаг's account number is refused for her. Яармаг's
+payee name is «ОЮУНСҮРЭН ЭРХЭМБААТАР» (founder, 2026-10-04). No
+merchant is registered for her. Proof: a real 100₮ test lands in her account.
+Full design: [docs/TWO_BRANCHES.md](docs/TWO_BRANCHES.md).
+
+A branch takes online bookings only when it has opening hours in
+`data/branches.json`, at least one hairdresser with a calendar, a complete
+QPay account and (Парк Од) its own alert chat `PARKOD_TELEGRAM_CHAT_ID` —
+alerts never go to the other owner's chat; until then the site shows
+«Онлайн захиалга удахгүй нээгдэнэ». Парк Од's calendars come from
+`PARKOD_CALENDAR_<NAME>` (e.g. `PARKOD_CALENDAR_SARAA`): connecting a
+hairdresser is a Vercel variable and a redeploy. The booking page gets
+hairdressers from `GET /api/branches` — there is no copy in the browser.
+
+## Hairdressers: names, levels, the team section
+
+Shown everywhere by the short Latin names the salon chose on 2026-10-03
+(Oyunaa, Badamaa, Uyanga, Zaya, Chimgee, Anand, and Otgonjargal — her full
+name, founder 2026-10-04; Boloroo, Saraa, Tomoo, Bulgaa, Enhuush, Chimegee,
+Tuchku), exactly as written. Former names stay accepted as
+aliases so an open page or a signed callback still reaches the same person.
+Levels: SPECIAL and Мастер 20,000₮, 1-р зэрэг 10,000₮ (Яармаг only); English
+titles «SPECIAL Hair Stylist», «Master Hair Stylist», «Hair Stylist» (1-р
+зэрэг; founder 2026-10-04) — never «hair salonner». The home page's «Манай
+үсчид» section renders from the same list. A `retired` hairdresser is not
+shown or bookable and is kept only for old callbacks.
+
+**Level-named haircuts** («Тайралт том хүн /SPECIAL/», «/МАСТЕР/», «/1-р
+зэрэг/») go only to a hairdresser of that level (founder, 2026-10-04): the
+booking page lists only those, hides a level the branch lacks, and both
+create-payment handlers refuse a mismatch (`services/bookingRules.js`). The
+deposit is deducted from the service price («Урьдчилгаа төлбөр үйлчилгээний
+үнээс хасагдана.» on the home, price and booking pages).
+
+## The 5-minute hold (website ↔ Messenger)
+
+Before any QR, both create-payment handlers hold the time on the
+hairdresser's calendar ([services/bookingHold.js](services/bookingHold.js)):
+an opaque `sh…` event over the whole appointment, expiring with the QR
+(5 min, +30 s). The request that placed it deletes it at expiry (Vercel
+`waitUntil`) — no schedule needed. That needs the payment functions to run
+400 s: `maxDuration` is set in `api/qpay/create-payment.mjs` and `server.mjs`,
+the Vercel entries (Vercel reads it only from an ES-module `export const
+config`; `vercel.json` `builds` config is ignored), and needs the Pro plan.
+After inserting, it looks again and yields to anything overlapping except a
+hold placed after its own (a chat hold is one with `dalaBookingState` 'hold'). Taken: 409 «taken», no QR. Calendar unreadable:
+no QR. The paid booking replaces the hold; as back-ups, expired holds are
+deleted when a day's times are read and by the daily cron
+(`/api/calendar/sweep-holds`, Production only, needs `CRON_SECRET`), and both
+the website and dala-ai read an expired hold as free. dala-ai's in-chat booking holds with `dh…` events on
+the same calendars, so neither side can sell a time the other is holding.
 
 ## Salon closures (holidays)
 
@@ -127,16 +182,21 @@ through [config/serviceDurations.js](config/serviceDurations.js) and fetched by
 the booking UI, so there is one source of truth and no client copy to drift.
 
 The service menu and price list is **[data/services.json](data/services.json)**
-(same prices at both branches; `null` = «Үнэ удахгүй»); every name in it must
-be in `data/serviceDurations.json` — a test checks.
+— the salon's list of 1 October 2026, same prices at both branches, names and
+prices exactly as on that list (a test pins every one). Each bookable choice
+has a `key` (unique, comma-free; a service priced by hair length has one per
+богино / дунд / урт); every key must be a current entry in
+`data/serviceDurations.json` — a test checks. Entries marked `retired` there
+are the old menu, kept in order so callbacks signed before the switch decode.
 
 The server resolves duration from the customer's selected services and ignores
 any `totalDuration` the browser sends — that number decides how much of a
 stylist's day is blocked. An unrecognised service name costs the default
 (60 min), never zero.
 
-Most figures are engineering estimates marked `"confirm": true` and still need
-the salon's sign-off; editing the JSON is the whole change. See
+The current list's 62 figures were confirmed by the salon on 2026-10-03;
+`"confirm": true` remains only on retired entries. Editing the JSON is the
+whole change. See
 **[docs/SERVICE_DURATIONS.md](docs/SERVICE_DURATIONS.md)** for the full rationale
 and what is still open.
 
@@ -148,9 +208,12 @@ UI/UX work:
 - **[PRODUCT.md](PRODUCT.md)** — strategic: register (`brand`), users, purpose,
   brand personality (eco · modern · premium), anti-references, design
   principles, accessibility target (WCAG AA).
-- **[DESIGN.md](DESIGN.md)** — visual system: Tara teal #04484A (brand) and
-  orange #F58634 (accent only), Cormorant Garamond headings, Geologica body,
-  components, logo rules. Token frontmatter is normative.
+- **[DESIGN.md](DESIGN.md)** — visual system "Plaster & Steel" (September
+  2026 rebrand): warm limewash beige, basalt #2B2622 for the header, footer
+  and primary buttons, the logo's star orange #E8985C as accent only, copper
+  #8A4B25 for readable accent text, Cormorant Garamond headings, Geologica
+  body, logo rules (the metallic logo sits only on basalt). Token frontmatter
+  is normative.
 
 The impeccable skill is the design authority for this project; prefer it over
 generic UI tooling. The `.impeccable/` directory holds its sidecar

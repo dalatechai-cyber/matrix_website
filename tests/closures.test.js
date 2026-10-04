@@ -12,7 +12,10 @@ const axiosStub = { _calls: [], reset() { this._calls = []; } };
 
 const Module = require('node:module');
 const originalLoad = Module._load;
+const { createFakeCalendar, googleapisWith } = require('./helpers/fakeCalendar');
+const fakeCal = createFakeCalendar();
 Module._load = function (request) {
+  if (request === 'googleapis') return googleapisWith(fakeCal);
   if (request === 'axios') {
     return {
       post: async (url, body, opts) => {
@@ -339,7 +342,7 @@ test('available-slots: a closed date offers no times and explains why', async ()
 test('available-slots: closes the day for every stylist, not just blocked calendars', async () => {
   const app = buildApp('/api/calendar', calendarRouter);
   await withEnv(FUTURE, async () => {
-    for (const stylist of ['Ананд', 'Бадамцэцэг', 'Уянга', 'Отгонжаргал']) {
+    for (const stylist of ['Ананд', 'Бадамцэцэг', 'Уянга', 'Уранчимэг', 'Oyunaa', 'Zaya']) {
       const { status, body } = await request(
         app,
         'GET',

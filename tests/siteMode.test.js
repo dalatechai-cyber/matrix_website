@@ -18,16 +18,22 @@ process.env.SALON_CLOSURE_START = 'none';
 const Module = require('node:module');
 const originalLoad = Module._load;
 const calls = { insert: 0, qpay: 0, invoices: [], events: [] };
+const { createFakeCalendar } = require('./helpers/fakeCalendar');
+const fakeCal = createFakeCalendar();
 Module._load = function (request) {
   if (request === 'googleapis') {
     return {
       google: {
         auth: { JWT: class { async authorize() { return {}; } } },
         calendar: () => ({
-          freebusy: { query: async () => ({ data: { calendars: {} } }) },
+          freebusy: fakeCal.api.freebusy,
           events: {
-            get: async () => { const e = new Error('nf'); e.code = 404; throw e; },
-            insert: async ({ requestBody }) => { calls.insert += 1; calls.events.push(requestBody); return { data: { id: requestBody.id || 'e1' } }; },
+            ...fakeCal.api.events,
+            // Bookings are counted; the 5-minute holds (sh…) are not.
+            insert: async (args) => {
+              if (!String(args.requestBody.id || '').startsWith('sh')) { calls.insert += 1; calls.events.push(args.requestBody); }
+              return fakeCal.api.events.insert(args);
+            },
           },
         }),
       },
@@ -84,12 +90,12 @@ async function testCookie() {
   return set.split(';')[0];
 }
 
-const PAGES = ['/', '/index.html', '/services.html', '/zurag.html', '/products.html', '/keune-products.html', '/booking.html', '/contact.html'];
+const PAGES = ['/', '/index.html', '/services.html', '/products.html', '/keune-products.html', '/booking.html', '/contact.html'];
 
 beforeEach(() => {
   delete process.env.SITE_MAINTENANCE;
   process.env.BOOKING_TEST_TOKEN = TOKEN;
-  calls.insert = 0; calls.qpay = 0; calls.invoices = []; calls.events = [];
+  calls.insert = 0; calls.qpay = 0; calls.invoices = []; calls.events = []; fakeCal.reset();
 });
 
 test('maintenance off (default): every page is the real page', async () => {
@@ -103,8 +109,11 @@ test('maintenance off (default): every page is the real page', async () => {
   const booking = await request('GET', '/booking.html');
   assert.ok(booking.text.includes('id="booking"'));
   const team = await request('GET', '/team.html');
-  assert.equal(team.status, 301, 'the retired team page sends visitors home');
-  assert.equal(team.headers.location, '/');
+  assert.equal(team.status, 301, 'the retired team page sends visitors to the team section');
+  assert.equal(team.headers.location, '/#team');
+  const zurag = await request('GET', '/zurag.html');
+  assert.equal(zurag.status, 301, 'the removed gallery sends visitors home');
+  assert.equal(zurag.headers.location, '/');
 });
 
 test('an unknown .html path is not served from here', async () => {
@@ -119,7 +128,7 @@ test('maintenance on: every page shows the notice with Messenger and both number
     assert.equal(r.status, 503, p);
     assert.ok(r.text.includes(MAINTENANCE_MESSAGE), p);
     assert.ok(r.text.includes(MESSENGER_URL), p);
-    assert.ok(r.text.includes('tel:+97676001888') && r.text.includes('tel:+97680905498'), p);
+    assert.ok(r.text.includes('tel:+97676001888') && r.text.includes('tel:+97691005498'), p);
     assert.ok(!r.text.includes('<script'), 'no booking script on the maintenance page');
     assert.equal(r.headers['cache-control'], 'no-store');
   }
@@ -167,12 +176,14 @@ test('a wrong token, a forged cookie, or a too-short configured token gives no b
   process.env.SITE_MAINTENANCE = 'on';
   const wrong = await request('GET', '/?test=wrong-token-0123456789');
   assert.equal(wrong.status, 302);
-  assert.equal(wrong.headers['set-cookie'], undefined);
+  const wrongSet = [].concat(wrong.headers['set-cookie'] || []).join('\n');
+  assert.ok(!wrongSet.includes(`${TEST_COOKIE}=`), 'no test cookie for a wrong token');
+  assert.match(wrongSet, /mx_test_rejected=1/, 'the page is told the link was wrong');
   const forged = await request('GET', '/', { cookie: `${TEST_COOKIE}=deadbeef` });
   assert.equal(forged.status, 503);
   process.env.BOOKING_TEST_TOKEN = 'short';
   const short = await request('GET', '/?test=short');
-  assert.equal(short.headers['set-cookie'], undefined);
+  assert.ok(![].concat(short.headers['set-cookie'] || []).join('\n').includes(`${TEST_COOKIE}=`));
 });
 
 test('changing BOOKING_TEST_TOKEN invalidates old test cookies', async () => {
@@ -218,7 +229,8 @@ test('a booking from the tester\'s browser is titled «ТЕСТ»; a customer\'s
   const cookie = await testCookie();
   const body = { stylistId: 'Ананд', startTime: '2035-06-04T15:00:00+08:00', customerPhone: '99112233', customerGender: 'male' };
   await request('POST', '/api/calendar/book', { body: { ...body, invoiceId: 'inv_t' }, cookie });
-  await request('POST', '/api/calendar/book', { body: { ...body, invoiceId: 'inv_r' } });
+  // Another customer (another phone), an hour later: same calendar, no «ТЕСТ».
+  await request('POST', '/api/calendar/book', { body: { ...body, startTime: '2035-06-04T16:00:00+08:00', customerPhone: '88112233', invoiceId: 'inv_r' } });
   assert.ok(calls.events[0].summary.startsWith('ТЕСТ – '), calls.events[0].summary);
   assert.ok(calls.events[0].description.startsWith('ТЕСТ'), 'description says test too');
   assert.ok(!calls.events[1].summary.includes('ТЕСТ'), calls.events[1].summary);
@@ -228,6 +240,17 @@ test('/api/site-mode tells only the tester\'s browser it is in test mode', async
   const cookie = await testCookie();
   const t = JSON.parse((await request('GET', '/api/site-mode', { cookie })).text);
   const c = JSON.parse((await request('GET', '/api/site-mode')).text);
-  assert.deepEqual(t, { test: true, testDeposit: 100 });
-  assert.deepEqual(c, { test: false, testDeposit: null });
+  assert.deepEqual(t, { test: true, testDeposit: 100, testLinkRejected: false });
+  assert.deepEqual(c, { test: false, testDeposit: null, testLinkRejected: false });
+  const rejected = JSON.parse((await request('GET', '/api/site-mode', { cookie: 'mx_test_rejected=1' })).text);
+  assert.equal(rejected.testLinkRejected, true);
+});
+
+test('a token whose «+» became a space in the link, or with spaces around it, still opens test mode', async () => {
+  process.env.BOOKING_TEST_TOKEN = 'abc+def/ghi=jklmnop12';
+  for (const q of ['abc+def/ghi=jklmnop12', 'abc%20def/ghi=jklmnop12', encodeURIComponent('abc+def/ghi=jklmnop12'), '%20abc+def/ghi=jklmnop12%20']) {
+    const r = await request('GET', `/?test=${q}`);
+    const set = [].concat(r.headers['set-cookie'] || []).join('\n');
+    assert.ok(set.includes(`${TEST_COOKIE}=`) && !set.includes(`${TEST_COOKIE}=;`), q);
+  }
 });

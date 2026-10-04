@@ -96,6 +96,44 @@ today until the owner approves the switch.
   plus `favicon.ico` 16/32/48, `icon-16/32/192/512.png` (transparent) and
   `icon-180.png` for iPhone (white, since iOS fills transparency with black).
 
+## Part 6 — metallic rebrand («Plaster & Steel») — preview, awaiting owner's go
+
+- New logo from the owner: metallic silver «Tara», orange star, «Salon» script
+  (`brand/tara-salon-logo.png`, `brand/tara-salon-logo-2000.webp`, byte for
+  byte; `-240/-480` are scaled copies for the page). The teal SVG logos and
+  `favicon.svg` are retired.
+- Palette moves from teal/white to the salon's new interior: limewash beige,
+  basalt, brushed steel, star orange. The silver logo sits only on basalt
+  (header, footer, maintenance card), where it reads at every width.
+- Favicon, touch and app icons rebuilt from the logo's own metallic «T» and
+  star on basalt (larger star at 16/32 px); new social preview image.
+- Visual only: text, prices, links, booking flow and branch details unchanged.
+
+## Part 6 — two branches side by side (2026-10-03) ✅ (preview only)
+
+- Stylists by the salon's short Latin names, levels and deposits; Парк Од's
+  seven with photos (4K originals optimised, never upscaled); Отгонжаргал
+  retired (not in the salon's list). Former names kept as aliases.
+- Парк Од: hours, calendars by `PARKOD_CALENDAR_*`; closed until connected.
+  QPay: the same login and merchant as Яармаг, only her bank account differs
+  (founder, 2026-10-04; the merchant-registration script was removed).
+  `docs/TWO_BRANCHES.md`: QPay design and every variable.
+- 5-minute hold on both payment paths (`services/bookingHold.js`), so the
+  website and Messenger can never both sell one time; daily sweep cron.
+- The 62 durations are confirmed by the salon.
+- «Манай үсчид» on the home page; booking shows titles.
+- Tests: 209, including a faithful in-memory Google Calendar. Browser walk at
+  390 and 1440 px (local, faked Google and QPay): team, Парк Од booking, two
+  customers racing for one time (the second sent back to the times), paid.
+
+## Part 7 — founder's review (2026-10-04) ✅ (preview only)
+
+- Otgonjargal (Отгонжаргал) back as a bookable 1-р зэргийн үсчин; «Hair
+  Stylist» title for 1-р зэрэг; level-named haircuts only with that level
+  (page + both payment paths); deposit deducted from the price (home, price
+  page, booking); «Бүтээл» gallery and its photos removed; tarasalon.org in
+  the domain plan; Парк Од paid on the same merchant into her own bank account.
+
 ## Open items for the owner
 
 - New copy, all in one place: `docs/COPY_DRAFT.md`.

@@ -19,7 +19,7 @@ const { STYLIST_CONFIG } = require('./stylists');
  */
 
 const MAINTENANCE_MESSAGE =
-  'Вэбсайт түр засвартай байна. Цаг захиалах бол Messenger-ээр бичих эсвэл 76001888, 80905498 дугаарт залгана уу.';
+  'Вэбсайт түр засвартай байна. Цаг захиалах бол Messenger-ээр бичих эсвэл 76001888, 91005498 дугаарт залгана уу.';
 const MESSENGER_URL = 'https://m.me/100067872726164';
 const TEST_COOKIE = 'mx_test';
 const TEST_DEPOSIT_MNT = 100;
@@ -45,10 +45,16 @@ function safeEqual(a, b) {
   return x.length === y.length && crypto.timingSafeEqual(x, y);
 }
 
-/** Whether `candidate` is the configured test token. */
+/**
+ * Whether `candidate` is the configured test token. Forgiving of how a token
+ * travels in a link: surrounding spaces, and a «+» that a query string turns
+ * into a space (a base64 token has «+»), still match.
+ */
 function isTestToken(candidate) {
   const t = testToken();
-  return !!(t && candidate && safeEqual(candidate, t));
+  if (!t || typeof candidate !== 'string' || !candidate) return false;
+  const c = candidate.trim();
+  return [c, c.replace(/ /g, '+')].some((x) => safeEqual(x, t));
 }
 
 function readCookie(req, name) {
@@ -87,6 +93,20 @@ function testCookieHeader() {
   return `${TEST_COOKIE}=${testCookieValue()}; Path=/; Max-Age=${12 * 3600}; HttpOnly; Secure; SameSite=Lax`;
 }
 
+// A test link whose token did not match leaves this short-lived marker, so
+// the booking page can say so instead of silently charging the real deposit.
+const TEST_REJECTED_COOKIE = 'mx_test_rejected';
+function testRejectedCookieHeader() {
+  return `${TEST_REJECTED_COOKIE}=1; Path=/; Max-Age=600; HttpOnly; Secure; SameSite=Lax`;
+}
+function clearTestRejectedCookieHeader() {
+  return `${TEST_REJECTED_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`;
+}
+/** Whether this browser just opened a test link with a wrong token. */
+function testLinkRejected(req) {
+  return !isTestRequest(req) && readCookie(req, TEST_REJECTED_COOKIE) === '1';
+}
+
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
@@ -101,31 +121,34 @@ function maintenancePage() {
 <meta name="robots" content="noindex" />
 <title>Tara Salon</title>
 <link rel="icon" href="/favicon.ico" />
+<meta name="theme-color" content="#2b2622" />
 <style>
-  :root { --teal: #04484a; --ink: #142727; --muted: #4d6362; --line: #d6e1e0; }
+  :root { --stone: #2b2622; --ink: #2b2520; --muted: #5c524a; --line: #d9cec0; }
   * { box-sizing: border-box; }
   body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
-    background: #edf3f2; color: var(--ink); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; padding: 24px 16px; }
-  main { max-width: 440px; width: 100%; text-align: center; background: #fff;
-    border: 1px solid var(--line); border-radius: 8px; padding: 36px 24px; }
-  img { width: 140px; height: auto; margin: 0 auto 24px; display: block; }
-  p { font-size: 1.05rem; line-height: 1.6; margin: 0 0 24px; }
-  .actions { display: grid; gap: 12px; }
+    background: #ebe3d8; color: var(--ink); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; padding: 24px 16px; }
+  main { max-width: 440px; width: 100%; text-align: center; background: #fbf8f3;
+    border: 1px solid var(--line); border-radius: 14px; padding: 0 0 36px; overflow: hidden; }
+  /* The silver logo needs a dark ground: it sits on a basalt band. */
+  .logo { background: var(--stone); padding: 26px 24px 22px; margin-bottom: 28px; }
+  .logo img { width: 150px; height: auto; margin: 0 auto; display: block; }
+  p { font-size: 1.05rem; line-height: 1.6; margin: 0 24px 24px; }
+  .actions { display: grid; gap: 12px; margin: 0 24px; }
   a { display: flex; align-items: center; justify-content: center; min-height: 48px; border-radius: 999px;
     font-weight: 600; text-decoration: none; font-size: 1rem; }
-  .primary { background: var(--teal); color: #fff; }
-  .secondary { border: 1.5px solid var(--teal); color: var(--teal); }
-  a:focus-visible { outline: 3px solid var(--teal); outline-offset: 3px; }
+  .primary { background: var(--stone); color: #f3ede4; }
+  .secondary { border: 1.5px solid var(--stone); color: var(--stone); }
+  a:focus-visible { outline: 3px solid var(--stone); outline-offset: 3px; }
 </style>
 </head>
 <body>
 <main>
-  <img src="/brand/tara-salon-logo.svg" alt="Tara Salon" width="140" height="82" />
+  <div class="logo"><img src="/brand/tara-salon-logo-480.png" alt="Tara Salon" width="480" height="259" /></div>
   <p>${escapeHtml(MAINTENANCE_MESSAGE)}</p>
   <div class="actions">
     <a class="primary" href="${MESSENGER_URL}" rel="noopener noreferrer">Messenger</a>
     <a class="secondary" href="tel:+97676001888">7600 1888</a>
-    <a class="secondary" href="tel:+97680905498">8090 5498</a>
+    <a class="secondary" href="tel:+97691005498">9100 5498</a>
   </div>
 </main>
 </body>
@@ -133,6 +156,9 @@ function maintenancePage() {
 }
 
 module.exports = {
+  testRejectedCookieHeader,
+  clearTestRejectedCookieHeader,
+  testLinkRejected,
   MAINTENANCE_MESSAGE,
   MESSENGER_URL,
   TEST_COOKIE,

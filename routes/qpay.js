@@ -5,6 +5,7 @@ const { createInvoice, checkPayment, getInvoice, getPayment, isPaidCheck } = req
 const { getCalendarClient } = require('../services/googleCalendar');
 const { STYLIST_CONFIG } = require('../config/stylists');
 const { checkPaymentRequest } = require('../services/closureGuard');
+const { holdForPaymentRequest, clientOf } = require('../services/bookingHold');
 const { checkPaymentBookingRules, consentTime, REFRESH_MESSAGE } = require('../services/bookingRules');
 const { callbackUrlForPayment, publicOrigin, decodeCallback } = require('../services/lateBooking');
 const { ensurePaidBooking, alertBookingFailure, hasBookingForPhone } = require('../services/bookingWriter');
@@ -124,6 +125,7 @@ async function createCalendarEventForInvoice(invoiceId) {
  * Returns: { invoice_id: string, qr_image: <Base64 string>, urls: [ { name, link }, ... ] }
  */
 router.post('/create-payment', async (req, res) => {
+  const startedAt = new Date(); // the hold's release must fit in this function's time
   const { name, phone, amount, description, staffName, selectedServices, serviceName } = req.body || {};
 
   // Maintenance: no new invoices (payments already made are still honoured).
@@ -168,6 +170,13 @@ router.post('/create-payment', async (req, res) => {
   }
   const account = qpayAccountFor(branchCheck.branch);
 
+  // Same 5-minute hold as the standalone handler (services/bookingHold.js).
+  const hold = await holdForPaymentRequest(req.body || {}, { test: isTestRequest(req), client: clientOf(req), startedAt });
+  if (!hold.ok) {
+    console.warn('Blocked QPay invoice by hold:', hold.payload.reason, staffName);
+    return res.status(hold.status).json(hold.payload);
+  }
+
   try {
     const consent = consentTime(req.body.depositTermsAcceptedAt);
     // The signed late-payment callback (services/lateBooking.js), as in the
@@ -177,10 +186,11 @@ router.post('/create-payment', async (req, res) => {
     // the tester's signed cookie (config/siteMode.js).
     const sentAmount = Number(String(amount).replace(/[^0-9]/g, ''));
     if (!sentAmount || isNaN(sentAmount)) {
+      await hold.release();
       return res.status(400).json({ error: 'amount must be a valid positive number' });
     }
     const cleanAmount = depositFor(req, staffName);
-    if (!cleanAmount) return res.status(422).json({ error: 'Unknown stylist' });
+    if (!cleanAmount) { await hold.release(); return res.status(422).json({ error: 'Unknown stylist' }); }
     const callbackUrl = callbackUrlForPayment(publicOrigin(req), req.body, { agreedAt: consent.at, amount: cleanAmount, test: isTestRequest(req) })
       || `${process.env.BASE_URL || 'https://mydomain.com'}/api/qpay/webhook`;
     // The QPay invoice description shows only the customer name and phone.
@@ -216,9 +226,12 @@ router.post('/create-payment', async (req, res) => {
       };
     }
 
-    return res.status(200).json(result);
+    // Unpaid, the hold deletes itself when the QR runs out (bookingHold.js).
+    hold.releaseWhenExpired();
+    return res.status(200).json({ ...result, hold_expires_at: hold.expiresAt.toISOString() });
   } catch (err) {
     console.error('QPay API Error Details:', err.response?.data || err.message);
+    await hold.release();
     return res.status(502).json({
       error: 'Failed to create QPay invoice',
       details: err.message || String(err),
