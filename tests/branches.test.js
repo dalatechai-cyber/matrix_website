@@ -454,7 +454,7 @@ test('switch: Парк Од fully connected but PARKOD_BOOKING not «on» — no
   assert.equal(net.calls.length, 0, 'QPay never called');
   const park = require('../lib/publicBranches').publicBranches().find((b) => b.id === 'parkod');
   assert.equal(park.ready, false);
-  assert.deepEqual(park.phones, ['76001888'], 'the booking page shows her phone instead');
+  assert.deepEqual(park.phones, ['99076874'], 'the booking page shows her own phone instead');
   process.env.PARKOD_BOOKING = 'on';
   assert.equal(branchReadiness('parkod').ready, true, 'on again without a code change');
 });

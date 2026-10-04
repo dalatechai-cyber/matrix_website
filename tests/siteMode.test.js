@@ -121,14 +121,14 @@ test('an unknown .html path is not served from here', async () => {
   assert.equal(r.status, 404);
 });
 
-test('maintenance on: every page shows the notice with Messenger and both numbers, nothing to book', async () => {
+test('maintenance on: every page shows the notice with Messenger and both branches\' numbers, nothing to book', async () => {
   process.env.SITE_MAINTENANCE = 'on';
   for (const p of PAGES) {
     const r = await request('GET', p);
     assert.equal(r.status, 503, p);
     assert.ok(r.text.includes(MAINTENANCE_MESSAGE), p);
     assert.ok(r.text.includes(MESSENGER_URL), p);
-    assert.ok(r.text.includes('tel:+97676001888') && r.text.includes('tel:+97691005498'), p);
+    assert.ok(r.text.includes('tel:+97676001888') && r.text.includes('tel:+97691005498') && r.text.includes('tel:+97699076874'), p);
     assert.ok(!r.text.includes('<script'), 'no booking script on the maintenance page');
     assert.equal(r.headers['cache-control'], 'no-store');
   }

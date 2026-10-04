@@ -251,7 +251,13 @@ p { margin: 0; }
   text-decoration-color: rgba(43, 38, 34, 0.35);
   transition: text-decoration-color 0.2s;
 }
-.text-link:hover { text-decoration-color: var(--copper); }
+.text-link:hover, .team-call a:hover { text-decoration-color: var(--copper); }
+/* A branch not yet taking online bookings: its phone in the team header, styled as the booking link. */
+.team-call a {
+  color: var(--stone); font-weight: 500; text-decoration: underline;
+  text-decoration-thickness: 1px; text-underline-offset: 0.3em;
+  text-decoration-color: rgba(43, 38, 34, 0.35); white-space: nowrap;
+}
 .on-stone .text-link { color: var(--on-stone); text-decoration-color: rgba(255, 255, 255, 0.4); }
 
 /* ── Header ───────────────────────────────────────────────────────── */

@@ -16,7 +16,7 @@ Short list from `docs/LAUNCH_DAY_TARA.md` (full steps and fallbacks there).
 | 8 | Claude | Merge `main` into #285 and #284, push (doc-only conflicts) | Their CI green |
 | 9 | You | B2.3–4: merge #285, then #284 → `main` | Vercel deploy of `main` READY |
 | 10 | Claude | B2.5: apply 0082, 0083, 0084 (on your «go»), never `supabase db push` | Ledger lists the three; `npm run check` on `main` green |
-| 11 | You | B3: SQL editor → stylist names, then answers | Each ends with `COMMIT` |
-| 12 | You | B4: dry run → `--with-model` → `--publish` (Mac) | Every case passes, `facts: … agrees`; then Messenger: 4 test messages |
+| 11 | You | «Go: merge dala-ai #287» (D-178, Claude merges); then `git pull`; then B3: SQL editor → stylist names, then answers, then branch phones | #287 merged; each file ends with `COMMIT` |
+| 12 | You | B4: dry run → `--with-model` → `--publish` (Mac) | Every case passes, `facts: … agrees`; then Messenger: 5 test messages (the fifth: «Парк Од салбарын утас?» → 99076874) |
 | 13 | You | B5: SQL editor → photo question, reel question, colour/treatment-perm | Photo with no text → the photo question; «ungu gargalt hed ve» → «Манай өнгөний үйлчилгээний үнэ:» + women's prices + 76001888 / 91005498 |
 | 14 | You | Next morning: Vercel Logs → `sweep-holds` | One line, status 200 |

@@ -38,7 +38,7 @@ Final report: under 25 lines, plain English (see the brief's last paragraph).
   Дали Mongolian: «үсчин», never «стилист».
 - Парк Од hours Mon–Sat 10–20, Sun 11–19. Address Баянзүрх дүүрэг, 26-р хороо, Парк-Од молл,
   4 давхар, 405 тоот. Page profile.php?id=100067391025472. E-mail: the founder has it (kept out of the repo).
-- Phones: 76001888 shared; Яармаг also 91005498.
+- Phones (founder, 2026-10-04, final): Яармаг 76001888 and 91005498; Парк Од 99076874 only. No shared line.
 - Парк Од booking account tarasalon.parkod@gmail.com (being created) + one Gmail per stylist
   sharing her calendar («make changes to events»), like booking@matrixecosalon.org for Яармаг.
 - Oyunaa checks Яармаг's hand-off chats.
