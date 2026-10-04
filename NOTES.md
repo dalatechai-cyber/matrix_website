@@ -72,7 +72,10 @@ log: some of it was true only on the day it was written (for example «nothing g
 ## Left as found (not this session's)
 
 Draft PRs #46 and #47 (Copilot, March 2026); older `claude/*` and `copilot/*` branches from
-earlier sessions. This session's branches are all merged; its temporary branches are deleted.
+earlier sessions. This session's own branches are all merged into `main`. The temporary 100₮
+and Парк Од-switch branches are deleted. Claude sessions cannot delete branches (403), so
+`claude/guardrails-hooks` remains (merged, safe to delete). `claude/cool-albattani-9om8zg` was
+this session's working branch.
 
 ---
 
