@@ -26,7 +26,6 @@ or AI-generated pictures of salons or people.
 | `home-services` | Home, beside the service list (tall arch; wide arch on phones) | `rose-waves` | the styling stations: mirrors, chairs, steel and plaster |
 | `home-about` | Home, «Бидний тухай» | `cutting` | a stylist at work in the new interior |
 | `intro-services` | «Үйлчилгээ ба үнэ», top right (wide window on phones) | `bronde-waves` | the colour bar or wash area |
-| `intro-zurag` | «Бүтээл», top right | `editorial-lake` | keep a work photo here |
 | `intro-contact` | «Салбарууд», top right | none (texture) | the entrance or reception of each branch |
 | `intro-products` | «Бүтээгдэхүүн» (Amos), top right | `tools` | the product shelf |
 | `intro-keune` | «Keune», top right | none (texture) | the Keune shelf |

@@ -11,31 +11,21 @@ const _tokenCaches = new Map();
 
 /**
  * Every function here takes an optional `account` (config/branches.js
- * qpayAccountFor). Omitted, or Яармаг's, it is the site's original account —
+ * qpayAccountFor). Both branches use the site's one QPay login and merchant —
  * QPAY_USERNAME / QPAY_PASSWORD / QPAY_MERCHANT_ID, terminal DALATECH_AI —
- * exactly as before branches existed. Any other branch uses only its own
- * credentials and never falls back to Яармаг's.
+ * exactly as before branches existed (founder, 2026-10-04). Only the bank
+ * account an invoice pays into differs, and createInvoice takes that from the
+ * caller (`bankAccounts`).
  */
-function credentialsFor(account) {
-  if (!account || account.branch === 'yaarmag') {
-    return {
-      key: 'yaarmag',
-      username: process.env.QPAY_USERNAME,
-      password: process.env.QPAY_PASSWORD,
-      terminalId: 'DALATECH_AI',
-      merchantId: process.env.QPAY_MERCHANT_ID,
-      missing: 'QPAY_USERNAME and QPAY_PASSWORD environment variables must be set',
-      missingMerchant: 'QPAY_MERCHANT_ID environment variable must be set',
-    };
-  }
+function credentialsFor() {
   return {
-    key: `${account.branch}:${account.username || ''}:${account.terminalId || ''}`,
-    username: account.username,
-    password: account.password,
-    terminalId: account.terminalId,
-    merchantId: account.merchantId,
-    missing: `QPay credentials for branch "${account.branch}" are not configured`,
-    missingMerchant: `QPay merchant id for branch "${account.branch}" is not configured`,
+    key: 'shared',
+    username: process.env.QPAY_USERNAME,
+    password: process.env.QPAY_PASSWORD,
+    terminalId: 'DALATECH_AI',
+    merchantId: process.env.QPAY_MERCHANT_ID,
+    missing: 'QPAY_USERNAME and QPAY_PASSWORD environment variables must be set',
+    missingMerchant: 'QPAY_MERCHANT_ID environment variable must be set',
   };
 }
 

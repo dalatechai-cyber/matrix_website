@@ -21,13 +21,15 @@
   "use strict";
 
   // ── Customer-facing wording (owner-approved strings kept verbatim) ────
+  // 5 minutes, as Дали's chat says; the hold behind it (services/bookingHold.js)
+  // ends 30 s later and is released by the request that placed it.
   const QPAY_QR_VALID_MS = 5 * 60 * 1000;
   const SLOT_TAKEN_RENEW_MSG = "Уучлаарай, энэ цаг өөр хүнд захиалагдсан байна. Өөр цаг сонгоно уу.";
   const CALENDAR_ERROR_MSG = "Төлбөр төлөгдсөн ч цаг бүртгэхэд алдаа гарлаа. Бидэнтэй холбогдоно уу.";
   const SLOT_TAKEN_PAID_MSG = "Төлбөр тань амжилттай орсон. Харамсалтай нь сонгосон цаг тань энэ хооронд өөр хүнд захиалагдсан байна. Салоны ажилтан тантай удахгүй холбогдож өөр цаг тохирно.";
   const GENDER_LABELS = { female: "Эмэгтэй", male: "Эрэгтэй" };
   const WEEKDAYS = ["Ням", "Дав", "Мяг", "Лха", "Пүр", "Баа", "Бям"];
-  const DAYS_SHOWN = 14;
+  const DAYS_SHOWN = 7; // one week: the row fits without sideways scrolling
 
   const $ = (id) => document.getElementById(id);
   const mnt = new Intl.NumberFormat("en-US");
@@ -110,7 +112,11 @@
     if (step <= 1) return true;
     if (step === 2) return !!(state.branch && state.branch.ready);
     if (step === 3) return canEnter(2) && state.services.length > 0;
-    if (step === 4) return canEnter(3) && !!state.stylist && state.stylist.gender === state.gender;
+    if (step === 4) {
+      const level = requiredLevel(state.services);
+      return canEnter(3) && !!state.stylist && state.stylist.gender === state.gender
+        && (!level || state.stylist.levelKey === level);
+    }
     if (step === 5) return canEnter(4) && !!state.date && !!state.time && !closureFor(state.date);
     if (step === 6) return canEnter(5) && !!pay.request;
     return false;
@@ -172,7 +178,7 @@
     const rows = [];
     if (state.branch) rows.push(["Салбар", state.branch.name]);
     if (state.services.length) rows.push(["Үйлчилгээ", state.services.join(", ")]);
-    if (state.stylist && state.step >= 4) rows.push(["Үсчин", `${state.stylist.id} (${state.stylist.level})`]);
+    if (state.stylist && state.step >= 4) rows.push(["Үсчин", `${state.stylist.id} (${state.stylist.title || state.stylist.level})`]);
     if (state.date && state.time && state.step >= 5) rows.push(["Цаг", `${longDate(state.date)}, ${state.time}`]);
     if (state.services.length) {
       const m = state.durationMinutes || minutesFor(state.services);
@@ -212,11 +218,14 @@
     const changed = !state.branch || state.branch.id !== b.id;
     state.branch = b;
     if (changed) {
-      // Hairdressers, times and a pending payment belong to one branch only.
+      // Hairdressers, times and a pending payment belong to one branch only,
+      // and so do level-named services (a level the branch lacks is hidden).
       state.stylist = null;
       state.date = null;
       state.time = null;
       resetPaymentRequest();
+      renderServices();
+      state.services = Array.from(document.querySelectorAll(".service-checkbox:checked")).map((i) => i.value);
     }
     updateActions();
     renderSummary();
@@ -243,13 +252,34 @@
     return label;
   }
 
+  // «Гоёлын засалт /эрэгтэй/» is printed in the women's section of the price
+  // list but is a men's styling: the booking offers it under «Эрэгтэй засалт»
+  // (founder, 2026-10-04). Its key, price and duration are unchanged.
+  const MEN_IN_WOMENS_SECTION = new Set(["Эмэгтэй засалт — Гоёлын засалт /эрэгтэй/"]);
+  function bookingSections() {
+    const moved = [];
+    const sections = menu.categories.map((c) => {
+      if (c.id !== "women") return c;
+      const services = c.services.filter((s) => !(MEN_IN_WOMENS_SECTION.has(s.key) && moved.push(s)));
+      return { ...c, services };
+    });
+    return sections.map((c) => (c.id === "men" && moved.length ? { ...c, services: [...c.services, ...moved] } : c));
+  }
+
   function renderServices() {
     const wrap = $("service-options");
-    wrap.replaceChildren(...menu.categories.map((c) => {
+    wrap.replaceChildren(...bookingSections().map((c) => {
       const group = el("fieldset", "service-group");
       group.append(el("legend", "", c.name));
       const grid = el("div", "options options--services");
       c.services.forEach((s) => {
+        // A level-named haircut nobody at this branch can take is not offered:
+        // no hairdresser of that level (1-р зэрэг at Парк Од), or none who
+        // serves that section's customers (no man is SPECIAL, so no men's
+        // SPECIAL cut).
+        const lv = levelOfService(s.key || s.name);
+        const forGender = SECTION_GENDER[c.id];
+        if (lv && state.branch && !state.branch.stylists.some((x) => x.levelKey === lv && (!forGender || x.gender === forGender))) return;
         if (!Array.isArray(s.prices)) {
           grid.append(serviceChoice(s.key, s.name, s.price, s.note));
           return;
@@ -285,6 +315,22 @@
     renderSummary();
   }
 
+  // Level-named haircuts go only to a hairdresser of that level (the server
+  // refuses any other); services/bookingRules.js has the same markers.
+  const LEVEL_MARKERS = [[/\/\s*SPECIAL\s*\//iu, "special"], [/\/\s*МАСТЕР\s*\//iu, "master"], [/\/\s*1-р зэрэг\s*\//iu, "first"]];
+  // Sections of the price list whose customers are one gender.
+  const SECTION_GENDER = { women: "female", men: "male" };
+  const LEVEL_NAMES = { special: "SPECIAL", master: "Мастер", first: "1-р зэргийн" };
+  function levelOfService(key) {
+    const hit = LEVEL_MARKERS.find(([re]) => re.test(String(key).normalize("NFC")));
+    return hit ? hit[1] : null;
+  }
+  function requiredLevel(keys) {
+    const levels = new Set(keys.map(levelOfService).filter(Boolean));
+    if (levels.size === 0) return null;
+    return levels.size === 1 ? [...levels][0] : "conflict";
+  }
+
   // ── Step 3: customer gender, then only matching hairdressers ──────────
   function selectedGender() {
     const c = document.querySelector('input[name="customer-gender"]:checked');
@@ -294,10 +340,13 @@
   function renderStylists() {
     state.gender = selectedGender();
     const wrap = $("stylist-options");
-    const list = (state.branch ? state.branch.stylists : []).filter((s) => s.gender === state.gender);
-    // The salon's rule: a hairdresser who does not serve this customer can
-    // never stay selected (the server refuses such a payment as well).
-    if (state.stylist && state.stylist.gender !== state.gender) {
+    const level = requiredLevel(state.services);
+    const fits = (s) => s.gender === state.gender && (!level || s.levelKey === level);
+    const list = (state.branch ? state.branch.stylists : []).filter(fits);
+    // The salon's rules: a hairdresser who does not serve this customer, or
+    // not at the level the chosen haircut names, can never stay selected (the
+    // server refuses such a payment as well).
+    if (state.stylist && !fits(state.stylist)) {
       state.stylist = null;
       state.date = null;
       state.time = null;
@@ -305,6 +354,10 @@
     }
     if (!state.gender) {
       wrap.replaceChildren(el("p", "step-hint", "Эхлээд Эмэгтэй эсвэл Эрэгтэй гэдгээ сонгоно уу."));
+    } else if (level === "conflict") {
+      wrap.replaceChildren(el("p", "notice", "Өөр өөр зэргийн үсчний тайралтыг нэг захиалгад хамт сонгох боломжгүй. Үйлчилгээгээ дахин сонгоно уу."));
+    } else if (list.length === 0 && level) {
+      wrap.replaceChildren(el("p", "notice", `Сонгосон тайралтыг ${LEVEL_NAMES[level]} үсчин хийдэг. Энэ салбарт ${GENDER_LABELS[state.gender].toLowerCase()} үйлчлүүлэгчид үйлчлэх ${LEVEL_NAMES[level]} үсчин одоогоор алга. Өөр тайралт сонгох эсвэл салбарын утсаар холбогдоно уу.`));
     } else if (list.length === 0) {
       wrap.replaceChildren(el("p", "notice", `${state.branch.name}-д одоогоор ${GENDER_LABELS[state.gender].toLowerCase()} үйлчлүүлэгчид үйлчлэх үсчин онлайн захиалгад бүртгэгдээгүй байна. Салбарын утсаар холбогдоно уу.`));
     } else {
@@ -337,7 +390,7 @@
           face.setAttribute("aria-hidden", "true");
         }
         const body = el("span", "option-body");
-        body.append(el("span", "option-title", s.id), el("span", "option-meta", s.level), el("span", "option-price", `Урьдчилгаа ${money(state.testDeposit || s.deposit)}`));
+        body.append(el("span", "option-title", s.id), el("span", "option-meta", s.title || s.level), el("span", "option-price", `Урьдчилгаа ${money(state.testDeposit || s.deposit)}`));
         label.append(input, face, body);
         return label;
       }));
@@ -357,13 +410,19 @@
   function renderDays() {
     const strip = $("day-strip");
     const today = salonToday();
-    const days = Array.from({ length: DAYS_SHOWN }, (_, i) => addDays(today, i));
-    if (!days.includes(state.date)) days.unshift(state.date);
+    // The coming week; a chosen date beyond it (a closure's reopening day)
+    // starts its own week, so the row is always exactly seven days.
+    const last = addDays(today, DAYS_SHOWN - 1);
+    const first = state.date && state.date > last ? state.date : today;
+    const days = Array.from({ length: DAYS_SHOWN }, (_, i) => addDays(first, i));
     strip.replaceChildren(...days.map((ymd) => {
       const b = el("button", "day");
       b.type = "button";
       const { weekday, date } = dayLabel(ymd);
-      b.append(el("span", "day-w", ymd === today ? "Өнөөдөр" : weekday), el("span", "day-d", date));
+      const w = el("span", "day-w");
+      if (ymd === today) w.append(el("span", "day-w-long", "Өнөөдөр"), el("span", "day-w-short", "Өнөө"));
+      else w.textContent = weekday;
+      b.append(w, el("span", "day-d", date));
       const closure = closureFor(ymd);
       if (closure) {
         b.classList.add("is-closed");
@@ -382,8 +441,6 @@
       });
       return b;
     }));
-    const current = strip.querySelector('[aria-pressed="true"]');
-    if (current) current.scrollIntoView({ block: "nearest", inline: "center" });
   }
 
   function renderClosure(closure) {
@@ -603,6 +660,15 @@
         showStep(4);
         return;
       }
+      if (r.status === 409 && r.data.slotTaken) {
+        // Someone (here or in Messenger) holds or booked this time: pick another.
+        stopTimers();
+        pay.request = null;
+        state.time = null;
+        showStep(4, { focus: false });
+        await loadSlots({ notice: SLOT_TAKEN_RENEW_MSG });
+        return;
+      }
       pay.request = null;
       showStep(5);
       const e = $("pay-error");
@@ -757,22 +823,10 @@
         }
       } catch (_) { /* cannot tell: carry on; the server still books once */ }
     }
-    let stillFree = true;
-    try {
-      const params = new URLSearchParams({ date: req.bookingDate, stylistId: req.staffName, branch: req.branch });
-      if (req.selectedServices) params.set("services", req.selectedServices.split(", ").join(","));
-      const r = await getJSON(`/api/calendar/available-slots?${params}`);
-      if (r.ok) stillFree = !r.data.closure && Array.isArray(r.data.availableSlots) && r.data.availableSlots.includes(req.bookingTime);
-    } catch (_) { /* network trouble: treat as free; the server will not double-book */ }
     if (pay.request !== req) return;
-    if (!stillFree) {
-      stopTimers();
-      pay.request = null;
-      state.time = null;
-      showStep(4, { focus: false });
-      await loadSlots({ notice: SLOT_TAKEN_RENEW_MSG });
-      return;
-    }
+    // The server holds the time again for this customer before the new QR,
+    // or answers «taken» (handled in createInvoice), so no separate check here:
+    // a check would see this customer's own hold and call the time taken.
     await createInvoice();
   }
 
@@ -848,6 +902,12 @@
       if (state.step === 4) { renderDays(); loadSlots(); }
     }).catch(() => {});
     getJSON("/api/site-mode", { cache: "no-store" }).then((r) => {
+      if (r.ok && r.data.testLinkRejected) {
+        const banner = $("test-banner");
+        banner.textContent = "ТЕСТ холбоос буруу байна: урьдчилгаа жинхэнэ үнээрээ. Холбоосоо шалгаад дахин нээнэ үү.";
+        banner.hidden = false;
+        return;
+      }
       if (!r.ok || !r.data.test) return;
       state.testDeposit = r.data.testDeposit || 100;
       const banner = $("test-banner");

@@ -112,14 +112,27 @@
 
 /* Days and times */
 .days {
-  display: flex; gap: 0.5rem; overflow-x: auto; padding: 0.2rem 0.2rem 0.6rem; margin: 0 -0.2rem;
-  scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; scrollbar-width: thin;
+  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0.35rem; padding: 0.2rem 0 0.6rem;
 }
 .day {
-  flex: none; scroll-snap-align: start; display: grid; justify-items: center; gap: 0.1rem; min-width: 68px; padding: 0.65rem 0.5rem;
+  display: grid; justify-items: center; gap: 0.1rem; min-width: 0; padding: 0.6rem 0.15rem;
   border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper-card); cursor: pointer;
 }
-.day-w { font-size: 0.8rem; color: var(--muted); }
+.day-w { font-size: 0.8rem; color: var(--muted); white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: clip; }
+.day-w-short { display: none; }
+@media (max-width: 480px) {
+  .days { gap: 0.25rem; }
+  .day { padding: 0.55rem 0; }
+  .day-w { font-size: 0.72rem; }
+  .day-d { font-size: 0.85rem; letter-spacing: -0.02em; }
+  .day-w-long { display: none; }
+  .day-w-short { display: inline; }
+}
+@media (max-width: 360px) {
+  .days { gap: 0.2rem; }
+  .day-w { font-size: 0.66rem; }
+  .day-d { font-size: 0.76rem; }
+}
 .day-d { font-weight: 550; font-variant-numeric: tabular-nums; }
 .day-note { font-size: 0.72rem; color: var(--danger); }
 .day[aria-pressed="true"] { background: var(--stone); border-color: var(--stone); color: var(--on-stone); }
@@ -150,6 +163,7 @@
 .field-error { color: var(--danger); font-size: var(--step--1); }
 .deposit-box { padding: 1.25rem 1.4rem; background: var(--sand); border-left: 3px solid var(--star); border-radius: 0 var(--radius) var(--radius) 0; display: grid; gap: 0.9rem; }
 .deposit-line strong { font-size: 1.15rem; color: var(--stone); }
+.deposit-note { margin-top: -0.5rem; font-size: var(--step--1); color: var(--muted); }
 .deposit-terms { display: grid; grid-template-columns: 24px 1fr; gap: 0.75rem; align-items: start; cursor: pointer; }
 .deposit-terms input { width: 22px; height: 22px; margin: 0.15rem 0 0; accent-color: var(--stone); cursor: pointer; }
 .notice--error { background: #fbeeee; border-color: #e3b5b7; color: #6b1a1e; }

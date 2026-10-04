@@ -465,36 +465,13 @@ p { margin: 0; }
   .service-list a { grid-template-columns: 1fr; padding: 1.2rem 0; }
 }
 
-/* ── Gallery ──────────────────────────────────────────────────────── */
-.gallery-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.5rem; }
-.gallery-grid--home { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-.gallery-grid button { padding: 0; border: 0; background: var(--sand); cursor: zoom-in; border-radius: 3px; overflow: hidden; }
-.gallery-grid img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; transition: transform 0.5s var(--ease); }
-.gallery-grid button:hover img { transform: scale(1.03); }
-@media (max-width: 960px) { .gallery-grid--home { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 720px) { .gallery-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-
-.filter-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.75rem; }
+/* ── Chips (price-list navigation) ───────────────────────────────── */
 .chip {
   min-height: 44px; padding: 0.5rem 1.1rem; border: 1px solid var(--line); border-radius: 999px;
   background: var(--plaster); cursor: pointer; font-size: 0.95rem;
 }
 .chip:hover { border-color: var(--stone); }
 .chip[aria-pressed="true"], .chip.active { background: var(--stone); color: var(--on-stone); border-color: var(--stone); }
-
-.lightbox {
-  position: fixed; inset: 0; z-index: 90; background: rgba(28, 24, 21, 0.95);
-  display: none; align-items: center; justify-content: center; padding: 3.5rem 1rem 1rem;
-}
-.lightbox.is-open { display: flex; }
-.lightbox img { max-height: 86vh; width: auto; max-width: min(92vw, 900px); border-radius: 3px; }
-.lightbox-close, .lightbox-nav {
-  position: absolute; width: 48px; height: 48px; border-radius: 999px; border: 0;
-  background: rgba(255, 255, 255, 0.12); color: #fff; font-size: 1.4rem; cursor: pointer;
-}
-.lightbox-close { top: 0.75rem; right: 0.75rem; }
-.lightbox-nav[data-dir="-1"] { left: 0.75rem; top: 50%; transform: translateY(-50%); }
-.lightbox-nav[data-dir="1"] { right: 0.75rem; top: 50%; transform: translateY(-50%); }
 
 /* ── Products duo (home) ──────────────────────────────────────────── */
 .duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(1rem, 0.5rem + 2vw, 2rem); }
@@ -655,7 +632,6 @@ p { margin: 0; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
-.gallery-grid button[hidden] { display: none; }
 a.chip { display: inline-flex; align-items: center; text-decoration: none; }
 @media (min-width: 761px) { .price-cat > div:first-child { position: sticky; top: calc(var(--header-h) + 1.5rem); align-self: start; } }
 
@@ -770,11 +746,26 @@ a.chip { display: inline-flex; align-items: center; text-decoration: none; }
   .duo a:hover { transform: translateY(-3px); }
   .service-list a { transition: background-color 0.3s var(--ease), padding 0.4s var(--ease); }
   .service-list a:hover { padding-left: 0.75rem; padding-right: 0.75rem; }
-  .gallery-grid button:hover img { transform: scale(1.045); }
   .btn--primary:hover { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 16px 30px -16px rgba(43, 38, 34, 0.75); }
 }
 .btn { transition: background-color 0.2s var(--ease), color 0.2s var(--ease), border-color 0.2s var(--ease), box-shadow 0.3s var(--ease), transform 0.15s var(--ease); }
-.btn:active, .chip:active, .duo a:active, .service-list a:active, .gallery-grid button:active { transform: scale(0.98); }
+.btn:active, .chip:active, .duo a:active, .service-list a:active { transform: scale(0.98); }
 .chip { transition: background-color 0.2s var(--ease), border-color 0.2s var(--ease), transform 0.15s var(--ease); }
 /* The booking flow keeps exactly its own look and feel. */
 .booking .btn:active, .booking .chip:active { transform: none; }
+
+/* ── Team («Манай үсчид») ───────────────────────────────────────────────── */
+.team-group + .team-group { margin-top: clamp(2.5rem, 2rem + 2vw, 4rem); }
+.team-group-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.5rem 1.5rem; margin-bottom: 1.25rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--line); }
+.team-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(1rem, 0.6rem + 1.4vw, 1.75rem); }
+.team-card { min-width: 0; }
+.team-photo { position: relative; aspect-ratio: 4 / 5; border-radius: var(--radius); overflow: hidden; background: var(--sand); box-shadow: inset 0 0 0 1px rgba(43, 38, 34, 0.06); }
+.team-photo img { width: 100%; height: 100%; object-fit: cover; object-position: top; transition: transform 0.9s var(--ease); }
+.team-card:hover .team-photo img { transform: scale(1.025); }
+.team-initial { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--font-display); font-size: clamp(3rem, 2rem + 4vw, 4.5rem); font-weight: 500; color: var(--muted); background: linear-gradient(180deg, var(--sand), var(--plaster)); }
+.team-name { margin: 0.9rem 0 0.15rem; font-family: var(--font-display); font-size: 1.6rem; font-weight: 500; line-height: 1.1; color: var(--ink); }
+.team-title { margin: 0; font-size: 0.875rem; font-weight: 500; color: var(--ink); }
+.team-branch { margin: 0.15rem 0 0; font-size: 0.875rem; color: var(--muted); }
+@media (max-width: 960px) { .team-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 720px) { .team-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .team-name { font-size: 1.35rem; } }
+@media (prefers-reduced-motion: reduce) { .team-photo img { transition: none; } .team-card:hover .team-photo img { transform: none; } }

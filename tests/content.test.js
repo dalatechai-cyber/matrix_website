@@ -36,7 +36,7 @@ function allChoices() {
 
 const LOGO_PNG_SHA = 'af7b2d3e32697b50';
 const LOGO_WEBP_SHA = '741a3955a919349f';
-const PAGES = ['index.html', 'services.html', 'zurag.html', 'products.html', 'keune-products.html', 'booking.html', 'contact.html'];
+const PAGES = ['index.html', 'services.html', 'products.html', 'keune-products.html', 'booking.html', 'contact.html'];
 const { renderPage } = require('../lib/pages');
 /** A page as visitors get it: shared header, footer and branch details included. */
 const rendered = (file) => renderPage(file.replace(/\.html$/, '')) || '';
@@ -210,11 +210,15 @@ test('booking: the gender step and note use the approved wording', () => {
   assert.ok(!/name="stylist"/.test(html));
   const script = fs.readFileSync(path.join(ROOT, 'assets/booking.js'), 'utf8');
   assert.ok(!/Оюунсүрэн|Бадамцэцэг|Ананд/.test(script), 'booking.js must not carry its own list of hairdressers');
-  assert.ok(script.includes('.filter((s) => s.gender === state.gender)'), 'only hairdressers matching the customer are listed');
+  assert.ok(script.includes('s.gender === state.gender && (!level || s.levelKey === level)'), 'only hairdressers matching the customer (and the haircut\'s level) are listed');
 });
 
 test('booking: the deposit box and the recorded agreement use the approved wording', () => {
   assert.ok(rendered('booking.html').includes(DEPOSIT_TERMS));
+  // Founder, 2026-10-04: the deposit is deducted from the service price.
+  for (const page of ['booking.html', 'index.html', 'services.html']) {
+    assert.ok(rendered(page).includes('Урьдчилгаа төлбөр үйлчилгээний үнээс хасагдана.'), page);
+  }
   assert.equal(require('../services/bookingRules').DEPOSIT_TERMS_TEXT, DEPOSIT_TERMS);
 });
 
@@ -267,7 +271,7 @@ test('brand: the logo files are the ones supplied, untouched', () => {
 test('branches: Парк Од shows the shared line and placeholders, never Яармаг\'s own details', () => {
   const html = rendered('contact.html');
   const park = html.slice(html.indexOf('id="branch-parkod"'), html.indexOf('</article>', html.indexOf('id="branch-parkod"')));
-  assert.ok(park.includes('Удахгүй нэмэгдэнэ'), 'hours are still to come');
+  assert.ok(park.includes('10:00 – 20:00') && park.includes('11:00 – 19:00'), 'Парк Од hours (Mon–Sat 10–20, Sun 11–19)');
   assert.ok(park.includes('Баянзүрх дүүрэг, 26-р хороо, Парк-Од молл, 4 давхар, 405 тоот'), 'Парк Од address');
   const footer = html.slice(html.indexOf('<footer'));
   assert.ok(footer.includes('Парк-Од молл, 4 давхар, 405 тоот') && !footer.includes('Хаяг удахгүй нэмэгдэнэ'), 'footer address');
@@ -277,20 +281,28 @@ test('branches: Парк Од shows the shared line and placeholders, never Яа
   assert.ok(!park.includes('/booking.html?branch=parkod'), 'no booking button before Парк Од is connected');
 });
 
-test('photos: every gallery photo exists at every listed width, and nothing from the Facebook inbox ships', () => {
+test('photos: every feature photo exists at every listed width; the «Бүтээл» gallery and its photos are gone', () => {
   const g = require('../data/gallery.json');
   for (const item of g.items) {
     assert.ok(item.alt && item.alt.length > 5, `${item.slug} needs a description`);
-    assert.ok(g.categories.some((c) => c.id === item.cat), `${item.slug} has an unknown category`);
     for (const w of item.widths) {
       assert.ok(fs.existsSync(path.join(ROOT, `img/photos/${item.slug}-${w}.webp`)), `${item.slug}-${w}.webp missing`);
       assert.ok(w <= 1200, 'no file wider than 1200 px');
     }
   }
-  for (const slug of g.home) assert.ok(g.items.some((i) => i.slug === slug), `home photo ${slug} is not in the gallery`);
+  // Only listed photos ship: nothing left over from the removed gallery.
+  // hero-mauve is the home hero (index.html), not a catalogue entry.
+  const listed = new Set([...g.items.map((i) => i.slug), 'hero-mauve']);
+  for (const f of fs.readdirSync(path.join(ROOT, 'img/photos'))) {
+    assert.ok(listed.has(f.replace(/-\d+\.webp$/, '')), `${f} is not a listed photo`);
+  }
   assert.ok(!fs.existsSync(path.join(ROOT, 'photos-inbox')), 'photos-inbox must not be in the site');
-  const html = rendered('index.html') + rendered('zurag.html');
-  assert.ok(!/Pictures_Page|img\/gallery\//.test(html), 'old low-resolution gallery still referenced');
+  assert.ok(!fs.existsSync(path.join(ROOT, 'zurag.html')), 'the gallery page is removed');
+  for (const page of PAGES) {
+    const html = rendered(page);
+    assert.ok(!html.includes('zurag.html') && !html.includes('data-gallery'), `${page} still links the gallery`);
+    assert.ok(!/Pictures_Page|img\/gallery\//.test(html), 'old low-resolution gallery still referenced');
+  }
 });
 
 test('footer: the maker\'s credit is DalaTech\'s wordmark only, labelled, with tracked link', () => {
@@ -326,4 +338,40 @@ test('TARA LUMI: the name toggles its description, which is in the page without 
   assert.ok(html.includes(`<div class="svc-details" id="${btn[1]}">`), 'the button does not control the description');
   const script = fs.readFileSync(path.join(ROOT, 'assets/site.js'), 'utf8');
   assert.ok(script.includes('[data-disclosure]') && script.includes('panel.hidden = true'));
+});
+
+test('team: «Манай үсчид» shows every current hairdresser of both branches with photo, short name, title and branch', () => {
+  const html = rendered('index.html');
+  const team = html.slice(html.indexOf('id="team"'), html.indexOf('</section>', html.indexOf('id="team"')));
+  const yaarmag = ['Oyunaa', 'Badamaa', 'Anand', 'Uyanga', 'Zaya', 'Chimgee', 'Otgonjargal'];
+  const parkod = ['Boloroo', 'Saraa', 'Tomoo', 'Bulgaa', 'Enhuush', 'Chimegee', 'Tuchku'];
+  const names = [...team.matchAll(/<h4 class="team-name">([^<]+)<\/h4>/g)].map((m) => m[1]);
+  assert.deepEqual(names, [...yaarmag, ...parkod]);
+  for (const old of ['Оюунсүрэн', 'Бадамцэцэг', 'Батзаяа', 'Уранчимэг', 'Отгонжаргал', 'Senior Hair Stylist', 'hair salonner', 'стилист']) {
+    assert.ok(!team.includes(old), `team section still says ${old}`);
+  }
+  assert.ok(team.includes('SPECIAL Hair Stylist') && team.includes('Master Hair Stylist') && team.includes('>Hair Stylist<'));
+  for (const m of team.matchAll(/src="(\/img\/stylists\/[^"]+)"/g)) {
+    assert.ok(fs.existsSync(path.join(ROOT, m[1])), `${m[1]} missing`);
+  }
+  for (const m of team.matchAll(/srcset="([^"]+)"/g)) {
+    for (const part of m[1].split(',')) assert.ok(fs.existsSync(path.join(ROOT, part.trim().split(' ')[0])), part);
+  }
+  assert.equal((team.match(/class="team-branch">Парк Од салбар</g) || []).length, 7);
+});
+
+test('photos: no 4K originals ship from the site root', () => {
+  for (const f of ['Boloroo.jpg', 'Saraa.jpg', 'Tomoo.jpg', 'Bulgaa.jpg', 'Enhuush.jpg', 'Chimegee.jpg', 'Tuchku.jpg']) {
+    assert.ok(!fs.existsSync(path.join(ROOT, f)), `${f} is still at the root`);
+  }
+});
+
+test('booking: the men\'s styling printed in the women\'s section is offered under «Эрэгтэй засалт»', () => {
+  const js = fs.readFileSync(path.join(__dirname, '..', 'assets', 'booking.js'), 'utf8');
+  const key = 'Эмэгтэй засалт — Гоёлын засалт /эрэгтэй/';
+  assert.ok(js.includes(`MEN_IN_WOMENS_SECTION = new Set(["${key}"])`));
+  const menu = require('../data/services.json');
+  const women = menu.categories.find((c) => c.id === 'women');
+  assert.ok(women.services.some((s) => s.key === key), 'still on the current price list, in the women\'s section');
+  assert.ok(menu.categories.some((c) => c.id === 'men'));
 });

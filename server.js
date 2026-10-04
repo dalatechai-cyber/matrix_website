@@ -6,10 +6,12 @@ const path = require('path');
 const express = require('express');
 const {
   blockedByMaintenance, isTestToken, isTestRequest, testCookieHeader, maintenancePage, TEST_DEPOSIT_MNT,
+  testRejectedCookieHeader, clearTestRejectedCookieHeader, testLinkRejected,
 } = require('./config/siteMode');
 const webhookRouter = require('./routes/webhooks');
 const qpayRouter = require('./routes/qpay');
 const calendarRouter = require('./routes/calendar');
+const setupRouter = require('./routes/setup');
 const { getCalendarClient } = require('./services/googleCalendar');
 const { PAGES, renderPage } = require('./lib/pages');
 const { publicBranches } = require('./lib/publicBranches');
@@ -25,14 +27,19 @@ app.use(express.json());
  * ?test=<BOOKING_TEST_TOKEN> on any page marks the tester's browser; the
  * token is then dropped from the address bar.
  */
-const RETIRED_PAGES = new Set(['team']);
+// Retired pages: team → the home page's «Манай үсчид»; zurag («Бүтээл», removed
+// 2026-10-04: its photos were Matrix's) → home until Tara's own gallery exists.
+const RETIRED_PAGES = new Set(['team', 'zurag']);
 app.get(['/', '/:page.html'], (req, res, next) => {
   const page = req.params.page || 'index';
-  if (RETIRED_PAGES.has(page)) return res.redirect(301, '/');
+  // The old team page now lives as the home page's «Манай үсчид» section.
+  if (RETIRED_PAGES.has(page)) return res.redirect(301, page === 'team' ? '/#team' : '/');
   if (!PAGES.includes(page)) return next();
 
   if (typeof req.query.test === 'string') {
-    if (isTestToken(req.query.test)) res.setHeader('Set-Cookie', testCookieHeader());
+    res.setHeader('Set-Cookie', isTestToken(req.query.test)
+      ? [testCookieHeader(), clearTestRejectedCookieHeader()]
+      : [testRejectedCookieHeader()]);
     res.setHeader('Cache-Control', 'no-store');
     // Drop only the token; keep e.g. ?branch=yaarmag.
     const rest = new URLSearchParams(req.originalUrl.split('?')[1] || '');
@@ -72,7 +79,7 @@ function pageOrigin(req) {
 app.get('/api/site-mode', (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   const test = isTestRequest(req);
-  return res.json({ test, testDeposit: test ? TEST_DEPOSIT_MNT : null });
+  return res.json({ test, testDeposit: test ? TEST_DEPOSIT_MNT : null, testLinkRejected: testLinkRejected(req) });
 });
 
 /**
@@ -89,6 +96,8 @@ app.get('/api/branches', (_req, res) => {
 app.use('/api/webhooks', webhookRouter);
 app.use('/api/qpay', qpayRouter);
 app.use('/api/calendar', calendarRouter);
+// Preview-only setup check for connecting calendars (404 on Production).
+app.use('/api/setup', setupRouter);
 
 /**
  * GET /api/health

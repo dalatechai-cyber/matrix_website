@@ -1,6 +1,6 @@
 # Service durations and booking availability
 
-Status: implemented, needs the salon to confirm the duration figures.
+Status: implemented; the current list's 62 figures were confirmed by the salon on 2026-10-03.
 Last updated: 2026-09-04.
 
 ## The problem this fixed
@@ -93,21 +93,15 @@ Key decisions, and why:
   `freebusy`, which returns start and end times, so no past event's length is
   ever re-derived from its title.)
 
-## The figures need salon sign-off
+## The figures are confirmed
 
-Two durations came from the salon directly: **Оффис колор ≈ 4h** and
-**хими ≈ 2h**. (Manicure figures were removed with the service in September
-2026.) **Everything else is an engineering estimate** and is flagged
-`"confirm": true` in `data/serviceDurations.json`.
+The salon confirmed the current list's 62 durations on 2026-10-03, exactly as
+estimated (the sheet it answered is in `docs/owner/`). The `"confirm": true`
+flag now remains only on retired entries, kept for old signed callbacks.
 
 This matters commercially: too long and the salon loses bookable slots; too
-short and the original bug comes back in a milder form. Someone at the salon
-should walk the list. Editing the JSON is the whole change — no code, no
-redeploy logic, and the booking UI picks it up on next load.
-
-```bash
-grep '"confirm": true' data/serviceDurations.json   # everything awaiting review
-```
+short and an appointment overruns. If the salon changes a figure later,
+editing the JSON is the whole change; the booking UI picks it up on next load.
 
 ## Verifying
 

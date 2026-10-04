@@ -22,7 +22,10 @@ const axiosStub = {
 
 const Module = require('node:module');
 const originalLoad = Module._load;
+const { createFakeCalendar, googleapisWith } = require('./helpers/fakeCalendar');
+const fakeCal = createFakeCalendar();
 Module._load = function (request, parent, isMain) {
+  if (request === 'googleapis') return googleapisWith(fakeCal);
   if (request === 'axios') {
     return {
       post: async (_url, _body, _opts) => {
@@ -355,7 +358,7 @@ test('create-payment: routes payment to default salon account when staffName is 
   assert.ok(Array.isArray(invoiceCall.body.bank_accounts), 'bank_accounts should be an array');
   assert.equal(invoiceCall.body.bank_accounts[0].account_bank_code, '040000', 'should use default salon bank code 040000');
   assert.equal(invoiceCall.body.bank_accounts[0].account_number, '416055415', 'should use default salon account number');
-  assert.equal(invoiceCall.body.bank_accounts[0].account_name, 'Эрхэмбаатар Оюунсүрэн', 'should use default salon account name');
+  assert.equal(invoiceCall.body.bank_accounts[0].account_name, 'ОЮУНСҮРЭН ЭРХЭМБААТАР', 'should use default salon account name');
   assert.equal(invoiceCall.body.bank_accounts[0].is_default, true);
   delete paymentStatuses['inv_salon_001'];
 });
