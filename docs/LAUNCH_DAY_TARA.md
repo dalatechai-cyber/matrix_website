@@ -222,7 +222,14 @@ back, and the chat stays with Дали. Then answer «Tara perm, урт» → th
 
 ---
 
-## C. Дали — Парк Од (dala-ai, tenant `tara-park-od`) — BLOCKED until you are Page admin
+## C. Дали — Парк Од (dala-ai, tenant `tara-park-od`) — superseded 2026-10-05
+
+**Follow dala-ai `docs/runbooks/park-od-dali-2026-10-05.md` instead of C1–C8 below.** You are
+admin of her Page now (2026-10-05). The runbook starts with this site's switch («Парк Од's online
+booking switch», at the end of this page), then Meta, onboarding, her two provision files, the
+signing, the token, the money, the publish, a test from your phone, and live; every step was
+rehearsed on a local replica. C1–C8 are kept for the record only: they miss her parity file,
+switch her reply cases on too late and do not cover comments.
 
 All of these run on the operator's machine (`SUPABASE_SECRET_PUBLISH`), after
 B2. The full detail is in `docs/tenants/tara-park-od.md`.
