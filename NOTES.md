@@ -47,7 +47,9 @@ log: some of it was true only on the day it was written (for example «nothing g
    Production's log. Make no payment and do not call the QPay callback. Whenever a branch's
    website booking is switched on or off, dala-ai's per-branch setting (D-180) must follow,
    once that setting exists. It does not exist yet, so on Monday nothing changes in dala-ai.
-2. **Part 2: Парк Од's Дали**, as soon as the founder is admin of her Page (dala-ai; section C).
+2. **Part 2: Парк Од's Дали**: the founder is admin of her Page (2026-10-05). Follow dala-ai
+   `docs/runbooks/park-od-dali-2026-10-05.md` (its step A is this site's `PARKOD_BOOKING=on`;
+   her Дали is published only after `/api/branches` shows Парк Од `ready: true`).
 3. **In-chat booking:** test mode first, then live (dala-ai; section D). D-180's per-branch
    setting is built there. Wordings (a) and (b) of the «not available» page are first looked at
    on a deployed page then.
