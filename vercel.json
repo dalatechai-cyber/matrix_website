@@ -23,6 +23,10 @@
       "destination": "/server.mjs"
     },
     {
+      "source": "/(robots.txt|sitemap.xml)",
+      "destination": "/server.mjs"
+    },
+    {
       "source": "/api/qpay/create-payment",
       "destination": "/api/qpay/create-payment.mjs"
     },

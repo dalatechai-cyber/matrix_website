@@ -14,7 +14,9 @@ the feature photos (4:5 WebP crops in `img/photos/`, never upscaled);
 2026-10-04 (its photos were Matrix's; `/zurag.html` forwards home) and returns
 only with Tara's own photos. The Facebook export lives only on branch
 `tara-photos` — never merge it or ship it. The site moves to **tarasalon.org**
-(Namecheap) later: `docs/DOMAIN_MOVE.md`; until then it is matrixecosalon.org.
+(Namecheap) later: `docs/runbooks/TARASALON_PRIMARY.md` (`CANONICAL_HOST`, off
+until set in Vercel: old-host pages 301 to it, `/api/*` never redirected); until then it is
+matrixecosalon.org.
 
 ## Branches: calendars and QPay never cross
 

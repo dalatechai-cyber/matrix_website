@@ -5,6 +5,7 @@ const { STYLIST_CONFIG, personOf, asciiOf } = require('../config/stylists');
 const catalogue = require('../data/serviceDurations.json');
 const { normalizeServiceName, parseServices, totalDurationFor } = require('../config/serviceDurations');
 const { normalizeCustomerGender } = require('./bookingRules');
+const { canonicalOriginFor } = require('../config/canonicalHost');
 
 /**
  * The booking a QPay invoice is for, carried on the invoice's own callback URL.
@@ -153,8 +154,14 @@ function callbackUrlForPayment(baseUrl, body, { agreedAt, amount, test = false }
   });
 }
 
-/** Public origin of this deployment, for callbacks QPay must reach. */
+/**
+ * Public origin of this deployment, for callbacks QPay must reach: the
+ * canonical host when CANONICAL_HOST is set and the request is on a
+ * production host (config/canonicalHost.js), else the request's host.
+ */
 function publicOrigin(req) {
+  const canonical = canonicalOriginFor(req);
+  if (canonical !== null) return canonical;
   const host = (req.headers && (req.headers['x-forwarded-host'] || req.headers.host)) || '';
   if (/^[a-z0-9.-]+(:\d+)?$/i.test(host)) return `https://${host}`;
   return process.env.BASE_URL || null;
