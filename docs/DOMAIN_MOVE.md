@@ -1,5 +1,10 @@
 # Moving to tarasalon.org — plan (not done yet)
 
+**2026-10-09: the switch itself is now `docs/runbooks/TARASALON_PRIMARY.md`** (main address
+`www.tarasalon.org`, `CANONICAL_HOST`, the old domain's pages 301 and its `/api/*` untouched).
+Where this checklist and that runbook differ (apex vs www, `BASE_URL`, how the old domain
+redirects), the runbook wins.
+
 The new domain is **tarasalon.org** (bought at Namecheap; founder, 2026-10-04).
 Not tarasalon.mn. DNS is the founder's step at Namecheap: point the apex and
 `www` at Vercel as the Vercel → Domains screen shows; nothing here changes DNS.

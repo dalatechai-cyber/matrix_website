@@ -15,10 +15,22 @@ const setupRouter = require('./routes/setup');
 const { getCalendarClient } = require('./services/googleCalendar');
 const { PAGES, renderPage } = require('./lib/pages');
 const { publicBranches } = require('./lib/publicBranches');
+const { redirectTarget, canonicalOriginFor } = require('./config/canonicalHost');
 
 const app = express();
 
 app.use(express.json());
+
+// CANONICAL_HOST (config/canonicalHost.js; off unless set): a page opened on
+// the old address answers 301 to the same page on the canonical one. /api/*
+// is never redirected, so callbacks to the old host keep working.
+app.use((req, res, next) => {
+  const target = redirectTarget(req);
+  if (target === null) return next();
+  // Bounded, so a rollback reaches browsers within the hour (an un-headed 301 is cached for ever).
+  res.setHeader('Cache-Control', 'public, max-age=3600');
+  return res.redirect(301, target);
+});
 
 /**
  * The site's pages are served from here, not as static files (vercel.json),
@@ -67,6 +79,8 @@ app.get(['/', '/:page.html'], (req, res, next) => {
 
 /** Public origin for canonical and social-preview links. */
 function pageOrigin(req) {
+  const canonical = canonicalOriginFor(req);
+  if (canonical !== null) return canonical;
   const host = String(req.headers['x-forwarded-host'] || req.headers.host || '');
   if (!/^[a-z0-9.-]+(:\d+)?$/i.test(host)) return process.env.BASE_URL || '';
   const proto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim()
@@ -91,6 +105,21 @@ app.get('/api/site-mode', (req, res) => {
 app.get('/api/branches', (_req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   return res.json({ branches: publicBranches() });
+});
+
+// robots.txt and the sitemap name the public origin (the canonical host when
+// CANONICAL_HOST is set). Served by this function (vercel.json).
+app.get('/robots.txt', (req, res) => {
+  const origin = pageOrigin(req);
+  res.setHeader('Cache-Control', 'public, max-age=3600');
+  return res.type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /api/\n${origin ? `Sitemap: ${origin}/sitemap.xml\n` : ''}`);
+});
+app.get('/sitemap.xml', (req, res) => {
+  const origin = pageOrigin(req);
+  if (!origin) return res.status(404).type('text/plain').send('Not found');
+  const urls = PAGES.map((p) => `  <url><loc>${origin}${p === 'index' ? '/' : `/${p}.html`}</loc></url>`).join('\n');
+  res.setHeader('Cache-Control', 'public, max-age=3600');
+  return res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`);
 });
 
 app.use('/api/webhooks', webhookRouter);
